@@ -115,8 +115,7 @@ export default function Events() {
               modifiersClassNames={{
                 hasEvent: 'relative font-bold text-primary after:content-[""] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:rounded-full after:bg-primary',
               }}
-              classNames={{ root: 'w-full' }}
-              className="rounded-xl w-full [--cell-size:2.75rem] sm:[--cell-size:2.25rem]"
+              className="rounded-xl mx-auto [--cell-size:2.4rem] sm:[--cell-size:2.25rem]"
             />
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 px-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" /> 有活動嘅日子
