@@ -27,6 +27,7 @@ interface AppContextType extends AppState {
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
   updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor'>>) => void;
+  addTeam: (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => Team;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -222,6 +223,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const addTeam = (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => {
+    const team: Team = {
+      id: `t${Date.now()}`,
+      name: data.name,
+      logoUrl: data.logoUrl || `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(data.name)}`,
+      accentColor: data.accentColor || '#84cc16',
+      memberIds: [state.currentUser.id],
+      record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
+      isPro: false,
+    };
+    setState(s => ({
+      ...s,
+      teams: [...s.teams, team],
+      currentUser: { ...s.currentUser, role: { ...s.currentUser.role, [team.id]: 'Owner' } },
+      users: s.users.map(u => u.id === s.currentUser.id ? { ...u, role: { ...u.role, [team.id]: 'Owner' } } : u),
+    }));
+    return team;
+  };
+
   return (
     <AppContext.Provider value={{
       ...state,
@@ -235,7 +255,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cancelPublicMatch,
       addMatchComment,
       updateCurrentUser,
-      updateTeam
+      updateTeam,
+      addTeam
     }}>
       {children}
     </AppContext.Provider>

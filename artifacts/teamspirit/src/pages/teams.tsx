@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { HKMapPicker } from '@/components/hk-map-picker';
 
 export default function Teams() {
-  const { teams, currentUser } = useAppStore();
+  const { teams, currentUser, addTeam } = useAppStore();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -27,6 +27,7 @@ export default function Teams() {
   const handleCreate = () => {
     if (!teamName.trim()) { toast({ title: '請輸入球隊名稱', variant: 'destructive' }); return; }
     if (!district) { toast({ title: '請喺地圖揀主場地區', variant: 'destructive' }); return; }
+    addTeam({ name: teamName.trim(), district, level: parseInt(level || '3', 10) });
     setCreateOpen(false);
     toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
     setTeamName(''); setDistrict(''); setLevel('');

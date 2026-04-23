@@ -1,42 +1,96 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 
+type Region = 'NT' | 'KLN' | 'HKI' | 'ISL';
+type Color = 'red' | 'green' | 'blue' | 'yellow';
+
 export interface HKDistrict {
   id: string;
   name: string;
-  region: 'NT' | 'KLN' | 'HKI' | 'ISL';
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+  region: Region;
+  color: Color;
+  points: string;
+  labelX: number;
+  labelY: number;
+  fontSize?: number;
 }
 
 export const HK_DISTRICTS: HKDistrict[] = [
-  { id: 'north',     name: '北區',   region: 'NT',  x: 360, y: 30,  w: 280, h: 90 },
-  { id: 'tai-po',    name: '大埔',   region: 'NT',  x: 640, y: 70,  w: 240, h: 130 },
-  { id: 'yuen-long', name: '元朗',   region: 'NT',  x: 90,  y: 130, w: 270, h: 110 },
-  { id: 'sha-tin',   name: '沙田',   region: 'NT',  x: 440, y: 200, w: 200, h: 140 },
-  { id: 'tuen-mun',  name: '屯門',   region: 'NT',  x: 50,  y: 240, w: 190, h: 140 },
-  { id: 'sai-kung',  name: '西貢',   region: 'NT',  x: 640, y: 200, w: 240, h: 220 },
-  { id: 'tsuen-wan', name: '荃灣',   region: 'NT',  x: 240, y: 240, w: 200, h: 130 },
-  { id: 'kwai-tsing',name: '葵青',   region: 'NT',  x: 240, y: 370, w: 200, h: 90 },
-  { id: 'ssp',       name: '深水埗', region: 'KLN', x: 270, y: 460, w: 160, h: 80 },
-  { id: 'kc',        name: '九龍城', region: 'KLN', x: 430, y: 460, w: 150, h: 80 },
-  { id: 'wts',       name: '黃大仙', region: 'KLN', x: 580, y: 460, w: 140, h: 80 },
-  { id: 'kt',        name: '觀塘',   region: 'KLN', x: 720, y: 460, w: 160, h: 100 },
-  { id: 'ytm',       name: '油尖旺', region: 'KLN', x: 270, y: 540, w: 310, h: 70 },
-  { id: 'central',   name: '中西區', region: 'HKI', x: 270, y: 640, w: 170, h: 90 },
-  { id: 'wch',       name: '灣仔',   region: 'HKI', x: 440, y: 640, w: 150, h: 90 },
-  { id: 'east',      name: '東區',   region: 'HKI', x: 590, y: 640, w: 230, h: 90 },
-  { id: 'south',     name: '南區',   region: 'HKI', x: 380, y: 730, w: 360, h: 60 },
-  { id: 'islands',   name: '離島',   region: 'ISL', x: 50,  y: 480, w: 200, h: 250 },
+  // 新界 (New Territories)
+  { id: 'north',     name: '北區',   region: 'NT', color: 'blue',
+    points: '380,40 580,30 660,60 690,105 660,140 580,150 470,148 400,125 360,80',
+    labelX: 520, labelY: 95 },
+  { id: 'yuen-long', name: '元朗區', region: 'NT', color: 'green',
+    points: '90,150 280,135 360,170 380,230 320,260 220,265 120,250 70,210',
+    labelX: 230, labelY: 210 },
+  { id: 'tai-po',    name: '大埔區', region: 'NT', color: 'green',
+    points: '660,140 820,155 875,205 865,265 825,295 750,298 690,275 660,215',
+    labelX: 765, labelY: 230 },
+  { id: 'tuen-mun',  name: '屯門區', region: 'NT', color: 'blue',
+    points: '60,260 190,260 215,315 195,385 130,405 55,375 28,315',
+    labelX: 130, labelY: 335 },
+  { id: 'tsuen-wan', name: '荃灣區', region: 'NT', color: 'red',
+    points: '280,270 405,268 428,330 380,378 295,372 245,320',
+    labelX: 335, labelY: 325 },
+  { id: 'sha-tin',   name: '沙田區', region: 'NT', color: 'red',
+    points: '470,210 640,205 668,290 600,360 500,355 442,302 440,245',
+    labelX: 555, labelY: 290 },
+  { id: 'sai-kung',  name: '西貢區', region: 'NT', color: 'green',
+    points: '750,215 890,225 920,305 902,385 878,442 800,462 728,442 680,395 672,320 705,260',
+    labelX: 800, labelY: 345 },
+  { id: 'kwai-tsing',name: '葵青區', region: 'NT', color: 'green',
+    points: '248,378 392,378 402,442 320,462 242,442',
+    labelX: 320, labelY: 420 },
+
+  // 九龍 (Kowloon)
+  { id: 'ssp',  name: '深水埗區', region: 'KLN', color: 'red',
+    points: '302,488 418,488 432,542 372,562 312,556',
+    labelX: 372, labelY: 525, fontSize: 14 },
+  { id: 'kc',   name: '九龍城區', region: 'KLN', color: 'red',
+    points: '432,488 538,488 558,548 472,562 428,542',
+    labelX: 488, labelY: 525, fontSize: 14 },
+  { id: 'wts',  name: '黃大仙區', region: 'KLN', color: 'green',
+    points: '558,472 660,472 688,538 602,548 562,520',
+    labelX: 615, labelY: 510, fontSize: 14 },
+  { id: 'kt',   name: '觀塘區',   region: 'KLN', color: 'yellow',
+    points: '688,488 802,492 832,562 778,602 698,592 672,542',
+    labelX: 745, labelY: 545 },
+  { id: 'ytm',  name: '油尖旺區', region: 'KLN', color: 'red',
+    points: '302,562 482,568 498,618 362,628 292,618',
+    labelX: 395, labelY: 600, fontSize: 14 },
+
+  // 港島 (HK Island)
+  { id: 'central', name: '中西區', region: 'HKI', color: 'red',
+    points: '272,652 412,652 426,702 322,712 272,692',
+    labelX: 348, labelY: 685 },
+  { id: 'wch',     name: '灣仔區', region: 'HKI', color: 'red',
+    points: '426,652 542,652 558,702 462,712 426,696',
+    labelX: 488, labelY: 685 },
+  { id: 'east',    name: '東區',   region: 'HKI', color: 'red',
+    points: '558,652 722,652 748,708 602,718 558,696',
+    labelX: 650, labelY: 685 },
+  { id: 'south',   name: '南區',   region: 'HKI', color: 'green',
+    points: '352,720 702,720 690,778 378,778',
+    labelX: 528, labelY: 755 },
+
+  // 離島 (Islands)
+  { id: 'islands', name: '離島區', region: 'ISL', color: 'green',
+    points: '40,442 232,462 252,582 200,652 90,668 28,582',
+    labelX: 135, labelY: 555 },
 ];
 
-const REGION_COLORS: Record<HKDistrict['region'], { fill: string; stroke: string; label: string }> = {
-  NT:  { fill: 'rgba(132, 204, 22, 0.10)', stroke: 'rgba(132, 204, 22, 0.35)', label: '新界' },
-  KLN: { fill: 'rgba(59, 130, 246, 0.10)', stroke: 'rgba(59, 130, 246, 0.35)', label: '九龍' },
-  HKI: { fill: 'rgba(245, 158, 11, 0.10)', stroke: 'rgba(245, 158, 11, 0.35)', label: '港島' },
-  ISL: { fill: 'rgba(168, 85, 247, 0.10)', stroke: 'rgba(168, 85, 247, 0.35)', label: '離島' },
+const COLOR_MAP: Record<Color, string> = {
+  red:    '#ef4444',
+  green:  '#22c55e',
+  blue:   '#3b82f6',
+  yellow: '#facc15',
+};
+
+const COLOR_DARK: Record<Color, string> = {
+  red:    '#b91c1c',
+  green:  '#15803d',
+  blue:   '#1d4ed8',
+  yellow: '#a16207',
 };
 
 interface HKMapPickerProps {
@@ -49,43 +103,22 @@ export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-3 text-[10px] font-bold tracking-widest uppercase">
-        {(['NT', 'KLN', 'HKI', 'ISL'] as const).map(r => (
-          <div key={r} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: REGION_COLORS[r].fill, border: `1px solid ${REGION_COLORS[r].stroke}` }} />
-            <span className="text-muted-foreground">{REGION_COLORS[r].label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-xl bg-black/40 border border-border p-3">
-        <svg viewBox="0 0 940 800" className="w-full h-auto" style={{ maxHeight: 380 }}>
-          {/* Subtle grid backdrop */}
+      <div className="rounded-2xl bg-[#cfe9ff] border-2 border-[#7ab8e0] p-3 shadow-inner">
+        <svg viewBox="0 0 950 800" className="w-full h-auto" style={{ maxHeight: 420 }}>
+          {/* Sea / background subtle wave */}
           <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+            <pattern id="wave" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 0 20 Q 10 14 20 20 T 40 20" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1" />
             </pattern>
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
           </defs>
-          <rect width="940" height="800" fill="url(#grid)" />
-
-          {/* Region zone halos */}
-          <text x="470" y="22" textAnchor="middle" fill="rgba(132,204,22,0.45)" fontSize="14" fontWeight="700" letterSpacing="6">NEW TERRITORIES</text>
-          <text x="470" y="448" textAnchor="middle" fill="rgba(59,130,246,0.45)" fontSize="14" fontWeight="700" letterSpacing="6">KOWLOON</text>
-          <text x="470" y="630" textAnchor="middle" fill="rgba(245,158,11,0.45)" fontSize="14" fontWeight="700" letterSpacing="6">HONG KONG ISLAND</text>
-          <text x="150" y="475" textAnchor="middle" fill="rgba(168,85,247,0.45)" fontSize="12" fontWeight="700" letterSpacing="4">ISLANDS</text>
+          <rect width="950" height="800" fill="url(#wave)" />
 
           {/* Districts */}
           {HK_DISTRICTS.map(d => {
             const selected = value === d.name;
             const isHover = hover === d.id;
-            const colors = REGION_COLORS[d.region];
+            const base = COLOR_MAP[d.color];
+            const dark = COLOR_DARK[d.color];
             return (
               <g
                 key={d.id}
@@ -94,28 +127,26 @@ export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
                 onMouseLeave={() => setHover(null)}
                 style={{ cursor: 'pointer' }}
               >
-                <rect
-                  x={d.x}
-                  y={d.y}
-                  width={d.w}
-                  height={d.h}
-                  rx={10}
-                  fill={selected ? 'hsl(var(--primary))' : isHover ? colors.stroke : colors.fill}
-                  fillOpacity={selected ? 0.85 : isHover ? 0.5 : 1}
-                  stroke={selected ? 'hsl(var(--primary))' : colors.stroke}
-                  strokeWidth={selected ? 2.5 : 1.5}
-                  filter={selected ? 'url(#glow)' : undefined}
-                  style={{ transition: 'all 0.15s ease' }}
+                <polygon
+                  points={d.points}
+                  fill={selected ? '#84cc16' : isHover ? dark : base}
+                  stroke="#ffffff"
+                  strokeWidth={selected ? 4 : 2.5}
+                  strokeLinejoin="round"
+                  style={{ transition: 'fill 0.15s ease', filter: selected ? 'drop-shadow(0 0 12px rgba(132,204,22,0.7))' : undefined }}
                 />
                 <text
-                  x={d.x + d.w / 2}
-                  y={d.y + d.h / 2 + 6}
+                  x={d.labelX}
+                  y={d.labelY}
                   textAnchor="middle"
-                  fill={selected ? '#000' : '#fff'}
-                  fontSize={Math.min(20, d.w / 4)}
-                  fontWeight="700"
+                  fill="#ffffff"
+                  fontSize={d.fontSize ?? 17}
+                  fontWeight="800"
                   pointerEvents="none"
-                  style={{ userSelect: 'none' }}
+                  style={{ userSelect: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                  paintOrder="stroke"
+                  stroke="rgba(0,0,0,0.35)"
+                  strokeWidth="0.6"
                 >
                   {d.name}
                 </text>
@@ -125,12 +156,14 @@ export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
         </svg>
       </div>
 
-      {value && (
-        <div className="flex items-center gap-2 text-sm bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+      {value ? (
+        <div className="flex items-center gap-2 text-sm bg-primary/10 border border-primary/40 rounded-lg px-3 py-2">
           <MapPin className="w-4 h-4 text-primary" />
           <span className="text-muted-foreground">已揀主場：</span>
           <span className="font-bold text-primary">{value}</span>
         </div>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center">點一下地圖上嘅地區揀你嘅主場</p>
       )}
     </div>
   );
