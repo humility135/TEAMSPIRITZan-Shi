@@ -21,6 +21,7 @@ export default function Teams() {
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [districtOpen, setDistrictOpen] = useState(false);
 
   const filtered = teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -74,22 +75,41 @@ export default function Teams() {
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">創立新球隊</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-4 py-4">
+                <ScrollArea className="flex-1 pr-4" type="always">
+                  <div className="space-y-4 py-4 pb-8">
                     <div className="space-y-2">
                       <Label htmlFor="team-name">球隊名稱</Label>
                       <Input id="team-name" placeholder="例如 東九龍勁旅" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="team-district">主場地區</Label>
-                      <Select>
-                        <SelectTrigger id="team-district">
-                          <SelectValue placeholder="揀地區" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HK_DISTRICTS.map(d => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
+                      <Dialog open={districtOpen} onOpenChange={setDistrictOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between font-normal">
+                            <span className="text-muted-foreground">揀地區</span>
+                            <ArrowRight className="w-4 h-4 opacity-50" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-sm max-h-[80vh] flex flex-col">
+                          <DialogHeader>
+                            <DialogTitle className="font-display uppercase tracking-wider text-2xl">主場地區</DialogTitle>
+                          </DialogHeader>
+                          <ScrollArea className="flex-1 pr-4">
+                            <div className="grid gap-2 py-2 pb-6">
+                              {HK_DISTRICTS.map(d => (
+                                <Button
+                                  key={d}
+                                  variant="ghost"
+                                  className="justify-start"
+                                  onClick={() => { setDistrictOpen(false); toast({ title: `已揀：${d}` }); }}
+                                >
+                                  {d}
+                                </Button>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="team-level">水平 (1-5★)</Label>
