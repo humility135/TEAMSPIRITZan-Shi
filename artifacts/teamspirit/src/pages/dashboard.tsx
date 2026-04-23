@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Users, ArrowRight, Compass } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,44 @@ export default function Dashboard() {
       </header>
 
       <div className="space-y-8">
+
+          {/* My Teams quick access */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-display font-bold uppercase tracking-wide flex items-center gap-2">
+                <Shield className="w-6 h-6 text-primary" /> 我嘅球隊
+              </h2>
+              <Link href="/teams" className="text-sm text-primary font-bold hover:underline uppercase tracking-wider">全部球隊</Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+              {teams.slice(0, 6).map((team, i) => (
+                <motion.div
+                  key={team.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="shrink-0"
+                >
+                  <Link href={`/teams/${team.id}`}>
+                    <Card className="w-36 p-3 border-border bg-card/50 backdrop-blur hover:border-primary/50 transition-colors cursor-pointer group text-center">
+                      <div className="w-16 h-16 mx-auto rounded-xl bg-black overflow-hidden relative mb-3">
+                        <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl" />
+                      </div>
+                      <div className="font-bold text-sm leading-tight truncate">{team.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{team.memberIds.length} 人</div>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))}
+              <Link href="/teams" className="shrink-0">
+                <Card className="w-36 h-full min-h-[148px] p-3 border-dashed border-border bg-card/20 hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer flex flex-col items-center justify-center text-muted-foreground hover:text-primary">
+                  <Plus className="w-8 h-8 mb-2" />
+                  <div className="text-xs font-bold tracking-wider uppercase">新增球隊</div>
+                </Card>
+              </Link>
+            </div>
+          </div>
 
           {/* Hosted matches inline */}
           {myHostedMatches.length > 0 && (
