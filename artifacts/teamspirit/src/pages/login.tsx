@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+const GOOGLE_CLIENT_ID = "123456789-dummy-client-id.apps.googleusercontent.com"; // Should be in env
 
 export default function Login() {
   const [, setLoc] = useLocation();
@@ -51,9 +54,28 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setErr(null);
+    setLoading(true);
+    try {
+      await api('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
+      await qc.invalidateQueries();
+      setLoc('/dashboard');
+    } catch (e: any) {
+      if (e instanceof ApiError) setErr(e.body?.error ?? 'Google 登入失敗');
+      else setErr(e?.message ?? 'Google 登入失敗');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <Card className="w-full max-w-md bg-zinc-900 border-zinc-800">
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
+        <Card className="w-full max-w-md bg-zinc-900 border-zinc-800">
         <CardHeader>
           <CardTitle className="text-2xl">TEAMSPIRIT</CardTitle>
           <CardDescription>
@@ -97,6 +119,25 @@ export default function Login() {
               <p className="text-xs text-zinc-500 text-center">
                 示範模式：驗證碼固定為 123456
               </p>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-zinc-800" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-zinc-900 px-2 text-zinc-500">或者</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setErr('Google 登入發生錯誤')}
+                  theme="filled_black"
+                  shape="rectangular"
+                  text="continue_with"
+                />
+              </div>
             </>
           ) : (
             <>
@@ -137,5 +178,6 @@ export default function Login() {
         </CardContent>
       </Card>
     </div>
+    </GoogleOAuthProvider>
   );
 }
