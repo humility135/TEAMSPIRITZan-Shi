@@ -73,7 +73,7 @@ export const mockPublicMatches: PublicMatch[] = [
     attendees: ['u1', 'u2', 'u3', 'guest1', 'guest2', 'guest3', 'guest4', 'guest5', 'guest6', 'guest7', 'guest8'],
     description: '休閒踢，不計較輸贏，志在流汗。',
     rules: '自備一淺一深波衫，不准粗口，友誼第一。',
-    refundPolicy: 'full',
+    refundPolicy: 'half',
     status: 'open',
     createdAt: new Date().toISOString(),
     isVerified: true

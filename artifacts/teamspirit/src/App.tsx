@@ -18,6 +18,7 @@ import Teams from "@/pages/teams";
 import Events from "@/pages/events";
 import PublicMatchDetail from "@/pages/public-match-detail";
 import HostMatch from "@/pages/host-match";
+import Terms from "@/pages/terms";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/events/:eventId" component={EventDetail} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/profile" component={Profile} />
+        <Route path="/terms" component={Terms} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -25,7 +25,7 @@ const hostSchema = z.object({
   fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
   description: z.string().min(10, '描述太短'),
   rules: z.string().min(5, '請填寫規則'),
-  refundPolicy: z.enum(['full', 'half', 'auto']),
+  refundPolicy: z.enum(['half', 'auto']),
   disclaimerAck: z.literal(true, { errorMap: () => ({ message: '請先確認免責聲明' }) }),
 }).refine(d => d.endTime > d.startTime, { message: '完結時間要喺開始之後', path: ['endTime'] });
 
@@ -48,7 +48,7 @@ export default function HostMatch() {
       fee: '',
       description: '',
       rules: '',
-      refundPolicy: 'full',
+      refundPolicy: 'half',
       disclaimerAck: false as unknown as true,
     }
   });
@@ -105,6 +105,25 @@ export default function HostMatch() {
 
               <FormField
                 control={form.control}
+                name="surface"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>場地類型</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="hard">硬地 (Hard)</SelectItem>
+                        <SelectItem value="turf">仿真草 (Turf)</SelectItem>
+                        <SelectItem value="grass">真草 (Grass)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="date"
                 render={({ field }) => (
                   <FormItem>
@@ -139,25 +158,6 @@ export default function HostMatch() {
                   )}
                 />
               </div>
-
-              <FormField
-                control={form.control}
-                name="surface"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>場地類型</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="hard">硬地 (Hard)</SelectItem>
-                        <SelectItem value="turf">仿真草 (Turf)</SelectItem>
-                        <SelectItem value="grass">真草 (Grass)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <div className="grid md:grid-cols-3 gap-6">
                 <FormField

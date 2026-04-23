@@ -78,13 +78,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           })}
         </nav>
 
-        <div className="p-6 border-t border-border">
+        <div className="p-6 border-t border-border space-y-3">
           <Link href="/pricing" className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 hover:border-primary/50 transition-colors">
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground font-bold tracking-wider uppercase">永久免費</span>
               <span className="text-base font-display text-primary">升級 Pro <span className="text-sm text-muted-foreground">$48/月</span></span>
             </div>
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">睇詳情</Badge>
+          </Link>
+          <Link href="/terms" className="block text-xs text-muted-foreground hover:text-primary transition-colors text-center tracking-wider uppercase">
+            免責聲明 / Terms
           </Link>
         </div>
       </div>

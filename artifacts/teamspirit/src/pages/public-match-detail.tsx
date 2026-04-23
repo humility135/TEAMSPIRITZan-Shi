@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
@@ -16,6 +16,12 @@ export default function PublicMatchDetail() {
   const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentAck, setPaymentAck] = useState(false);
+
+  const openPaymentDialog = () => {
+    setPaymentAck(false);
+    setShowPaymentDialog(true);
+  };
   
   const matchId = params?.matchId;
   const match = publicMatches.find(m => m.id === matchId);
@@ -230,7 +236,7 @@ export default function PublicMatchDetail() {
             ) : (
               <Button 
                 className="w-full font-bold uppercase tracking-wider h-14 text-lg animate-pulse hover:animate-none" 
-                onClick={() => setShowPaymentDialog(true)}
+                onClick={openPaymentDialog}
               >
                 我要報名
               </Button>
@@ -270,9 +276,31 @@ export default function PublicMatchDetail() {
             </div>
           </div>
 
+          {refundOpt && (
+            <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl text-xs space-y-1">
+              <div className="font-bold text-primary">退款政策：{refundOpt.label}</div>
+              <p className="text-muted-foreground leading-relaxed">{refundOpt.description}</p>
+            </div>
+          )}
+
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl text-xs space-y-2 leading-relaxed">
+            <div className="flex items-center gap-2 font-bold text-amber-200">
+              <ShieldAlert className="w-4 h-4" /> 報名前請睇清楚
+            </div>
+            <ul className="space-y-1 list-disc list-inside text-amber-100/90">
+              <li>TEAMSPIRIT 只係撮合及代收款平台，並非主辦方。場地安全、人身意外、保險由搞手同參加者自行承擔。</li>
+              <li>足球活動有受傷風險，自願參加，建議自備保險。</li>
+              <li>如果搞手要求私下過數（FPS / 現金）而唔係經平台付款，平台無法保障亦唔負責任何金錢糾紛。</li>
+            </ul>
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <input type="checkbox" checked={paymentAck} onChange={e => setPaymentAck(e.target.checked)} className="w-4 h-4 accent-primary" />
+              <span>我已閱讀並同意以上條款及<Link href="/terms" className="underline hover:text-amber-50">完整免責聲明</Link></span>
+            </label>
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isProcessing}>取消</Button>
-            <Button onClick={handleJoin} disabled={isProcessing} className="font-bold">
+            <Button onClick={handleJoin} disabled={isProcessing || !paymentAck} className="font-bold">
               {isProcessing ? "處理中..." : "確認付款並報名"}
             </Button>
           </DialogFooter>

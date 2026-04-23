@@ -11,8 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Role, RefundPolicyKind, SurfaceType } from '@/lib/types';
-import { REFUND_POLICY_OPTIONS } from '@/lib/types';
+import type { Role, SurfaceType } from '@/lib/types';
 import { ShieldAlert } from 'lucide-react';
 
 const ACCENT_COLORS = ['#84cc16', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#10b981'];
@@ -44,13 +43,12 @@ export default function TeamDetail() {
   const [evCap, setEvCap] = useState('');
   const [evDesc, setEvDesc] = useState('');
   const [evRules, setEvRules] = useState('');
-  const [evRefund, setEvRefund] = useState<RefundPolicyKind>('full');
   const [evAck, setEvAck] = useState(false);
 
   const resetEventForm = () => {
     setEvTitle(''); setEvDate(''); setEvStart(''); setEvEnd(''); setEvAddress('');
     setEvSurface('hard'); setEvSkill(3); setEvFee(''); setEvCap('');
-    setEvDesc(''); setEvRules(''); setEvRefund('full'); setEvAck(false);
+    setEvDesc(''); setEvRules(''); setEvAck(false);
   };
 
   if (!team) return <div className="p-8 text-center">Team not found</div>;
@@ -139,7 +137,6 @@ export default function TeamDetail() {
       capacity: evCap.trim() === '' ? null : Number(evCap),
       description: evDesc.trim(),
       rules: evRules.trim(),
-      refundPolicy: evRefund,
     });
     setCreateEventOpen(false);
     resetEventForm();
@@ -413,26 +410,14 @@ export default function TeamDetail() {
                       <Label htmlFor="ev-rules">特別規則</Label>
                       <textarea id="ev-rules" value={evRules} onChange={e => setEvRules(e.target.value)} rows={2} placeholder="例如：自備一淺一深波衫、守門員免費。" className="w-full rounded-md bg-background border border-input px-3 py-2 text-sm" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>退款政策</Label>
-                      <Select value={evRefund} onValueChange={(v) => setEvRefund(v as RefundPolicyKind)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {REFUND_POLICY_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label} · {opt.short}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground">{REFUND_POLICY_OPTIONS.find(o => o.value === evRefund)?.description}</p>
-                    </div>
                   </div>
 
                   <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl space-y-2 text-xs leading-relaxed">
                     <div className="flex items-center gap-2 font-bold text-amber-200">
                       <ShieldAlert className="w-4 h-4" /> 免責聲明
                     </div>
-                    <p>TEAMSPIRIT 只係撮合工具同代收款服務，並非主辦方。場地安全、保險、人身意外責任由搞手同隊員自行承擔。</p>
-                    <p>退款金額由平台代收嘅報名費直接退返畀隊員，<span className="font-bold">唔會由你倒貼</span>。但你已支付嘅場租等費用要自己處理。</p>
+                    <p>TEAMSPIRIT 只提供活動編排同 RSVP 工具，並非主辦方。場地安全、保險、人身意外責任由搞手同隊員自行承擔。</p>
+                    <p>球隊內部活動嘅收費同退款由你哋自己處理（例如班費、現金、FPS）。<span className="font-bold">如果冇用平台付款方式，任何金錢糾紛同平台無關。</span></p>
                     <label className="flex items-center gap-2 pt-1 cursor-pointer">
                       <input type="checkbox" checked={evAck} onChange={e => setEvAck(e.target.checked)} className="w-4 h-4 accent-primary" />
                       <span>我已閱讀並同意以上條款</span>

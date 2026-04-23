@@ -52,7 +52,7 @@ interface AppContextType extends AppState {
   leaveTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
-  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string; refundPolicy?: import('./types').RefundPolicyKind }) => Event;
+  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Event;
   getRole: (teamId: string) => Role | undefined;
 }
 
@@ -337,7 +337,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       capacity: data.capacity,
       description: data.description,
       rules: data.rules,
-      refundPolicy: data.refundPolicy,
       status: 'scheduled',
       attendingIds: [state.currentUser.id],
       declinedIds: [],
