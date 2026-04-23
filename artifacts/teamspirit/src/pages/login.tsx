@@ -42,7 +42,7 @@ export default function Login() {
         body: JSON.stringify({ phone, code, name: name.trim() || undefined }),
       });
       await qc.invalidateQueries();
-      setLoc('/');
+      setLoc('/dashboard');
     } catch (e: any) {
       if (e instanceof ApiError) setErr(e.body?.error ?? '驗證失敗');
       else setErr(e?.message ?? '驗證失敗');
