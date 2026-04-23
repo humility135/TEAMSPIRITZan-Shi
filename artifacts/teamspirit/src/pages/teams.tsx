@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Plus, UserPlus, Users, ArrowRight, Search, Shield, MapPin } from 'lucide-react';
+import { Plus, UserPlus, Users, ArrowRight, Search, Shield, MapPin, Camera, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,14 +28,24 @@ export default function Teams() {
   const [teamName, setTeamName] = useState('');
   const [district, setDistrict] = useState<string>('');
   const [level, setLevel] = useState<string>('3');
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = () => {
     if (!teamName.trim()) { toast({ title: '請輸入球隊名稱', variant: 'destructive' }); return; }
     if (!district) { toast({ title: '請揀主場地區', variant: 'destructive' }); return; }
-    addTeam({ name: teamName.trim(), district, level: parseInt(level, 10) });
+    addTeam({ name: teamName.trim(), district, level: parseInt(level, 10), logoUrl: logoPreview || undefined });
     setCreateOpen(false);
     toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
-    setTeamName(''); setDistrict(''); setLevel('3');
+    setTeamName(''); setDistrict(''); setLevel('3'); setLogoPreview('');
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
@@ -91,6 +101,31 @@ export default function Teams() {
                   <DialogDescription>填寫基本資料，創立後你會自動成為 Owner。</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>球隊 Logo</Label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-black ring-1 ring-border shrink-0 flex items-center justify-center">
+                        {logoPreview ? (
+                          <img src={logoPreview} alt="logo preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Preview</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>
+                          <Camera className="w-4 h-4 mr-2" />
+                          上傳 Logo
+                        </Button>
+                        {logoPreview && (
+                          <Button type="button" variant="ghost" onClick={() => setLogoPreview('')}>
+                            <X className="w-4 h-4 mr-2" />
+                            移除
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="team-name">球隊名稱</Label>
                     <Input id="team-name" value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="例如 東九龍勁旅" />
