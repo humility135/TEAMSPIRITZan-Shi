@@ -67,24 +67,35 @@ export default function PublicMatchDetail() {
   const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      joinPublicMatch(match.id);
-      setIsProcessing(false);
+    try {
+      await joinPublicMatch(match.id);
       setShowPaymentDialog(false);
       toast.success("報名成功！");
-    }, 1500);
+    } catch (e) {
+      toast.error("報名失敗，請稍後再試");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleJoinWaitlist = () => {
-    joinPublicMatch(match.id);
-    toast.success("已加入候補名單，有人放飛機會即時通知你");
+  const handleJoinWaitlist = async () => {
+    try {
+      await joinPublicMatch(match.id);
+      toast.success("已加入候補名單，有人放飛機會即時通知你");
+    } catch (e) {
+      toast.error("加入候補失敗，請稍後再試");
+    }
   };
 
-  const handleLeave = () => {
-    leavePublicMatch(match.id);
-    toast.info(isAttending ? "已取消報名。" : "已退出候補。");
+  const handleLeave = async () => {
+    try {
+      await leavePublicMatch(match.id);
+      toast.info(isAttending ? "已取消報名。" : "已退出候補。");
+    } catch (e) {
+      toast.error("操作失敗，請稍後再試");
+    }
   };
 
   const handleAcceptOffer = async () => {

@@ -279,11 +279,11 @@ function FullScreenCalendar({
 
                 {/* Event chips - hide title on mobile, show on sm+ */}
                 <div className="space-y-0.5">
-                  {events.slice(0, 2).map((e, idx) => {
+                  {events.slice(0, 2).map((e) => {
                     const isPublic = e.kind === 'public';
                     return (
                       <div
-                        key={idx}
+                        key={e.item.id}
                         className={`hidden sm:block truncate text-[10px] leading-tight px-1 py-0.5 rounded ${
                           isPublic
                             ? 'bg-primary/25 text-primary border-l-2 border-primary'

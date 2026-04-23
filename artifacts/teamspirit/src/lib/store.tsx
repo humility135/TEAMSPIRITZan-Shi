@@ -74,6 +74,36 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const POLL_MS = 30_000;
 
+const hydrateEvent = (e: any): Event => ({
+  ...e,
+  datetime: typeof e.datetime === 'string' ? e.datetime : new Date(e.datetime).toISOString(),
+  endDatetime: e.endDatetime ? (typeof e.endDatetime === 'string' ? e.endDatetime : new Date(e.endDatetime).toISOString()) : undefined,
+  attendingIds: e.attendingIds ?? [],
+  declinedIds: e.declinedIds ?? [],
+  waitlistIds: e.waitlistIds ?? [],
+  slotOffers: e.slotOffers ?? [],
+  playerStats: e.playerStats ?? [],
+});
+
+const hydrateMatch = (m: any): PublicMatch => ({
+  ...m,
+  datetime: typeof m.datetime === 'string' ? m.datetime : new Date(m.datetime).toISOString(),
+  endDatetime: m.endDatetime ? (typeof m.endDatetime === 'string' ? m.endDatetime : new Date(m.endDatetime).toISOString()) : undefined,
+  attendees: m.attendees ?? [],
+  waitlistIds: m.waitlistIds ?? [],
+  slotOffers: m.slotOffers ?? [],
+});
+
+const hydrateNotif = (n: any): Notification => ({
+  ...n,
+  createdAt: typeof n.createdAt === 'string' ? n.createdAt : new Date(n.createdAt).toISOString(),
+});
+
+const hydrateComment = (c: any): MatchComment => ({
+  ...c,
+  createdAt: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
+});
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const qc = useQueryClient();
   const [, setLoc] = useLocation();
@@ -90,11 +120,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const teamsQ = useQuery({ queryKey: ['teams'], queryFn: () => api<Team[]>('/teams'), enabled });
   const teamMembersQ = useQuery({ queryKey: ['teamMembers'], queryFn: () => api<TeamMemberRow[]>('/team-members'), enabled });
   const venuesQ = useQuery({ queryKey: ['venues'], queryFn: () => api<Venue[]>('/venues'), enabled });
-  const eventsQ = useQuery({ queryKey: ['events'], queryFn: () => api<any[]>('/events'), enabled, refetchInterval: POLL_MS });
-  const matchesQ = useQuery({ queryKey: ['publicMatches'], queryFn: () => api<any[]>('/public-matches'), enabled, refetchInterval: POLL_MS });
+  const eventsQ = useQuery({ queryKey: ['events'], queryFn: () => api<any[]>('/events'), enabled, refetchInterval: POLL_MS, select: (data) => data.map(hydrateEvent) });
+  const matchesQ = useQuery({ queryKey: ['publicMatches'], queryFn: () => api<any[]>('/public-matches'), enabled, refetchInterval: POLL_MS, select: (data) => data.map(hydrateMatch) });
   const hostsQ = useQuery({ queryKey: ['hostProfiles'], queryFn: () => api<HostProfile[]>('/host-profiles'), enabled });
-  const commentsQ = useQuery({ queryKey: ['matchComments'], queryFn: () => api<MatchComment[]>('/match-comments'), enabled });
-  const notifsQ = useQuery({ queryKey: ['notifications'], queryFn: () => api<Notification[]>('/notifications'), enabled, refetchInterval: POLL_MS });
+  const commentsQ = useQuery({ queryKey: ['matchComments'], queryFn: () => api<MatchComment[]>('/match-comments'), enabled, select: (data) => data.map(hydrateComment) });
+  const notifsQ = useQuery({ queryKey: ['notifications'], queryFn: () => api<Notification[]>('/notifications'), enabled, refetchInterval: POLL_MS, select: (data) => data.map(hydrateNotif) });
 
   // 401 → redirect to /login
   useEffect(() => {
@@ -114,43 +144,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const users = (usersQ.data ?? []).map(hydrateUser);
     const me = users.find(u => u.id === meQ.data!.id) ?? hydrateUser(meQ.data);
 
-    const hydrateEvent = (e: any): Event => ({
-      ...e,
-      datetime: typeof e.datetime === 'string' ? e.datetime : new Date(e.datetime).toISOString(),
-      endDatetime: e.endDatetime ? (typeof e.endDatetime === 'string' ? e.endDatetime : new Date(e.endDatetime).toISOString()) : undefined,
-      attendingIds: e.attendingIds ?? [],
-      declinedIds: e.declinedIds ?? [],
-      waitlistIds: e.waitlistIds ?? [],
-      slotOffers: e.slotOffers ?? [],
-      playerStats: e.playerStats ?? [],
-    });
-    const hydrateMatch = (m: any): PublicMatch => ({
-      ...m,
-      datetime: typeof m.datetime === 'string' ? m.datetime : new Date(m.datetime).toISOString(),
-      endDatetime: m.endDatetime ? (typeof m.endDatetime === 'string' ? m.endDatetime : new Date(m.endDatetime).toISOString()) : undefined,
-      attendees: m.attendees ?? [],
-      waitlistIds: m.waitlistIds ?? [],
-      slotOffers: m.slotOffers ?? [],
-    });
-    const hydrateNotif = (n: any): Notification => ({
-      ...n,
-      createdAt: typeof n.createdAt === 'string' ? n.createdAt : new Date(n.createdAt).toISOString(),
-    });
-    const hydrateComment = (c: any): MatchComment => ({
-      ...c,
-      createdAt: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
-    });
-
     return {
       currentUser: me,
       users,
       teams: teamsQ.data ?? [],
-      events: (eventsQ.data ?? []).map(hydrateEvent),
+      events: eventsQ.data ?? [],
       venues: venuesQ.data ?? [],
-      notifications: (notifsQ.data ?? []).map(hydrateNotif),
-      publicMatches: (matchesQ.data ?? []).map(hydrateMatch),
+      notifications: notifsQ.data ?? [],
+      publicMatches: matchesQ.data ?? [],
       hostProfiles: hostsQ.data ?? [],
-      matchComments: (commentsQ.data ?? []).map(hydrateComment),
+      matchComments: commentsQ.data ?? [],
       isProMode: me.subscription === 'pro',
     };
   }, [meQ.data, usersQ.data, teamsQ.data, teamMembersQ.data, venuesQ.data, eventsQ.data, matchesQ.data, hostsQ.data, commentsQ.data, notifsQ.data]);
@@ -168,23 +171,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state?.isProMode]);
 
   // Mutation helpers
-  const inv = (keys: string[]) => keys.forEach(k => qc.invalidateQueries({ queryKey: [k] }));
+  const inv = useCallback((keys: string[]) => keys.forEach(k => qc.invalidateQueries({ queryKey: [k] })), [qc]);
 
   const toggleProMode = useCallback(async () => {
     await api('/me/pro-toggle', { method: 'POST' });
     inv(['me', 'users']);
-  }, []);
+  }, [inv]);
 
   const updateEventRSVP = useCallback(async (eventId: string, status: 'attending' | 'declined' | 'none') => {
     await api(`/events/${eventId}/rsvp`, { method: 'PUT', body: JSON.stringify({ status }) });
     inv(['events', 'notifications']);
-  }, []);
+  }, [inv]);
 
   const acceptEventSlot = useCallback(async (eventId: string, offerId: string) => {
     const r = await api<{ needPayment: boolean }>(`/events/${eventId}/slot-offers/${offerId}/accept`, { method: 'POST' });
     inv(['events', 'notifications']);
     return r;
-  }, []);
+  }, [inv]);
 
   const payEventSlot = useCallback(async (eventId: string, offerId: string) => {
     try {
@@ -194,18 +197,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       return { ok: false, reason: err?.body?.reason ?? 'error' };
     }
-  }, []);
+  }, [inv]);
 
   const declineEventSlot = useCallback(async (eventId: string, offerId: string) => {
     await api(`/events/${eventId}/slot-offers/${offerId}/decline`, { method: 'POST' });
     inv(['events', 'notifications']);
-  }, []);
+  }, [inv]);
 
   const acceptMatchSlot = useCallback(async (matchId: string, offerId: string) => {
     const r = await api<{ needPayment: boolean }>(`/public-matches/${matchId}/slot-offers/${offerId}/accept`, { method: 'POST' });
     inv(['publicMatches', 'notifications']);
     return r;
-  }, []);
+  }, [inv]);
 
   const payMatchSlot = useCallback(async (matchId: string, offerId: string) => {
     try {
@@ -215,85 +218,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       return { ok: false, reason: err?.body?.reason ?? 'error' };
     }
-  }, []);
+  }, [inv]);
 
   const declineMatchSlot = useCallback(async (matchId: string, offerId: string) => {
     await api(`/public-matches/${matchId}/slot-offers/${offerId}/decline`, { method: 'POST' });
     inv(['publicMatches', 'notifications']);
-  }, []);
+  }, [inv]);
 
   const updateMatchStats = useCallback(async (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => {
     await api(`/events/${eventId}/stats`, { method: 'PATCH', body: JSON.stringify({ userId, field, delta }) });
     inv(['events']);
-  }, []);
+  }, [inv]);
 
   const markNotificationRead = useCallback(async (id: string) => {
     await api(`/notifications/${id}/read`, { method: 'POST' });
     inv(['notifications']);
-  }, []);
+  }, [inv]);
 
   const joinPublicMatch = useCallback(async (matchId: string) => {
     await api(`/public-matches/${matchId}/join`, { method: 'POST' });
     inv(['publicMatches', 'notifications']);
-  }, []);
+  }, [inv]);
 
   const leavePublicMatch = useCallback(async (matchId: string) => {
     await api(`/public-matches/${matchId}/leave`, { method: 'POST' });
     inv(['publicMatches', 'notifications']);
-  }, []);
+  }, [inv]);
 
   const createPublicMatch = useCallback(async (matchData: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => {
     const created = await api<PublicMatch>('/public-matches', { method: 'POST', body: JSON.stringify(matchData) });
     inv(['publicMatches']);
     return created;
-  }, []);
+  }, [inv]);
 
   const cancelPublicMatch = useCallback(async (matchId: string) => {
     await api(`/public-matches/${matchId}/cancel`, { method: 'POST' });
     inv(['publicMatches']);
-  }, []);
+  }, [inv]);
 
   const addMatchComment = useCallback(async (matchId: string, text: string) => {
     await api(`/public-matches/${matchId}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
     inv(['matchComments']);
-  }, []);
+  }, [inv]);
 
   const updateCurrentUser = useCallback(async (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => {
     await api('/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
     inv(['me', 'users']);
-  }, []);
+  }, [inv]);
 
   const updateTeam = useCallback(async (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => {
     await api(`/teams/${teamId}`, { method: 'PATCH', body: JSON.stringify(patch) });
     inv(['teams']);
-  }, []);
+  }, [inv]);
 
   const addTeam = useCallback(async (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => {
     const team = await api<Team>('/teams', { method: 'POST', body: JSON.stringify(data) });
     inv(['teams', 'teamMembers']);
     return team;
-  }, []);
+  }, [inv]);
 
   const leaveTeam = useCallback(async (teamId: string) => {
     await api(`/teams/${teamId}/leave`, { method: 'POST' });
     inv(['teams', 'teamMembers']);
-  }, []);
+  }, [inv]);
 
   const removeMember = useCallback(async (teamId: string, userId: string) => {
     await api(`/teams/${teamId}/members/${userId}`, { method: 'DELETE' });
     inv(['teams', 'teamMembers']);
-  }, []);
+  }, [inv]);
 
   const setMemberRole = useCallback(async (teamId: string, userId: string, role: Role) => {
     await api(`/teams/${teamId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) });
     inv(['teamMembers']);
-  }, []);
+  }, [inv]);
 
   const createEvent = useCallback(async (data: any) => {
     const ev = await api<Event>('/events', { method: 'POST', body: JSON.stringify(data) });
     inv(['events']);
     return ev;
-  }, []);
+  }, [inv]);
 
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' });
