@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useAppStore, getTeamStats, getAggregatedStats } from '@/lib/store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
@@ -11,11 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Star, ShieldCheck, Camera, Pencil, Radar as RadarIcon } from 'lucide-react';
+import { Star, ShieldCheck, Camera, Pencil, Radar as RadarIcon, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
-  const { currentUser, teams, isProMode, hostProfiles, updateCurrentUser } = useAppStore();
+  const [, setLocation] = useLocation();
+  const { currentUser, teams, isProMode, hostProfiles, updateCurrentUser, logout } = useAppStore();
   const { toast } = useToast();
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
   const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
@@ -86,6 +87,22 @@ export default function Profile() {
               <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-tight">{currentUser.name}</h1>
               <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary">
                 <Pencil className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={async () => {
+                  try {
+                    await logout();
+                    setLocation('/login');
+                  } catch (e) {
+                    toast({ title: '登出失敗', variant: 'destructive' });
+                  }
+                }} 
+                className="text-destructive border-destructive hover:bg-destructive/10 ml-auto md:ml-4"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                登出
               </Button>
             </div>
             <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
