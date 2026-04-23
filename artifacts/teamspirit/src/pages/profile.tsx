@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'wouter';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, getTeamStats, getAggregatedStats } from '@/lib/store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +15,14 @@ import { Star, ShieldCheck, Camera, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
-  const { currentUser, isProMode, hostProfiles, updateCurrentUser } = useAppStore();
+  const { currentUser, teams, isProMode, hostProfiles, updateCurrentUser } = useAppStore();
   const { toast } = useToast();
-  const stats = currentUser.seasonStats;
+  const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+  const stats = selectedTeamId === 'all'
+    ? getAggregatedStats(currentUser)
+    : getTeamStats(currentUser, selectedTeamId);
+  const selectedTeam = myTeams.find(t => t.id === selectedTeamId);
   const hostProfile = hostProfiles.find(p => p.userId === currentUser.id);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -140,10 +145,40 @@ export default function Profile() {
           <TabsTrigger value="host" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">Host 紀錄</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stats" className="mt-8">
+        <TabsContent value="stats" className="mt-8 space-y-6">
+          {myTeams.length > 0 && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mr-1">球隊</span>
+              <button
+                onClick={() => setSelectedTeamId('all')}
+                className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider transition-colors ${
+                  selectedTeamId === 'all' ? 'bg-primary text-primary-foreground' : 'bg-black/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                所有球隊
+              </button>
+              {myTeams.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTeamId(t.id)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wider transition-colors flex items-center gap-2 ${
+                    selectedTeamId === t.id ? 'bg-primary text-primary-foreground' : 'bg-black/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ background: t.accentColor }} />
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="p-8 border-border bg-card/50 backdrop-blur">
-              <h2 className="text-2xl font-display font-bold uppercase tracking-wide mb-8">Career Stats</h2>
+              <div className="flex items-baseline justify-between mb-8 gap-3 flex-wrap">
+                <h2 className="text-2xl font-display font-bold uppercase tracking-wide">Career Stats</h2>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {selectedTeamId === 'all' ? `所有球隊（${myTeams.length}）` : selectedTeam?.name}
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-1">
                   <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">Matches</div>

@@ -20,8 +20,10 @@ export interface User {
   role: Record<string, Role>; // teamId -> Role
   tokensBalance: number;
   subscription: SubscriptionStatus;
-  seasonStats: SeasonStats;
+  seasonStatsByTeam: Record<string, SeasonStats>;
 }
+
+export const EMPTY_SEASON_STATS: SeasonStats = { goals: 0, assists: 0, attendance: 0, yellow: 0, red: 0, matches: 0 };
 
 export interface TeamRecord {
   w: number;

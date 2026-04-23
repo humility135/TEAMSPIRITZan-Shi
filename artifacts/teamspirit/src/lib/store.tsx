@@ -1,6 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment, Role } from './types';
+import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment, Role, SeasonStats, EMPTY_SEASON_STATS } from './types';
 import { mockUsers, mockTeams, mockEvents, mockVenues, mockNotifications, mockPublicMatches, mockHostProfiles, mockMatchComments } from './mockData';
+
+export function getTeamStats(user: User, teamId: string): SeasonStats {
+  return user.seasonStatsByTeam?.[teamId] ?? EMPTY_SEASON_STATS;
+}
+
+export function getAggregatedStats(user: User): SeasonStats {
+  const teams = Object.values(user.seasonStatsByTeam ?? {});
+  if (teams.length === 0) return EMPTY_SEASON_STATS;
+  const sum = teams.reduce(
+    (a, s) => ({
+      goals: a.goals + s.goals,
+      assists: a.assists + s.assists,
+      yellow: a.yellow + s.yellow,
+      red: a.red + s.red,
+      matches: a.matches + s.matches,
+      attendance: a.attendance + s.attendance,
+    }),
+    { goals: 0, assists: 0, yellow: 0, red: 0, matches: 0, attendance: 0 }
+  );
+  return { ...sum, attendance: Math.round(sum.attendance / teams.length) };
+}
 
 interface AppState {
   currentUser: User;

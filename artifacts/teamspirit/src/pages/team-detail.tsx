@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, getTeamStats } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -428,7 +428,7 @@ export default function TeamDetail() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-display font-bold">{u?.seasonStats?.goals || 0} <span className="text-sm text-muted-foreground">G</span></div>
+                      <div className="text-xl font-display font-bold">{u ? getTeamStats(u, team.id).goals : 0} <span className="text-sm text-muted-foreground">G</span></div>
                     </div>
                   </div>
                 );
@@ -446,7 +446,7 @@ export default function TeamDetail() {
               {team.memberIds
                 .map(id => users.find(u => u.id === id))
                 .filter(Boolean)
-                .sort((a: any, b: any) => (b.seasonStats?.goals || 0) - (a.seasonStats?.goals || 0))
+                .sort((a: any, b: any) => getTeamStats(b, team.id).goals - getTeamStats(a, team.id).goals)
                 .slice(0, 3)
                 .map((u: any, i) => (
                   <div key={u.id} className="flex items-center justify-between">
@@ -455,7 +455,7 @@ export default function TeamDetail() {
                       <Avatar className="w-8 h-8"><AvatarImage src={u.avatarUrl} /></Avatar>
                       <span className="font-bold">{u.name}</span>
                     </div>
-                    <div className="font-display text-xl">{u.seasonStats?.goals || 0}</div>
+                    <div className="font-display text-xl">{getTeamStats(u, team.id).goals}</div>
                   </div>
                 ))}
             </div>

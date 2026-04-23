@@ -2,13 +2,14 @@ import React from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, getAggregatedStats } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
   const { currentUser, teams, events, venues, publicMatches } = useAppStore();
+  const aggStats = getAggregatedStats(currentUser);
 
   const upcomingEvents = events.filter(e => e.status === 'scheduled');
   
@@ -31,11 +32,13 @@ export default function Dashboard() {
         <div className="flex gap-4">
           <Card className="px-6 py-4 border-border bg-card/50 backdrop-blur text-center">
             <div className="text-sm text-muted-foreground font-bold tracking-wider uppercase mb-1">本季入球</div>
-            <div className="text-3xl font-display font-bold text-primary">{currentUser.seasonStats.goals}</div>
+            <div className="text-3xl font-display font-bold text-primary">{aggStats.goals}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 tracking-wider">所有球隊</div>
           </Card>
           <Card className="px-6 py-4 border-border bg-card/50 backdrop-blur text-center">
-            <div className="text-sm text-muted-foreground font-bold tracking-wider uppercase mb-1">出席率</div>
-            <div className="text-3xl font-display font-bold text-white">{currentUser.seasonStats.attendance}%</div>
+            <div className="text-sm text-muted-foreground font-bold tracking-wider uppercase mb-1">平均出席率</div>
+            <div className="text-3xl font-display font-bold text-white">{aggStats.attendance}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 tracking-wider">所有球隊</div>
           </Card>
         </div>
       </header>

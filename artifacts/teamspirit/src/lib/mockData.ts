@@ -8,7 +8,10 @@ export const mockUsers: User[] = [
     role: { 't1': 'Owner', 't2': 'Member' },
     tokensBalance: 40,
     subscription: 'pro',
-    seasonStats: { goals: 12, assists: 8, attendance: 85, yellow: 2, red: 0, matches: 20 }
+    seasonStatsByTeam: {
+      t1: { goals: 8, assists: 5, attendance: 88, yellow: 1, red: 0, matches: 12 },
+      t2: { goals: 4, assists: 3, attendance: 80, yellow: 1, red: 0, matches: 8 }
+    }
   },
   {
     id: 'u2',
@@ -17,7 +20,9 @@ export const mockUsers: User[] = [
     role: { 't1': 'Admin' },
     tokensBalance: 10,
     subscription: 'free',
-    seasonStats: { goals: 2, assists: 15, attendance: 90, yellow: 1, red: 0, matches: 22 }
+    seasonStatsByTeam: {
+      t1: { goals: 2, assists: 15, attendance: 90, yellow: 1, red: 0, matches: 22 }
+    }
   },
   {
     id: 'u3',
@@ -26,7 +31,9 @@ export const mockUsers: User[] = [
     role: { 't1': 'Member' },
     tokensBalance: 0,
     subscription: 'free',
-    seasonStats: { goals: 5, assists: 2, attendance: 60, yellow: 4, red: 1, matches: 15 }
+    seasonStatsByTeam: {
+      t1: { goals: 5, assists: 2, attendance: 60, yellow: 4, red: 1, matches: 15 }
+    }
   }
 ];
 
