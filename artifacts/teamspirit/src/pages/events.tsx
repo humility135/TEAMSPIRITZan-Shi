@@ -241,7 +241,7 @@ function FullScreenCalendar({
         </div>
 
         {/* Day grid: 6 weeks. Each row min-height responsive */}
-        <div className="grid grid-cols-7 grid-rows-6 auto-rows-fr">
+        <div className="grid grid-cols-7">
           {grid.map((d, i) => {
             const inMonth = d.getMonth() === month;
             const isToday = sameDay(d, today);
