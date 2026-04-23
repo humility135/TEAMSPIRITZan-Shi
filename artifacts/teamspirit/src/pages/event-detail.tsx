@@ -56,16 +56,16 @@ export default function EventDetail() {
     if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
   };
 
-  const handleAcceptOffer = () => {
+  const handleAcceptOffer = async () => {
     if (!myOffer) return;
-    const { needPayment } = acceptEventSlot(event.id, myOffer.id);
+    const { needPayment } = await acceptEventSlot(event.id, myOffer.id);
     if (needPayment) setPayOfferId(myOffer.id);
     else toast.success('已自動補上！');
   };
 
-  const handlePayOffer = () => {
+  const handlePayOffer = async () => {
     if (!payOfferId) return;
-    const r = payEventSlot(event.id, payOfferId);
+    const r = await payEventSlot(event.id, payOfferId);
     setPayOfferId(null);
     if (r.ok) toast.success('付款成功，已正式補上');
     else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
@@ -73,9 +73,9 @@ export default function EventDetail() {
     else toast.error('付款失敗，請再試');
   };
 
-  const handleDeclineOffer = () => {
+  const handleDeclineOffer = async () => {
     if (!myOffer) return;
-    declineEventSlot(event.id, myOffer.id);
+    await declineEventSlot(event.id, myOffer.id);
     toast.info('已放棄此次補位');
   };
 

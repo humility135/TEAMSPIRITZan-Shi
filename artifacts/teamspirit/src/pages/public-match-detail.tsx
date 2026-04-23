@@ -87,9 +87,9 @@ export default function PublicMatchDetail() {
     toast.info(isAttending ? "已取消報名。" : "已退出候補。");
   };
 
-  const handleAcceptOffer = () => {
+  const handleAcceptOffer = async () => {
     if (!myOffer) return;
-    const { needPayment } = acceptMatchSlot(match.id, myOffer.id);
+    const { needPayment } = await acceptMatchSlot(match.id, myOffer.id);
     if (needPayment) {
       setSlotAck(false);
       setSlotPayOpen(true);
@@ -98,9 +98,9 @@ export default function PublicMatchDetail() {
     }
   };
 
-  const handlePaySlot = () => {
+  const handlePaySlot = async () => {
     if (!myOffer) return;
-    const r = payMatchSlot(match.id, myOffer.id);
+    const r = await payMatchSlot(match.id, myOffer.id);
     setSlotPayOpen(false);
     if (r.ok) toast.success("付款成功，已正式補上！");
     else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
@@ -108,9 +108,9 @@ export default function PublicMatchDetail() {
     else toast.error('付款失敗，請再試');
   };
 
-  const handleDeclineOffer = () => {
+  const handleDeclineOffer = async () => {
     if (!myOffer) return;
-    declineMatchSlot(match.id, myOffer.id);
+    await declineMatchSlot(match.id, myOffer.id);
     toast.info("已放棄此次補位");
   };
 
