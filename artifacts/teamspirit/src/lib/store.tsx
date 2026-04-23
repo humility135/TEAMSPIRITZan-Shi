@@ -31,7 +31,7 @@ interface AppContextType extends AppState {
   leaveTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
-  createEvent: (data: { teamId: string; title: string; datetime: string; venueId: string; fee: number; capacity: number }) => Event;
+  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime?: string; venueAddress: string; fee: number; capacity: number | null }) => Event;
   getRole: (teamId: string) => Role | undefined;
 }
 
@@ -103,15 +103,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           let declinedIds = e.declinedIds.filter(id => id !== s.currentUser.id);
           let waitlistIds = e.waitlistIds.filter(id => id !== s.currentUser.id);
 
+          const cap = e.capacity;
           if (status === 'attending') {
-            if (attendingIds.length < e.capacity) attendingIds.push(s.currentUser.id);
+            if (cap === null || attendingIds.length < cap) attendingIds.push(s.currentUser.id);
             else waitlistIds.push(s.currentUser.id);
           }
           if (status === 'declined') declinedIds.push(s.currentUser.id);
           if (status === 'waitlist') waitlistIds.push(s.currentUser.id);
 
           // Auto-promote first waitlisted player when an attending slot opens
-          if (wasAttending && status !== 'attending' && waitlistIds.length > 0 && attendingIds.length < e.capacity) {
+          if (wasAttending && status !== 'attending' && waitlistIds.length > 0 && (cap === null || attendingIds.length < cap)) {
             const promoted = waitlistIds.shift()!;
             attendingIds.push(promoted);
           }
@@ -299,13 +300,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const createEvent = (data: { teamId: string; title: string; datetime: string; venueId: string; fee: number; capacity: number }) => {
+  const createEvent = (data: { teamId: string; title: string; datetime: string; endDatetime?: string; venueAddress: string; fee: number; capacity: number | null }) => {
     const ev: Event = {
       id: `e${Date.now()}`,
       teamId: data.teamId,
       title: data.title,
       datetime: data.datetime,
-      venueId: data.venueId,
+      endDatetime: data.endDatetime,
+      venueAddress: data.venueAddress,
       fee: data.fee,
       capacity: data.capacity,
       status: 'scheduled',

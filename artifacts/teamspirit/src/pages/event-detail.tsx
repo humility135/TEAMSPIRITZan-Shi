@@ -14,7 +14,7 @@ export default function EventDetail() {
   
   const event = events.find(e => e.id === params?.eventId);
   const venue = venues.find(v => v.id === event?.venueId);
-  
+
   useEffect(() => {
     let timer: any;
     if (claimTimeLeft !== null && claimTimeLeft > 0) {
@@ -23,7 +23,7 @@ export default function EventDetail() {
     return () => clearInterval(timer);
   }, [claimTimeLeft]);
 
-  if (!event || !venue) return <div>Event not found</div>;
+  if (!event) return <div>Event not found</div>;
 
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
@@ -31,7 +31,11 @@ export default function EventDetail() {
 
   const isToday = new Date(event.datetime).toDateString() === new Date().toDateString();
   const isFinished = event.status === 'finished';
-  const isFull = event.attendingIds.length >= event.capacity;
+  const hasCap = event.capacity != null;
+  const isFull = hasCap && event.attendingIds.length >= (event.capacity as number);
+  const venueName = venue?.name ?? event.venueAddress ?? '—';
+  const venueAddress = venue?.address ?? event.venueAddress ?? '';
+  const mapsQuery = venue ? `${venue.lat},${venue.lng}` : encodeURIComponent(event.venueAddress ?? '');
 
   const handleRSVP = (status: 'attending' | 'declined' | 'waitlist') => {
     updateEventRSVP(event.id, status);
@@ -51,7 +55,7 @@ export default function EventDetail() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       {/* Header Card */}
       <Card className="overflow-hidden border-border bg-card/50 backdrop-blur relative">
-        {venue.weather.lightningWarning && (
+        {venue?.weather.lightningWarning && (
           <div className="absolute top-0 inset-x-0 h-1 bg-yellow-500 animate-pulse" />
         )}
         <div className="p-8 md:p-12 flex flex-col md:flex-row gap-8">
@@ -61,7 +65,9 @@ export default function EventDetail() {
             </div>
             <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">{event.title}</h1>
             <div className="flex items-center gap-3 text-sm">
-              <span className="flex items-center gap-1 text-muted-foreground"><span className="font-bold text-white">{event.attendingIds.length}</span>/{event.capacity} 人</span>
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <span className="font-bold text-white">{event.attendingIds.length}</span>{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="ml-1 text-[10px] tracking-widest uppercase text-primary">無上限</span>}
+              </span>
               {isFull && <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 text-[10px] font-bold tracking-widest uppercase border border-yellow-500/40">已滿額</span>}
             </div>
 
@@ -70,41 +76,46 @@ export default function EventDetail() {
                 <Clock className="w-5 h-5 text-primary" />
                 <span className="text-lg">
                   {new Date(event.datetime).toLocaleDateString('zh-HK')} · {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  {event.endDatetime && ` – ${new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-primary" />
                 <div className="flex-1">
-                  <div className="text-lg text-white">{venue.name}</div>
-                  <div className="text-sm">{venue.address}</div>
+                  <div className="text-lg text-white">{venueName}</div>
+                  {venueAddress && venueAddress !== venueName && <div className="text-sm">{venueAddress}</div>}
                 </div>
-                <Button variant="outline" size="sm" className="ml-auto bg-white/5 uppercase tracking-wider font-bold text-xs" onClick={() => window.open(`https://maps.google.com/?q=${venue.lat},${venue.lng}`)}>
-                  導航
-                </Button>
+                {mapsQuery && (
+                  <Button variant="outline" size="sm" className="ml-auto bg-white/5 uppercase tracking-wider font-bold text-xs" onClick={() => window.open(`https://maps.google.com/?q=${mapsQuery}`)}>
+                    導航
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold">$</div>
-                <span className="text-lg font-display text-white">${event.fee}</span>
+                <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee}` : '免費'}</span>
               </div>
             </div>
           </div>
 
-          {/* Weather Widget */}
-          <div className="md:w-64 shrink-0">
-            <div className={`rounded-2xl p-6 border ${venue.weather.lightningWarning ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-white/5 border-white/10 text-white'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm font-bold tracking-wider uppercase">天文台預測</div>
-                {venue.weather.lightningWarning ? <CloudLightning className="w-6 h-6 animate-pulse" /> : <div className="text-2xl">🌤</div>}
-              </div>
-              <div className="text-4xl font-display font-bold mb-1">{venue.weather.temp}°C</div>
-              <div className="text-sm opacity-80">{venue.weather.condition}</div>
-              {venue.weather.lightningWarning && (
-                <div className="mt-4 text-xs font-bold flex items-start gap-2">
-                  <ShieldAlert className="w-4 h-4 shrink-0" /> 雷暴警告現正生效
+          {/* Weather Widget — only when venue is in our database */}
+          {venue && (
+            <div className="md:w-64 shrink-0">
+              <div className={`rounded-2xl p-6 border ${venue.weather.lightningWarning ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-white/5 border-white/10 text-white'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm font-bold tracking-wider uppercase">天文台預測</div>
+                  {venue.weather.lightningWarning ? <CloudLightning className="w-6 h-6 animate-pulse" /> : <div className="text-2xl">🌤</div>}
                 </div>
-              )}
+                <div className="text-4xl font-display font-bold mb-1">{venue.weather.temp}°C</div>
+                <div className="text-sm opacity-80">{venue.weather.condition}</div>
+                {venue.weather.lightningWarning && (
+                  <div className="mt-4 text-xs font-bold flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 shrink-0" /> 雷暴警告現正生效
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Action Bar */}
@@ -218,7 +229,7 @@ export default function EventDetail() {
         <div className={`grid gap-8 ${event.waitlistIds.length > 0 ? 'md:grid-cols-2' : ''}`}>
           <div className="space-y-4">
             <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between">
-              出席名單 <span className="text-primary">{event.attendingIds.length}/{event.capacity}</span>
+              出席名單 <span className="text-primary">{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}</span>
             </h3>
             <Card className="border-border bg-card/50 backdrop-blur p-4">
               {event.attendingIds.length === 0 ? (

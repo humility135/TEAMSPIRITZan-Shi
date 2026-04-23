@@ -115,9 +115,11 @@ export interface Event {
   teamId: string;
   title: string;
   datetime: string;
-  venueId: string;
+  endDatetime?: string;
+  venueId?: string;
+  venueAddress?: string;
   fee: number;
-  capacity: number;
+  capacity: number | null;
   status: EventStatus;
   attendingIds: string[];
   declinedIds: string[];

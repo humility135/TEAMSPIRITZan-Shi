@@ -33,10 +33,11 @@ export default function TeamDetail() {
   // create event form state
   const [evTitle, setEvTitle] = useState('');
   const [evDate, setEvDate] = useState('');
-  const [evTime, setEvTime] = useState('');
-  const [evVenue, setEvVenue] = useState('');
-  const [evFee, setEvFee] = useState('50');
-  const [evCap, setEvCap] = useState('14');
+  const [evStart, setEvStart] = useState('');
+  const [evEnd, setEvEnd] = useState('');
+  const [evAddress, setEvAddress] = useState('');
+  const [evFee, setEvFee] = useState('');
+  const [evCap, setEvCap] = useState('');
 
   if (!team) return <div className="p-8 text-center">Team not found</div>;
 
@@ -98,19 +99,24 @@ export default function TeamDetail() {
 
   const handleCreateEvent = () => {
     if (!evTitle.trim()) { toast({ title: '請輸入活動名稱', variant: 'destructive' }); return; }
-    if (!evDate || !evTime) { toast({ title: '請選擇日期同時間', variant: 'destructive' }); return; }
-    if (!evVenue) { toast({ title: '請揀場地', variant: 'destructive' }); return; }
-    const datetime = new Date(`${evDate}T${evTime}`).toISOString();
+    if (!evDate || !evStart || !evEnd) { toast({ title: '請填妥日期、開始同完結時間', variant: 'destructive' }); return; }
+    if (!evAddress.trim()) { toast({ title: '請輸入場地地址', variant: 'destructive' }); return; }
+    const datetime = new Date(`${evDate}T${evStart}`).toISOString();
+    const endDatetime = new Date(`${evDate}T${evEnd}`).toISOString();
+    if (new Date(endDatetime).getTime() <= new Date(datetime).getTime()) {
+      toast({ title: '完結時間要喺開始之後', variant: 'destructive' }); return;
+    }
     createEvent({
       teamId: team.id,
       title: evTitle.trim(),
       datetime,
-      venueId: evVenue,
-      fee: parseInt(evFee || '0', 10),
-      capacity: parseInt(evCap || '14', 10),
+      endDatetime,
+      venueAddress: evAddress.trim(),
+      fee: evFee.trim() === '' ? 0 : parseInt(evFee, 10) || 0,
+      capacity: evCap.trim() === '' ? null : Math.max(1, parseInt(evCap, 10) || 0),
     });
     setCreateEventOpen(false);
-    setEvTitle(''); setEvDate(''); setEvTime(''); setEvVenue(''); setEvFee('50'); setEvCap('14');
+    setEvTitle(''); setEvDate(''); setEvStart(''); setEvEnd(''); setEvAddress(''); setEvFee(''); setEvCap('');
     toast({ title: '活動已發起', description: evTitle });
   };
 
@@ -314,35 +320,32 @@ export default function TeamDetail() {
                     <Label htmlFor="ev-title">活動名稱</Label>
                     <Input id="ev-title" value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="例如 友誼賽 vs 紅磡聯" />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ev-date">日期</Label>
+                    <Input id="ev-date" type="date" value={evDate} onChange={e => setEvDate(e.target.value)} />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="ev-date">日期</Label>
-                      <Input id="ev-date" type="date" value={evDate} onChange={e => setEvDate(e.target.value)} />
+                      <Label htmlFor="ev-start">開始時間</Label>
+                      <Input id="ev-start" type="time" value={evStart} onChange={e => setEvStart(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ev-time">時間</Label>
-                      <Input id="ev-time" type="time" value={evTime} onChange={e => setEvTime(e.target.value)} />
+                      <Label htmlFor="ev-end">完結時間</Label>
+                      <Input id="ev-end" type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ev-venue">場地</Label>
-                    <Select value={evVenue} onValueChange={setEvVenue}>
-                      <SelectTrigger id="ev-venue"><SelectValue placeholder="揀場地" /></SelectTrigger>
-                      <SelectContent>
-                        {venues.map(v => (
-                          <SelectItem key={v.id} value={v.id}>{v.name}（{v.district}）</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="ev-address">場地地址</Label>
+                    <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 摩士公園3號場、九龍黃大仙鳳德道" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="ev-fee">費用 ($)</Label>
-                      <Input id="ev-fee" type="number" min={0} value={evFee} onChange={e => setEvFee(e.target.value)} />
+                      <Label htmlFor="ev-fee">費用 ($) <span className="text-muted-foreground font-normal">— 可留空</span></Label>
+                      <Input id="ev-fee" type="number" min={0} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="0" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ev-cap">人數上限</Label>
-                      <Input id="ev-cap" type="number" min={4} max={30} value={evCap} onChange={e => setEvCap(e.target.value)} />
+                      <Label htmlFor="ev-cap">人數上限 <span className="text-muted-foreground font-normal">— 留空 = 無上限</span></Label>
+                      <Input id="ev-cap" type="number" min={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="無上限" />
                     </div>
                   </div>
                 </div>
@@ -447,19 +450,24 @@ function Stat({ label, value, accent }: { label: string; value: React.ReactNode;
 
 function EventRow({ event, venues, past }: { event: any; venues: any[]; past?: boolean }) {
   const venue = venues.find(v => v.id === event.venueId);
-  const isFull = event.attendingIds.length >= event.capacity;
+  const venueLabel = venue?.name ?? event.venueAddress ?? '—';
+  const hasCap = event.capacity != null;
+  const isFull = hasCap && event.attendingIds.length >= event.capacity;
   return (
     <Link href={`/events/${event.id}`}>
       <Card className={`p-4 border-border hover:border-primary/50 transition-colors cursor-pointer flex items-center gap-4 ${past ? 'bg-card/30' : 'bg-card/50'}`}>
         <div className="w-16 text-center shrink-0">
           <div className="text-xs text-primary font-bold tracking-wider uppercase">{new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}</div>
           <div className="text-lg font-display font-bold">{new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+          {event.endDatetime && (
+            <div className="text-[10px] text-muted-foreground">至 {new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{event.title}</div>
           <div className="text-xs text-muted-foreground flex items-center gap-3 mt-1 flex-wrap">
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{venue?.name}</span>
-            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.attendingIds.length}/{event.capacity}</span>
+            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{venueLabel}</span>
+            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}</span>
             {event.fee > 0 && <span>${event.fee}/人</span>}
             {!past && isFull && <Badge variant="outline" className="border-yellow-500 text-yellow-500 text-[10px]">已滿</Badge>}
           </div>

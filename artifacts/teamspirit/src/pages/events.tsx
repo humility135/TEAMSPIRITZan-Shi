@@ -335,6 +335,8 @@ function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
 function TeamEventRow({ event }: { event: any }) {
   const { teams, venues, currentUser } = useAppStore();
   const venue = venues.find(v => v.id === event.venueId);
+  const venueLabel = venue?.name ?? event.venueAddress ?? '—';
+  const hasCap = event.capacity != null;
   const team = teams.find(t => t.id === event.teamId);
   const rsvp = event.attendingIds.includes(currentUser.id)
     ? 'attending'
@@ -366,8 +368,8 @@ function TeamEventRow({ event }: { event: any }) {
             </div>
             <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venue?.name}</span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length} 人</span>
+              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venueLabel}</span>
+              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人</span>
               {event.fee > 0 && <span>${event.fee}/人</span>}
             </div>
           </div>
