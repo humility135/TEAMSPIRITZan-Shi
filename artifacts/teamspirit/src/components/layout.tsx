@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, Shield, Calendar, User as UserIcon, Bell } from 'lucide-react';
+import { Home, Compass, Shield, Calendar, User as UserIcon, Bell } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,6 +17,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const navItems = [
     { href: '/dashboard', label: '主頁', icon: Home },
+    { href: '/discover', label: '公開場', icon: Compass },
     { href: '/teams/t1', label: '球隊', icon: Shield },
     { href: '/events/e1', label: '活動', icon: Calendar },
     { href: '/profile', label: '檔案', icon: UserIcon },
@@ -67,7 +68,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map(item => {
             const Icon = item.icon;
-            const isActive = location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href);
+            const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href));
             return (
               <Link key={item.href} href={item.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}>
                 <Icon className="w-5 h-5" />
@@ -94,15 +95,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </main>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 bg-background/90 backdrop-blur-xl border-t border-border pb-safe z-50">
-        <nav className="flex items-center justify-around p-2">
+      <div className="md:hidden fixed bottom-0 inset-x-0 bg-background/90 backdrop-blur-xl border-t border-border pb-safe z-50 overflow-x-auto no-scrollbar">
+        <nav className="flex items-center justify-around p-2 min-w-max sm:min-w-full">
           {navItems.map(item => {
             const Icon = item.icon;
-            const isActive = location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href);
+            const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href));
             return (
               <Link key={item.href} href={item.href} className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                 <Icon className={`w-6 h-6 mb-1 ${isActive ? 'scale-110' : ''}`} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
               </Link>
             );
           })}

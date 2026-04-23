@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Team, Event, Venue, Notification } from './types';
-import { mockUsers, mockTeams, mockEvents, mockVenues, mockNotifications } from './mockData';
+import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment } from './types';
+import { mockUsers, mockTeams, mockEvents, mockVenues, mockNotifications, mockPublicMatches, mockHostProfiles, mockMatchComments } from './mockData';
 
 interface AppState {
   currentUser: User;
+  users: User[];
   teams: Team[];
   events: Event[];
   venues: Venue[];
   notifications: Notification[];
+  publicMatches: PublicMatch[];
+  hostProfiles: HostProfile[];
+  matchComments: MatchComment[];
   isProMode: boolean;
 }
 
@@ -16,6 +20,11 @@ interface AppContextType extends AppState {
   updateEventRSVP: (eventId: string, status: 'attending' | 'declined' | 'waitlist' | 'none') => void;
   updateMatchStats: (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => void;
   markNotificationRead: (id: string) => void;
+  joinPublicMatch: (matchId: string) => void;
+  leavePublicMatch: (matchId: string) => void;
+  createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => void;
+  cancelPublicMatch: (matchId: string) => void;
+  addMatchComment: (matchId: string, text: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,17 +34,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('teamspirit_state');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          users: parsed.users || mockUsers,
+          publicMatches: parsed.publicMatches || mockPublicMatches,
+          hostProfiles: parsed.hostProfiles || mockHostProfiles,
+          matchComments: parsed.matchComments || mockMatchComments,
+        };
       } catch (e) {
         console.error('Failed to parse state', e);
       }
     }
     return {
       currentUser: mockUsers[0],
+      users: mockUsers,
       teams: mockTeams,
       events: mockEvents,
       venues: mockVenues,
       notifications: mockNotifications,
+      publicMatches: mockPublicMatches,
+      hostProfiles: mockHostProfiles,
+      matchComments: mockMatchComments,
       isProMode: mockUsers[0].subscription === 'pro'
     };
   });
@@ -112,13 +132,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const joinPublicMatch = (matchId: string) => {
+    setState(s => {
+      const matches = s.publicMatches.map(m => {
+        if (m.id === matchId && !m.attendees.includes(s.currentUser.id) && m.attendees.length < m.maxPlayers) {
+          const newAttendees = [...m.attendees, s.currentUser.id];
+          return {
+            ...m,
+            attendees: newAttendees,
+            status: newAttendees.length >= m.maxPlayers ? 'full' : m.status
+          };
+        }
+        return m;
+      });
+      return { ...s, publicMatches: matches };
+    });
+  };
+
+  const leavePublicMatch = (matchId: string) => {
+    setState(s => {
+      const matches = s.publicMatches.map(m => {
+        if (m.id === matchId) {
+          const newAttendees = m.attendees.filter(id => id !== s.currentUser.id);
+          return {
+            ...m,
+            attendees: newAttendees,
+            status: m.status === 'full' ? 'open' : m.status
+          };
+        }
+        return m;
+      });
+      return { ...s, publicMatches: matches };
+    });
+  };
+
+  const createPublicMatch = (matchData: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => {
+    setState(s => {
+      const newMatch: PublicMatch = {
+        ...matchData,
+        id: `pm${Date.now()}`,
+        hostId: s.currentUser.id,
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        attendees: [s.currentUser.id]
+      };
+      return { ...s, publicMatches: [...s.publicMatches, newMatch] };
+    });
+  };
+
+  const cancelPublicMatch = (matchId: string) => {
+    setState(s => {
+      const matches = s.publicMatches.map(m => {
+        if (m.id === matchId && m.hostId === s.currentUser.id) {
+          return { ...m, status: 'cancelled' as const };
+        }
+        return m;
+      });
+      return { ...s, publicMatches: matches };
+    });
+  };
+
+  const addMatchComment = (matchId: string, text: string) => {
+    setState(s => {
+      const newComment: MatchComment = {
+        id: `c${Date.now()}`,
+        matchId,
+        userId: s.currentUser.id,
+        text,
+        createdAt: new Date().toISOString()
+      };
+      return { ...s, matchComments: [...s.matchComments, newComment] };
+    });
+  };
+
   return (
     <AppContext.Provider value={{
       ...state,
       toggleProMode,
       updateEventRSVP,
       updateMatchStats,
-      markNotificationRead
+      markNotificationRead,
+      joinPublicMatch,
+      leavePublicMatch,
+      createPublicMatch,
+      cancelPublicMatch,
+      addMatchComment
     }}>
       {children}
     </AppContext.Provider>

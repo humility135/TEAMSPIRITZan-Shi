@@ -66,6 +66,47 @@ export interface PlayerStat {
   red: number;
 }
 
+export interface PublicMatch {
+  id: string;
+  hostId: string;
+  venueId: string;
+  datetime: string;
+  fee: number;
+  surface: SurfaceType;
+  skillLevel: number;
+  maxPlayers: number;
+  attendees: string[];
+  description: string;
+  rules: string;
+  refundPolicy: string;
+  status: 'open' | 'full' | 'cancelled' | 'finished';
+  createdAt: string;
+  isVerified?: boolean;
+}
+
+export interface HostReview {
+  reviewerId: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
+export interface HostProfile {
+  userId: string;
+  hostedCount: number;
+  punctualityRate: number;
+  averageRating: number;
+  reviews: HostReview[];
+}
+
+export interface MatchComment {
+  id: string;
+  matchId: string;
+  userId: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Event {
   id: string;
   teamId: string;

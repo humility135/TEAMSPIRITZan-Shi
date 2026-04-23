@@ -1,4 +1,4 @@
-import { User, Team, Venue, Event, Notification } from './types';
+import { User, Team, Venue, Event, Notification, PublicMatch, HostProfile, MatchComment } from './types';
 
 export const mockUsers: User[] = [
   {
@@ -28,6 +28,85 @@ export const mockUsers: User[] = [
     subscription: 'free',
     seasonStats: { goals: 5, assists: 2, attendance: 60, yellow: 4, red: 1, matches: 15 }
   }
+];
+
+export const mockHostProfiles: HostProfile[] = [
+  {
+    userId: 'u1',
+    hostedCount: 12,
+    punctualityRate: 98,
+    averageRating: 4.8,
+    reviews: [
+      { reviewerId: 'u2', rating: 5, comment: '好場，準時開波！', date: '2023-10-01' },
+      { reviewerId: 'u3', rating: 4, comment: '搞手幾好人。', date: '2023-09-15' }
+    ]
+  },
+  {
+    userId: 'u2',
+    hostedCount: 3,
+    punctualityRate: 100,
+    averageRating: 5.0,
+    reviews: [
+      { reviewerId: 'u1', rating: 5, comment: 'Nice', date: '2023-10-05' }
+    ]
+  }
+];
+
+export const mockPublicMatches: PublicMatch[] = [
+  {
+    id: 'pm1',
+    hostId: 'u1',
+    venueId: 'v1',
+    datetime: new Date(Date.now() + 86400000 * 1.5).toISOString(),
+    fee: 60,
+    surface: 'hard',
+    skillLevel: 3,
+    maxPlayers: 14,
+    attendees: ['u1', 'u2', 'u3', 'guest1', 'guest2', 'guest3', 'guest4', 'guest5', 'guest6', 'guest7', 'guest8'],
+    description: '休閒踢，不計較輸贏，志在流汗。',
+    rules: '自備一淺一深波衫，不准粗口，友誼第一。',
+    refundPolicy: '開波前 24 小時可全額退款。',
+    status: 'open',
+    createdAt: new Date().toISOString(),
+    isVerified: true
+  },
+  {
+    id: 'pm2',
+    hostId: 'u2',
+    venueId: 'v2',
+    datetime: new Date(Date.now() + 3600000 * 3).toISOString(),
+    fee: 80,
+    surface: 'turf',
+    skillLevel: 4,
+    maxPlayers: 10,
+    attendees: ['u2', 'guest1', 'guest2', 'guest3', 'guest4', 'guest5', 'guest6', 'guest7', 'guest8'],
+    description: '認真踢，有球證。',
+    rules: '守門員免費，早15分鐘到場熱身。',
+    refundPolicy: '不設退款。',
+    status: 'open',
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: 'pm3',
+    hostId: 'u3',
+    venueId: 'v3',
+    datetime: new Date(Date.now() + 86400000 * 5).toISOString(),
+    fee: 50,
+    surface: 'hard',
+    skillLevel: 2,
+    maxPlayers: 14,
+    attendees: ['u3'],
+    description: '新手場，歡迎任何人。',
+    rules: '開心足球。',
+    refundPolicy: '開波前 12 小時可全額退款。',
+    status: 'open',
+    createdAt: new Date(Date.now() - 3600000).toISOString()
+  }
+];
+
+export const mockMatchComments: MatchComment[] = [
+  { id: 'c1', matchId: 'pm1', userId: 'u2', text: '請問仲有冇守門員位?', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
+  { id: 'c2', matchId: 'pm1', userId: 'u1', text: '有，你可以直接報名！', createdAt: new Date(Date.now() - 3600000).toISOString() }
 ];
 
 export const mockTeams: Team[] = [

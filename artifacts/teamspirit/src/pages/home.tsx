@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Shield, Zap, Target, ArrowRight, Check } from 'lucide-react';
+import { Shield, Zap, Target, ArrowRight, Check, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -45,6 +45,54 @@ export default function Home() {
               </Link>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Feature: Discover Public Matches */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="bg-gradient-to-r from-primary/20 via-background to-background border border-primary/20 rounded-3xl p-8 md:p-16 flex flex-col md:flex-row items-center gap-12">
+            <div className="flex-1 space-y-6">
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/50 tracking-widest uppercase">全新功能</Badge>
+              <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">公開約波雷達</h2>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                唔使夾隊都踢到波！任何人 book 咗場都可以 publish 去公開市場。散兵游勇即時搜尋、報名、付款，一條龍完成。你嘅最強對手，可能就喺隔離區。
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3"><Check className="text-primary w-5 h-5" /> <span className="font-bold">按地區及水平配對</span></li>
+                <li className="flex items-center gap-3"><Check className="text-primary w-5 h-5" /> <span className="font-bold">搞手信譽評分系統</span></li>
+                <li className="flex items-center gap-3"><Check className="text-primary w-5 h-5" /> <span className="font-bold">平台代管報名費防走數</span></li>
+              </ul>
+              <div className="pt-4">
+                <Link href="/discover">
+                  <Button size="lg" className="font-bold tracking-wide uppercase group">
+                    <Compass className="w-5 h-5 mr-2" /> 探索附近場地
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="flex-1 w-full max-w-sm">
+              <Card className="p-6 bg-card/80 backdrop-blur border-border space-y-4 rotate-3 hover:rotate-0 transition-transform duration-500">
+                <div className="flex justify-between">
+                  <Badge className="bg-primary text-black font-bold">PUBLIC</Badge>
+                  <span className="font-bold text-lg text-primary">$60</span>
+                </div>
+                <h3 className="text-2xl font-bold">摩士公園足球場</h3>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>黃大仙</span> • <span>硬地</span> • <span>3★ 水平</span>
+                </div>
+                <div className="space-y-2 pt-4">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span>已報 12 / 14</span>
+                    <span className="text-primary">尚餘 2 位</span>
+                  </div>
+                  <div className="h-2 bg-primary/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-[85%]" />
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </section>
 
