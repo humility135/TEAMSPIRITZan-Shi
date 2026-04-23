@@ -39,6 +39,9 @@ export interface Team {
   memberIds: string[];
   record: TeamRecord;
   isPro: boolean;
+  district?: string;
+  level?: number;
+  inviteCode?: string;
 }
 
 export interface Weather {
@@ -114,6 +117,7 @@ export interface Event {
   datetime: string;
   venueId: string;
   fee: number;
+  capacity: number;
   status: EventStatus;
   attendingIds: string[];
   declinedIds: string[];

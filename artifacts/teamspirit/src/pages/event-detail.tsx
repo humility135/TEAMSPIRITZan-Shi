@@ -28,9 +28,10 @@ export default function EventDetail() {
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
   const isWaitlist = event.waitlistIds.includes(currentUser.id);
-  
+
   const isToday = new Date(event.datetime).toDateString() === new Date().toDateString();
   const isFinished = event.status === 'finished';
+  const isFull = event.attendingIds.length >= event.capacity;
 
   const handleRSVP = (status: 'attending' | 'declined' | 'waitlist') => {
     updateEventRSVP(event.id, status);
@@ -59,7 +60,11 @@ export default function EventDetail() {
               {event.status === 'finished' ? '已完場' : '即將舉行'}
             </div>
             <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">{event.title}</h1>
-            
+            <div className="flex items-center gap-3 text-sm">
+              <span className="flex items-center gap-1 text-muted-foreground"><span className="font-bold text-white">{event.attendingIds.length}</span>/{event.capacity} 人</span>
+              {isFull && <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 text-[10px] font-bold tracking-widest uppercase border border-yellow-500/40">已滿額</span>}
+            </div>
+
             <div className="flex flex-col gap-4 text-muted-foreground">
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-primary" />
@@ -105,7 +110,7 @@ export default function EventDetail() {
         {/* Action Bar */}
         {!isFinished && (
           <div className="border-t border-border p-4 bg-black/20 flex flex-wrap items-center justify-center gap-4">
-            {isToday && !isAttending ? (
+            {isToday && !isAttending && !isFull ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-yellow-500 hover:bg-yellow-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)] animate-pulse" onClick={startClaimTimer}>
@@ -129,30 +134,34 @@ export default function EventDetail() {
               </Dialog>
             ) : (
               <>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
-                      {isAttending ? <><Check className="w-5 h-5 mr-2"/> 已出席</> : '出席 ($)'}
-                    </Button>
-                  </DialogTrigger>
-                  {!isAttending && (
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="font-display uppercase tracking-wider text-2xl">付款確認</DialogTitle>
-                      </DialogHeader>
-                      <div className="py-6">
-                        <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                          Stripe 結帳 (${event.fee})
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  )}
-                </Dialog>
-                
-                <Button size="lg" variant={isWaitlist ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isWaitlist ? 'bg-yellow-500 text-black hover:bg-yellow-400' : ''}`} onClick={() => handleRSVP('waitlist')}>
-                  候補
-                </Button>
-                
+                {!isFull && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
+                        {isAttending ? <><Check className="w-5 h-5 mr-2"/> 已出席</> : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
+                      </Button>
+                    </DialogTrigger>
+                    {!isAttending && (
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="font-display uppercase tracking-wider text-2xl">付款確認</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-6">
+                          <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
+                            {event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    )}
+                  </Dialog>
+                )}
+
+                {isFull && !isAttending && (
+                  <Button size="lg" variant={isWaitlist ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isWaitlist ? 'bg-yellow-500 text-black hover:bg-yellow-400' : ''}`} onClick={() => handleRSVP(isWaitlist ? 'none' : 'waitlist')}>
+                    {isWaitlist ? '已候補（按取消）' : '加入候補'}
+                  </Button>
+                )}
+
                 <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8`} onClick={() => handleRSVP('declined')}>
                   {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
                 </Button>
@@ -206,38 +215,44 @@ export default function EventDetail() {
 
       {/* Rosters */}
       {!isFinished && (
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className={`grid gap-8 ${event.waitlistIds.length > 0 ? 'md:grid-cols-2' : ''}`}>
           <div className="space-y-4">
             <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between">
-              出席名單 <span className="text-primary">{event.attendingIds.length}</span>
+              出席名單 <span className="text-primary">{event.attendingIds.length}/{event.capacity}</span>
             </h3>
             <Card className="border-border bg-card/50 backdrop-blur p-4">
-              <div className="flex flex-wrap gap-2">
-                {event.attendingIds.map(id => (
-                  <Avatar key={id} className="w-12 h-12 ring-2 ring-primary">
-                    <AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} />
-                  </Avatar>
-                ))}
-              </div>
+              {event.attendingIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">仲未有人出席</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {event.attendingIds.map(id => (
+                    <Avatar key={id} className="w-12 h-12 ring-2 ring-primary">
+                      <AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} />
+                    </Avatar>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
-          
-          <div className="space-y-4">
-            <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between text-muted-foreground">
-              候補名單 <span>{event.waitlistIds.length}</span>
-            </h3>
-            <Card className="border-border bg-card/50 backdrop-blur p-4">
-              <div className="space-y-2">
-                {event.waitlistIds.map((id, index) => (
-                  <div key={id} className="flex items-center gap-3">
-                    <div className="w-6 text-center font-display font-bold text-muted-foreground">{index + 1}</div>
-                    <Avatar className="w-8 h-8"><AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} /></Avatar>
-                    <span className="text-sm font-medium">{id === 'u1' ? 'Ah Fai' : id === 'u2' ? 'Kit C.' : 'Ming'}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+
+          {event.waitlistIds.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between text-muted-foreground">
+                候補名單 <span>{event.waitlistIds.length}</span>
+              </h3>
+              <Card className="border-border bg-card/50 backdrop-blur p-4">
+                <div className="space-y-2">
+                  {event.waitlistIds.map((id, index) => (
+                    <div key={id} className="flex items-center gap-3">
+                      <div className="w-6 text-center font-display font-bold text-muted-foreground">{index + 1}</div>
+                      <Avatar className="w-8 h-8"><AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} /></Avatar>
+                      <span className="text-sm font-medium">{id === 'u1' ? 'Ah Fai' : id === 'u2' ? 'Kit C.' : 'Ming'}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
       )}
     </div>

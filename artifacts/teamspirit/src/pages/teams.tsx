@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Plus, UserPlus, Users, ArrowRight, Search, Shield } from 'lucide-react';
+import { Plus, UserPlus, Users, ArrowRight, Search, Shield, MapPin } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { HKMapPicker } from '@/components/hk-map-picker';
+
+const HK_DISTRICTS = [
+  '中西區', '灣仔', '東區', '南區',
+  '油尖旺', '深水埗', '九龍城', '黃大仙', '觀塘',
+  '荃灣', '屯門', '元朗', '北區', '大埔', '沙田', '西貢', '葵青',
+  '離島'
+];
 
 export default function Teams() {
   const { teams, currentUser, addTeam } = useAppStore();
@@ -22,18 +27,19 @@ export default function Teams() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [district, setDistrict] = useState<string>('');
-  const [level, setLevel] = useState<string>('');
+  const [level, setLevel] = useState<string>('3');
 
   const handleCreate = () => {
     if (!teamName.trim()) { toast({ title: '請輸入球隊名稱', variant: 'destructive' }); return; }
-    if (!district) { toast({ title: '請喺地圖揀主場地區', variant: 'destructive' }); return; }
-    addTeam({ name: teamName.trim(), district, level: parseInt(level || '3', 10) });
+    if (!district) { toast({ title: '請揀主場地區', variant: 'destructive' }); return; }
+    addTeam({ name: teamName.trim(), district, level: parseInt(level, 10) });
     setCreateOpen(false);
     toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
-    setTeamName(''); setDistrict(''); setLevel('');
+    setTeamName(''); setDistrict(''); setLevel('3');
   };
 
-  const filtered = teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
+  const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
+  const filtered = myTeams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -53,19 +59,17 @@ export default function Teams() {
                   加入球隊
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">加入球隊</DialogTitle>
+                  <DialogDescription>輸入由球隊管理員提供嘅 6 位邀請碼。</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-code">輸入 6 位邀請碼</Label>
-                      <Input id="invite-code" placeholder="例如 ABC123" maxLength={6} className="text-center text-2xl tracking-widest font-display uppercase" />
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">向球隊 Admin 索取邀請碼，加入後 Admin 會審批你嘅申請。</p>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-code">邀請碼</Label>
+                    <Input id="invite-code" placeholder="例如 ABC123" maxLength={6} className="text-center text-2xl tracking-widest font-display uppercase" />
                   </div>
-                </ScrollArea>
+                </div>
                 <DialogFooter>
                   <Button onClick={() => { setJoinOpen(false); toast({ title: '申請已送出', description: '等待球隊 Admin 審批。' }); }} className="w-full font-bold tracking-wide uppercase">
                     送出申請
@@ -81,35 +85,43 @@ export default function Teams() {
                   創立球隊
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">創立新球隊</DialogTitle>
+                  <DialogDescription>填寫基本資料，創立後你會自動成為 Owner。</DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="flex-1 pr-4" type="always">
-                  <div className="space-y-5 py-4 pb-8">
-                    <div className="space-y-2">
-                      <Label htmlFor="team-name">球隊名稱</Label>
-                      <Input id="team-name" value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="例如 東九龍勁旅" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>主場地區</Label>
-                      <p className="text-xs text-muted-foreground">喺地圖上面點一下你嘅主場地區（18 區）。</p>
-                      <HKMapPicker value={district} onChange={setDistrict} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="team-level">水平 (1-5★)</Label>
-                      <Select value={level} onValueChange={setLevel}>
-                        <SelectTrigger id="team-level">
-                          <SelectValue placeholder="揀水平" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1,2,3,4,5].map(n => (<SelectItem key={n} value={String(n)}>{'★'.repeat(n)} ({n}/5)</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-muted-foreground">創立後你會自動成為 Owner，可以邀請隊友、發起活動。Logo 可以稍後再加。</p>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="team-name">球隊名稱</Label>
+                    <Input id="team-name" value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="例如 東九龍勁旅" />
                   </div>
-                </ScrollArea>
+                  <div className="space-y-2">
+                    <Label htmlFor="team-district">主場地區</Label>
+                    <Select value={district} onValueChange={setDistrict}>
+                      <SelectTrigger id="team-district">
+                        <SelectValue placeholder="揀地區（18 區）" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {HK_DISTRICTS.map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="team-level">水平 (1-5★)</Label>
+                    <Select value={level} onValueChange={setLevel}>
+                      <SelectTrigger id="team-level">
+                        <SelectValue placeholder="揀水平" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <SelectItem key={n} value={String(n)}>{'★'.repeat(n)} ({n}/5)</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <DialogFooter>
                   <Button onClick={handleCreate} className="w-full font-bold tracking-wide uppercase">
                     立即創立
@@ -139,8 +151,8 @@ export default function Teams() {
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {filtered.map((team, i) => {
-            const isOwner = team.memberIds.includes(currentUser.id) && team.id === 't1';
-            const role = isOwner ? 'OWNER' : 'MEMBER';
+            const role = currentUser.role[team.id] || 'Member';
+            const roleColor = role === 'Owner' ? 'border-primary text-primary' : role === 'Admin' ? 'border-blue-400 text-blue-400' : '';
             return (
               <motion.div
                 key={team.id}
@@ -157,9 +169,12 @@ export default function Teams() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className={`text-[10px] tracking-widest uppercase ${isOwner ? 'border-primary text-primary' : ''}`}>
-                            {role}
+                          <Badge variant="outline" className={`text-[10px] tracking-widest uppercase ${roleColor}`}>
+                            {role.toUpperCase()}
                           </Badge>
+                          {team.district && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{team.district}</span>
+                          )}
                         </div>
                         <h3 className="font-bold text-lg leading-tight truncate">{team.name}</h3>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">

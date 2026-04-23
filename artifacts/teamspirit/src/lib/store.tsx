@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment } from './types';
+import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment, Role } from './types';
 import { mockUsers, mockTeams, mockEvents, mockVenues, mockNotifications, mockPublicMatches, mockHostProfiles, mockMatchComments } from './mockData';
 
 interface AppState {
@@ -26,8 +26,13 @@ interface AppContextType extends AppState {
   cancelPublicMatch: (matchId: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
-  updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor'>>) => void;
+  updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => void;
   addTeam: (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => Team;
+  leaveTeam: (teamId: string) => void;
+  removeMember: (teamId: string, userId: string) => void;
+  setMemberRole: (teamId: string, userId: string, role: Role) => void;
+  createEvent: (data: { teamId: string; title: string; datetime: string; venueId: string; fee: number; capacity: number }) => Event;
+  getRole: (teamId: string) => Role | undefined;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -93,13 +98,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setState(s => {
       const events = s.events.map(e => {
         if (e.id === eventId) {
-          const attendingIds = e.attendingIds.filter(id => id !== s.currentUser.id);
-          const declinedIds = e.declinedIds.filter(id => id !== s.currentUser.id);
-          const waitlistIds = e.waitlistIds.filter(id => id !== s.currentUser.id);
+          const wasAttending = e.attendingIds.includes(s.currentUser.id);
+          let attendingIds = e.attendingIds.filter(id => id !== s.currentUser.id);
+          let declinedIds = e.declinedIds.filter(id => id !== s.currentUser.id);
+          let waitlistIds = e.waitlistIds.filter(id => id !== s.currentUser.id);
 
-          if (status === 'attending') attendingIds.push(s.currentUser.id);
+          if (status === 'attending') {
+            if (attendingIds.length < e.capacity) attendingIds.push(s.currentUser.id);
+            else waitlistIds.push(s.currentUser.id);
+          }
           if (status === 'declined') declinedIds.push(s.currentUser.id);
           if (status === 'waitlist') waitlistIds.push(s.currentUser.id);
+
+          // Auto-promote first waitlisted player when an attending slot opens
+          if (wasAttending && status !== 'attending' && waitlistIds.length > 0 && attendingIds.length < e.capacity) {
+            const promoted = waitlistIds.shift()!;
+            attendingIds.push(promoted);
+          }
 
           return { ...e, attendingIds, declinedIds, waitlistIds };
         }
@@ -223,6 +238,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const genCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+
   const addTeam = (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => {
     const team: Team = {
       id: `t${Date.now()}`,
@@ -232,6 +249,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       memberIds: [state.currentUser.id],
       record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
       isPro: false,
+      district: data.district,
+      level: data.level,
+      inviteCode: genCode(),
     };
     setState(s => ({
       ...s,
@@ -241,6 +261,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     return team;
   };
+
+  const leaveTeam = (teamId: string) => {
+    setState(s => {
+      const newRole = { ...s.currentUser.role };
+      delete newRole[teamId];
+      return {
+        ...s,
+        teams: s.teams.map(t => t.id === teamId ? { ...t, memberIds: t.memberIds.filter(id => id !== s.currentUser.id) } : t),
+        currentUser: { ...s.currentUser, role: newRole },
+        users: s.users.map(u => {
+          if (u.id !== s.currentUser.id) return u;
+          const r = { ...u.role }; delete r[teamId];
+          return { ...u, role: r };
+        }),
+      };
+    });
+  };
+
+  const removeMember = (teamId: string, userId: string) => {
+    setState(s => ({
+      ...s,
+      teams: s.teams.map(t => t.id === teamId ? { ...t, memberIds: t.memberIds.filter(id => id !== userId) } : t),
+      users: s.users.map(u => {
+        if (u.id !== userId) return u;
+        const r = { ...u.role }; delete r[teamId];
+        return { ...u, role: r };
+      }),
+    }));
+  };
+
+  const setMemberRole = (teamId: string, userId: string, role: Role) => {
+    setState(s => ({
+      ...s,
+      users: s.users.map(u => u.id === userId ? { ...u, role: { ...u.role, [teamId]: role } } : u),
+      currentUser: s.currentUser.id === userId ? { ...s.currentUser, role: { ...s.currentUser.role, [teamId]: role } } : s.currentUser,
+    }));
+  };
+
+  const createEvent = (data: { teamId: string; title: string; datetime: string; venueId: string; fee: number; capacity: number }) => {
+    const ev: Event = {
+      id: `e${Date.now()}`,
+      teamId: data.teamId,
+      title: data.title,
+      datetime: data.datetime,
+      venueId: data.venueId,
+      fee: data.fee,
+      capacity: data.capacity,
+      status: 'scheduled',
+      attendingIds: [state.currentUser.id],
+      declinedIds: [],
+      waitlistIds: [],
+      playerStats: [],
+    };
+    setState(s => ({ ...s, events: [...s.events, ev] }));
+    return ev;
+  };
+
+  const getRole = (teamId: string): Role | undefined => state.currentUser.role[teamId];
 
   return (
     <AppContext.Provider value={{
@@ -256,7 +334,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addMatchComment,
       updateCurrentUser,
       updateTeam,
-      addTeam
+      addTeam,
+      leaveTeam,
+      removeMember,
+      setMemberRole,
+      createEvent,
+      getRole,
     }}>
       {children}
     </AppContext.Provider>

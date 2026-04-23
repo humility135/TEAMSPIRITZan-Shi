@@ -114,19 +114,25 @@ export const mockTeams: Team[] = [
     id: 't1',
     name: 'Kowloon City FC',
     logoUrl: '/src/assets/images/logo-team-1.png',
-    accentColor: '#84cc16', // neon green
+    accentColor: '#84cc16',
     memberIds: ['u1', 'u2', 'u3'],
     record: { w: 12, d: 3, l: 5, gf: 45, ga: 22 },
-    isPro: true
+    isPro: true,
+    district: '九龍城',
+    level: 4,
+    inviteCode: 'KCFC23'
   },
   {
     id: 't2',
     name: 'Island United',
     logoUrl: '/src/assets/images/logo-team-2.png',
-    accentColor: '#f97316', // neon orange
+    accentColor: '#f97316',
     memberIds: ['u1'],
     record: { w: 8, d: 5, l: 8, gf: 30, ga: 35 },
-    isPro: false
+    isPro: false,
+    district: '中西區',
+    level: 3,
+    inviteCode: 'ISLU88'
   }
 ];
 
@@ -171,10 +177,11 @@ export const mockEvents: Event[] = [
     datetime: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days later
     venueId: 'v1',
     fee: 50,
+    capacity: 14,
     status: 'scheduled',
     attendingIds: ['u1', 'u2'],
     declinedIds: [],
-    waitlistIds: ['u3'],
+    waitlistIds: [],
     playerStats: []
   },
   {
@@ -184,6 +191,7 @@ export const mockEvents: Event[] = [
     datetime: new Date(Date.now() + 3600000 * 5).toISOString(), // 5 hours later (today)
     venueId: 'v2',
     fee: 40,
+    capacity: 10,
     status: 'scheduled',
     attendingIds: ['u1'],
     declinedIds: ['u2'],
@@ -197,6 +205,7 @@ export const mockEvents: Event[] = [
     datetime: new Date(Date.now() - 86400000 * 3).toISOString(), // 3 days ago
     venueId: 'v3',
     fee: 60,
+    capacity: 14,
     status: 'finished',
     attendingIds: ['u1'],
     declinedIds: [],
