@@ -1,0 +1,26 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "0yFXLyOXLeKvHsTgxmbaP"
+uri = "file://artifacts/teamspirit/src/assets/images/hero-stadium.png"
+type = "image"
+title = "Stadium at night"
+
+[[generated]]
+id = "wVX8d8PHLoG8kXvxP6BFx"
+uri = "file://artifacts/teamspirit/src/assets/images/logo-team-1.png"
+type = "image"
+title = "Neon green team logo"
+
+[[generated]]
+id = "LBZTNA-5qPss9Pv0qCJGW"
+uri = "file://artifacts/teamspirit/src/assets/images/logo-team-2.png"
+type = "image"
+title = "Neon orange team logo"
+
+[[generated]]
+id = "El1DNC_vyN7FwRATqQYHV"
+uri = "file://artifacts/teamspirit/src/assets/images/venue-street.png"
+type = "image"
+title = "Street cage pitch"

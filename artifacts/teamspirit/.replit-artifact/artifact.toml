@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "TEAMSPIRIT"
+version = "1.0.0"
+id = "artifacts/teamspirit"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21884
+
+[services.development]
+run = "pnpm --filter @workspace/teamspirit run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/teamspirit", "run", "build" ]
+publicDir = "artifacts/teamspirit/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21884"
+BASE_PATH = "/"
