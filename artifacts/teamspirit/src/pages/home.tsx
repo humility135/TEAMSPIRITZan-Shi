@@ -123,7 +123,7 @@ export default function Home() {
       <section className="py-32 px-4 border-t border-border">
         <div className="container mx-auto max-w-4xl text-center space-y-8">
           <h2 className="text-4xl md:text-6xl font-display font-bold uppercase">Ready to dominate?</h2>
-          <p className="text-xl text-muted-foreground">永久免費 — 冇 Token、冇槽位、所有核心功能任你用。</p>
+          <p className="text-xl text-muted-foreground">永久免費，所有核心功能任你用。</p>
           <Link href="/dashboard">
             <Button size="lg" className="text-lg h-14 px-12 font-bold tracking-wide uppercase">
               Get Started

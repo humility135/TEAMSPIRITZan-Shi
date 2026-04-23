@@ -18,7 +18,7 @@ export default function Pricing() {
           永久免費。<br/><span className="text-primary">用得越多，慳得越多。</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          冇 Token、冇槽位、冇隱藏費用。建隊、開活動、賽後數據 — 全部免費。
+          冇隱藏費用。建隊、開活動、賽後數據 — 全部免費。
           只有用平台代收場費先抽 4% service fee（球員透明顯示）。
         </p>
       </div>
@@ -136,14 +136,6 @@ export default function Pricing() {
         </div>
       </div>
 
-      <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <h3 className="text-xl font-display font-bold uppercase tracking-wider text-muted-foreground">為何砍走 Token + 槽位？</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          v1 / v2 用 Token 系統強迫用戶充值、設槽位限制 — 結果係阻 viral growth、製造扣款投訴、降低轉化率。
-          v3 改為 Marketplace-First：球員側收 service fee（用得越多，平台賺得越多），Pro 月費換「賺更多嘅工具」。
-          收入結構更健康，用戶體驗零摩擦。
-        </p>
-      </div>
     </div>
   );
 }
