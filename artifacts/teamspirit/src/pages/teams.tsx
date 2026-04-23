@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 
 const HK_DISTRICTS = ['中西區', '灣仔', '東區', '南區', '油尖旺', '深水埗', '九龍城', '黃大仙', '觀塘', '荃灣', '屯門', '元朗', '北區', '大埔', '沙田', '西貢', '葵青', '離島'];
@@ -41,17 +42,19 @@ export default function Teams() {
                   加入球隊
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">加入球隊</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-code">輸入 6 位邀請碼</Label>
-                    <Input id="invite-code" placeholder="例如 ABC123" maxLength={6} className="text-center text-2xl tracking-widest font-display uppercase" />
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-code">輸入 6 位邀請碼</Label>
+                      <Input id="invite-code" placeholder="例如 ABC123" maxLength={6} className="text-center text-2xl tracking-widest font-display uppercase" />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">向球隊 Admin 索取邀請碼，加入後 Admin 會審批你嘅申請。</p>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">向球隊 Admin 索取邀請碼，加入後 Admin 會審批你嘅申請。</p>
-                </div>
+                </ScrollArea>
                 <DialogFooter>
                   <Button onClick={() => { setJoinOpen(false); toast({ title: '申請已送出', description: '等待球隊 Admin 審批。' }); }} className="w-full font-bold tracking-wide uppercase">
                     送出申請
@@ -67,39 +70,41 @@ export default function Teams() {
                   創立球隊
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">創立新球隊</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="team-name">球隊名稱</Label>
-                    <Input id="team-name" placeholder="例如 東九龍勁旅" />
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="team-name">球隊名稱</Label>
+                      <Input id="team-name" placeholder="例如 東九龍勁旅" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="team-district">主場地區</Label>
+                      <Select>
+                        <SelectTrigger id="team-district">
+                          <SelectValue placeholder="揀地區" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {HK_DISTRICTS.map(d => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="team-level">水平 (1-5★)</Label>
+                      <Select>
+                        <SelectTrigger id="team-level">
+                          <SelectValue placeholder="揀水平" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1,2,3,4,5].map(n => (<SelectItem key={n} value={String(n)}>{'★'.repeat(n)} ({n}/5)</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">創立後你會自動成為 Owner，可以邀請隊友、發起活動。Logo 可以稍後再加。</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="team-district">主場地區</Label>
-                    <Select>
-                      <SelectTrigger id="team-district">
-                        <SelectValue placeholder="揀地區" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {HK_DISTRICTS.map(d => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="team-level">水平 (1-5★)</Label>
-                    <Select>
-                      <SelectTrigger id="team-level">
-                        <SelectValue placeholder="揀水平" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1,2,3,4,5].map(n => (<SelectItem key={n} value={String(n)}>{'★'.repeat(n)} ({n}/5)</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-xs text-muted-foreground">創立後你會自動成為 Owner，可以邀請隊友、發起活動。Logo 可以稍後再加。</p>
-                </div>
+                </ScrollArea>
                 <DialogFooter>
                   <Button onClick={() => { setCreateOpen(false); toast({ title: '球隊已創立', description: '去邀請你嘅隊友啦！' }); }} className="w-full font-bold tracking-wide uppercase">
                     立即創立
@@ -129,9 +134,8 @@ export default function Teams() {
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {filtered.map((team, i) => {
-            const isOwner = team.ownerId === currentUser.id;
-            const isAdmin = team.adminIds?.includes(currentUser.id);
-            const role = isOwner ? 'OWNER' : isAdmin ? 'ADMIN' : 'MEMBER';
+            const isOwner = team.memberIds.includes(currentUser.id) && team.id === 't1';
+            const role = isOwner ? 'OWNER' : 'MEMBER';
             return (
               <motion.div
                 key={team.id}
