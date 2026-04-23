@@ -29,3 +29,9 @@ id = "Fxa-Bl89qZxG60u8fYiyA"
 uri = "file://attached_assets/PRD_v2.md"
 type = "text"
 title = "TEAMSPIRIT PRD v2"
+
+[[outputs]]
+id = "hbMLRZF_7WNICN6RMOEGe"
+uri = "file://attached_assets/PRD_v3.md"
+type = "text"
+title = "TEAMSPIRIT PRD v3"
