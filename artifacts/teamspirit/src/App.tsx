@@ -32,11 +32,13 @@ function AppRoutes() {
   if (loc === '/login') {
     return <Login />;
   }
+  if (loc === '/') {
+    return <Home />;
+  }
   return (
     <AppProvider>
       <Layout>
         <Switch>
-          <Route path="/" component={Home} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/discover" component={Discover} />
           <Route path="/discover/host" component={HostMatch} />

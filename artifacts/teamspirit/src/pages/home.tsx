@@ -8,6 +8,32 @@ import { Card } from '@/components/ui/card';
 export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Top Navigation */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="text-xl font-display font-bold tracking-widest text-primary uppercase">
+            TEAMSPIRIT
+          </Link>
+
+          {/* Centre Nav */}
+          <nav className="hidden md:flex items-center gap-8">
+            <a href="#about" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">About Me</a>
+            <a href="#contact" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Contact Us</a>
+          </nav>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <Button variant="ghost" size="sm" className="font-bold tracking-wide uppercase">登入</Button>
+            </Link>
+            <Link href="/login">
+              <Button size="sm" className="font-bold tracking-wide uppercase">註冊</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-4 overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -32,7 +58,7 @@ export default function Home() {
               告別 WhatsApp 群組的混亂。雙階段搶位候補、強制先付後佔位、賽後數據追蹤，為香港業餘球隊打造的專業級管理平台。
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-              <Link href="/dashboard" className="w-full sm:w-auto">
+              <Link href="/login" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full text-lg h-14 px-8 font-bold tracking-wide uppercase group">
                   立即體驗
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -119,12 +145,49 @@ export default function Home() {
         </div>
       </section>
 
+      {/* About Me */}
+      <section id="about" className="py-24 px-4 border-t border-border">
+        <div className="container mx-auto max-w-4xl text-center space-y-6">
+          <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">About Us</h2>
+          <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            TEAMSPIRIT 由一班熱愛足球嘅香港人創立。我哋深知業餘球隊嘅痛點——搵人、收費、記分，樣樣都係 WhatsApp 解決，效率極低。我哋嘅目標係為香港業餘足球界打造一個專業、可靠、易用嘅一站式管理平台。
+          </p>
+          <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            無論你係球隊隊長、散兵游勇定係場地搞手，TEAMSPIRIT 都為你而設。
+          </p>
+        </div>
+      </section>
+
+      {/* Contact Us */}
+      <section id="contact" className="py-24 px-4 bg-card/30">
+        <div className="container mx-auto max-w-4xl text-center space-y-6">
+          <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">Contact Us</h2>
+          <p className="text-xl text-muted-foreground max-w-xl mx-auto">
+            有任何查詢、合作或反饋，歡迎隨時聯絡我哋。
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6 pt-4">
+            <div className="p-6 rounded-2xl border border-border bg-card/50 space-y-2">
+              <div className="text-xs font-bold tracking-widest uppercase text-muted-foreground">電郵</div>
+              <div className="font-bold text-foreground">hello@teamspirit.hk</div>
+            </div>
+            <div className="p-6 rounded-2xl border border-border bg-card/50 space-y-2">
+              <div className="text-xs font-bold tracking-widest uppercase text-muted-foreground">WhatsApp</div>
+              <div className="font-bold text-foreground">+852 9XXX XXXX</div>
+            </div>
+            <div className="p-6 rounded-2xl border border-border bg-card/50 space-y-2">
+              <div className="text-xs font-bold tracking-widest uppercase text-muted-foreground">Instagram</div>
+              <div className="font-bold text-foreground">@teamspirit.hk</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer CTA */}
       <section className="py-32 px-4 border-t border-border">
         <div className="container mx-auto max-w-4xl text-center space-y-8">
           <h2 className="text-4xl md:text-6xl font-display font-bold uppercase">Ready to dominate?</h2>
           <p className="text-xl text-muted-foreground">永久免費，所有核心功能任你用。</p>
-          <Link href="/dashboard">
+          <Link href="/login">
             <Button size="lg" className="text-lg h-14 px-12 font-bold tracking-wide uppercase">
               Get Started
             </Button>
