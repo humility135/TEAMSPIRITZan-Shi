@@ -86,10 +86,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        const migrateEvent = (e: any) => ({ ...e, waitlistIds: e.waitlistIds ?? [], slotOffers: e.slotOffers ?? [] });
+        const migrateMatch = (m: any) => ({ ...m, waitlistIds: m.waitlistIds ?? [], slotOffers: m.slotOffers ?? [] });
         return {
           ...parsed,
           users: parsed.users || mockUsers,
-          publicMatches: parsed.publicMatches || mockPublicMatches,
+          events: (parsed.events || mockEvents).map(migrateEvent),
+          publicMatches: (parsed.publicMatches || mockPublicMatches).map(migrateMatch),
           hostProfiles: parsed.hostProfiles || mockHostProfiles,
           matchComments: parsed.matchComments || mockMatchComments,
         };
@@ -431,9 +434,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let changed = false;
         const newNotifs: Notification[] = [];
 
-        const expireOffers = <T extends { slotOffers: SlotOffer[]; waitlistIds: string[]; datetime: string; title?: string }>(item: T): T => {
-          const offers = [...item.slotOffers];
-          const wl = [...item.waitlistIds];
+        const expireOffers = <T extends { slotOffers?: SlotOffer[]; waitlistIds?: string[]; datetime: string; title?: string }>(item: T): T => {
+          const offers = [...(item.slotOffers ?? [])];
+          const wl = [...(item.waitlistIds ?? [])];
           let local = false;
           for (let i = 0; i < offers.length; i++) {
             const o = offers[i];
