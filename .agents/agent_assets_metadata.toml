@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "0yFXLyOXLeKvHsTgxmbaP"
@@ -24,3 +23,9 @@ id = "El1DNC_vyN7FwRATqQYHV"
 uri = "file://artifacts/teamspirit/src/assets/images/venue-street.png"
 type = "image"
 title = "Street cage pitch"
+
+[[outputs]]
+id = "Fxa-Bl89qZxG60u8fYiyA"
+uri = "file://attached_assets/PRD_v2.md"
+type = "text"
+title = "TEAMSPIRIT PRD v2"
