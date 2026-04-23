@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoute, Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert } from 'lucide-react';
+import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert, Zap, Hourglass } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
@@ -11,21 +11,37 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
+function formatRemaining(ms: number) {
+  if (ms <= 0) return '00:00';
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export default function PublicMatchDetail() {
   const [, params] = useRoute('/discover/:matchId');
-  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch } = useAppStore();
+  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentAck, setPaymentAck] = useState(false);
+  const [slotPayOpen, setSlotPayOpen] = useState(false);
+  const [slotAck, setSlotAck] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const openPaymentDialog = () => {
     setPaymentAck(false);
     setShowPaymentDialog(true);
   };
-  
+
   const matchId = params?.matchId;
   const match = publicMatches.find(m => m.id === matchId);
-  
+
   if (!match) {
     return <div className="p-8 text-center">找不到此公開場</div>;
   }
@@ -41,9 +57,16 @@ export default function PublicMatchDetail() {
 
   const isHost = currentUser.id === match.hostId;
   const isAttending = match.attendees.includes(currentUser.id);
+  const isWaitlist = match.waitlistIds.includes(currentUser.id);
+  const waitlistPos = match.waitlistIds.indexOf(currentUser.id) + 1;
   const cap = match.maxPlayers;
   const isFull = cap != null && match.attendees.length >= cap;
-  
+
+  const myOffer = match.slotOffers.find(o => o.eligibleUserIds.includes(currentUser.id) || o.acceptedBy === currentUser.id);
+  const acceptedByMe = myOffer?.acceptedBy === currentUser.id;
+  const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
+  const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
+
   const handleJoin = () => {
     setIsProcessing(true);
     setTimeout(() => {
@@ -54,9 +77,41 @@ export default function PublicMatchDetail() {
     }, 1500);
   };
 
+  const handleJoinWaitlist = () => {
+    joinPublicMatch(match.id);
+    toast.success("已加入候補名單，有人放飛機會即時通知你");
+  };
+
   const handleLeave = () => {
     leavePublicMatch(match.id);
-    toast.info("已取消報名。");
+    toast.info(isAttending ? "已取消報名。" : "已退出候補。");
+  };
+
+  const handleAcceptOffer = () => {
+    if (!myOffer) return;
+    const { needPayment } = acceptMatchSlot(match.id, myOffer.id);
+    if (needPayment) {
+      setSlotAck(false);
+      setSlotPayOpen(true);
+    } else {
+      toast.success("已自動補上！");
+    }
+  };
+
+  const handlePaySlot = () => {
+    if (!myOffer) return;
+    const r = payMatchSlot(match.id, myOffer.id);
+    setSlotPayOpen(false);
+    if (r.ok) toast.success("付款成功，已正式補上！");
+    else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
+    else if (r.reason === 'full') toast.error('已滿額，無法完成補位');
+    else toast.error('付款失敗，請再試');
+  };
+
+  const handleDeclineOffer = () => {
+    if (!myOffer) return;
+    declineMatchSlot(match.id, myOffer.id);
+    toast.info("已放棄此次補位");
   };
 
   return (
@@ -219,6 +274,41 @@ export default function PublicMatchDetail() {
               <div className="text-xs text-muted-foreground mt-2">+ ${(match.fee * 0.04).toFixed(1)} 平台手續費 (4%)</div>
             </div>
 
+            {myOffer && !isHost && (
+              <div className={`mb-5 p-4 rounded-xl border ${myOffer.mode === 'race' ? 'bg-yellow-500/10 border-yellow-500/40' : 'bg-primary/10 border-primary/40'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {myOffer.mode === 'race' ? <Zap className="w-5 h-5 text-yellow-500" /> : <Hourglass className="w-5 h-5 text-primary" />}
+                  <span className="font-display uppercase tracking-wide text-sm font-bold">
+                    {myOffer.mode === 'race' ? '搶位中（24h 內）' : '輪到你補位'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                  {acceptedByMe
+                    ? `已接受！1 小時內完成付款，逾時自動畀下一位。`
+                    : myOffer.mode === 'race'
+                      ? '有人放飛機，候補嘅各位鬥快 claim。'
+                      : '你係候補第 1 位，呢個位優先畀你。'}
+                </p>
+                {acceptedByMe && deadlineMs && (
+                  <div className="text-center text-2xl font-display font-bold text-yellow-400 mb-3">
+                    {formatRemaining(remainingMs)}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {!acceptedByMe ? (
+                    <Button className="w-full font-bold uppercase tracking-wider bg-yellow-500 hover:bg-yellow-400 text-black" onClick={handleAcceptOffer}>
+                      {match.fee > 0 ? `接受並付款 ($${match.fee})` : '接受補位'}
+                    </Button>
+                  ) : (
+                    <Button className="w-full font-bold uppercase tracking-wider" onClick={() => { setSlotAck(false); setSlotPayOpen(true); }}>
+                      立即付款 (${match.fee})
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleDeclineOffer}>放棄</Button>
+                </div>
+              </div>
+            )}
+
             {isHost ? (
               <div className="space-y-3">
                 <Button className="w-full font-bold uppercase tracking-wider" variant="outline">管理名單</Button>
@@ -231,11 +321,24 @@ export default function PublicMatchDetail() {
                 </div>
                 <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>取消報名</Button>
               </div>
+            ) : isWaitlist ? (
+              <div className="space-y-4">
+                <div className="bg-amber-500/15 text-amber-200 border border-amber-500/30 p-4 rounded-xl text-center">
+                  <div className="font-bold">已喺候補名單</div>
+                  <div className="text-xs text-amber-100/80 mt-1">第 {waitlistPos} 位 — 有人走會即時通知你</div>
+                </div>
+                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>退出候補</Button>
+              </div>
             ) : isFull ? (
-              <Button className="w-full font-bold uppercase tracking-wider h-14 text-lg" disabled>已滿額</Button>
+              <Button
+                className="w-full font-bold uppercase tracking-wider h-14 text-lg"
+                onClick={handleJoinWaitlist}
+              >
+                加入候補（$0 留位）
+              </Button>
             ) : (
-              <Button 
-                className="w-full font-bold uppercase tracking-wider h-14 text-lg animate-pulse hover:animate-none" 
+              <Button
+                className="w-full font-bold uppercase tracking-wider h-14 text-lg animate-pulse hover:animate-none"
                 onClick={openPaymentDialog}
               >
                 我要報名
@@ -303,6 +406,56 @@ export default function PublicMatchDetail() {
             <Button onClick={handleJoin} disabled={isProcessing || !paymentAck} className="font-bold">
               {isProcessing ? "處理中..." : "確認付款並報名"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={slotPayOpen} onOpenChange={setSlotPayOpen}>
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl">補位付款</DialogTitle>
+            <DialogDescription>1 小時內完成付款，逾時自動畀下一位候補。</DialogDescription>
+          </DialogHeader>
+
+          {acceptedByMe && deadlineMs && (
+            <div className="text-center text-4xl font-display font-bold text-yellow-400 my-2">
+              {formatRemaining(remainingMs)}
+            </div>
+          )}
+
+          <div className="bg-black/30 p-4 rounded-xl space-y-3 my-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">報名費</span>
+              <span>${match.fee.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">平台手續費 (4%)</span>
+              <span>${(match.fee * 0.04).toFixed(2)}</span>
+            </div>
+            <div className="h-px bg-border my-2"></div>
+            <div className="flex justify-between font-bold text-lg text-primary">
+              <span>總計</span>
+              <span>${(match.fee * 1.04).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl text-xs space-y-2 leading-relaxed">
+            <div className="flex items-center gap-2 font-bold text-amber-200">
+              <ShieldAlert className="w-4 h-4" /> 報名前請睇清楚
+            </div>
+            <ul className="space-y-1 list-disc list-inside text-amber-100/90">
+              <li>TEAMSPIRIT 只係撮合及代收款平台，並非主辦方。</li>
+              <li>足球活動有受傷風險，自願參加，建議自備保險。</li>
+            </ul>
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <input type="checkbox" checked={slotAck} onChange={e => setSlotAck(e.target.checked)} className="w-4 h-4 accent-primary" />
+              <span>我已閱讀並同意以上條款及<Link href="/terms" className="underline hover:text-amber-50">完整免責聲明</Link></span>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSlotPayOpen(false)}>稍後</Button>
+            <Button onClick={handlePaySlot} disabled={!slotAck} className="font-bold">確認付款</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,53 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { useRoute } from 'wouter';
-import { MapPin, Clock, Check, X, Minus, Plus, Navigation } from 'lucide-react';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+
+function useNow(intervalMs: number = 1000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+function formatRemaining(ms: number) {
+  if (ms <= 0) return '00:00';
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
 
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
-  const { events, currentUser, updateEventRSVP, updateMatchStats } = useAppStore();
-  const [claimTimeLeft, setClaimTimeLeft] = useState<number | null>(null);
+  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot } = useAppStore();
+  const now = useNow(1000);
+  const [payOfferId, setPayOfferId] = useState<string | null>(null);
 
   const event = events.find(e => e.id === params?.eventId);
-
-  useEffect(() => {
-    let timer: any;
-    if (claimTimeLeft !== null && claimTimeLeft > 0) {
-      timer = setInterval(() => setClaimTimeLeft(prev => (prev! > 0 ? prev! - 1 : 0)), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [claimTimeLeft]);
-
   if (!event) return <div>Event not found</div>;
 
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
   const isWaitlist = event.waitlistIds.includes(currentUser.id);
+  const waitlistPos = event.waitlistIds.indexOf(currentUser.id) + 1;
 
-  const isToday = new Date(event.datetime).toDateString() === new Date().toDateString();
   const isFinished = event.status === 'finished';
   const hasCap = event.capacity != null;
   const isFull = hasCap && event.attendingIds.length >= (event.capacity as number);
   const venueAddress = event.venueAddress ?? '';
   const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : '';
 
-  const handleRSVP = (status: 'attending' | 'declined' | 'waitlist') => {
+  const myOffer = event.slotOffers.find(o => o.eligibleUserIds.includes(currentUser.id) || o.acceptedBy === currentUser.id);
+  const acceptedByMe = myOffer?.acceptedBy === currentUser.id;
+  const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
+  const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
+
+  const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
     updateEventRSVP(event.id, status);
+    if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
   };
 
-  const startClaimTimer = () => {
-    setClaimTimeLeft(600); // 10 minutes in seconds
+  const handleAcceptOffer = () => {
+    if (!myOffer) return;
+    const { needPayment } = acceptEventSlot(event.id, myOffer.id);
+    if (needPayment) setPayOfferId(myOffer.id);
+    else toast.success('已自動補上！');
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  const handlePayOffer = () => {
+    if (!payOfferId) return;
+    const r = payEventSlot(event.id, payOfferId);
+    setPayOfferId(null);
+    if (r.ok) toast.success('付款成功，已正式補上');
+    else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
+    else if (r.reason === 'full') toast.error('已滿額，無法完成補位');
+    else toast.error('付款失敗，請再試');
+  };
+
+  const handleDeclineOffer = () => {
+    if (!myOffer) return;
+    declineEventSlot(event.id, myOffer.id);
+    toast.info('已放棄此次補位');
   };
 
   return (
@@ -100,69 +129,126 @@ export default function EventDetail() {
           </div>
         </div>
 
+        {/* Slot Offer Banner */}
+        {!isFinished && myOffer && (
+          <div className={`border-t border-border p-5 ${myOffer.mode === 'race' ? 'bg-yellow-500/10' : 'bg-primary/10'}`}>
+            <div className="flex items-start gap-3">
+              {myOffer.mode === 'race' ? <Zap className="w-6 h-6 text-yellow-500 shrink-0 mt-0.5" /> : <Hourglass className="w-6 h-6 text-primary shrink-0 mt-0.5" />}
+              <div className="flex-1 space-y-3">
+                <div>
+                  <div className="font-display uppercase tracking-wide text-lg">
+                    {myOffer.mode === 'race' ? '搶位中（24h 內）' : '輪到你補位'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {acceptedByMe
+                      ? `已接受！請於 1 小時內完成付款。剩餘 `
+                      : myOffer.mode === 'race'
+                        ? `有人放飛機，候補嘅各位鬥快 claim。先 claim 先得，仲要 1 小時內付款先正式入到名單。`
+                        : `你係候補名單第 1 位，呢個位優先畀你。1 小時內接受並付款，否則自動畀下一位。`}
+                    {acceptedByMe && deadlineMs && (
+                      <span className="inline-block ml-1 font-mono font-bold text-yellow-400">{formatRemaining(remainingMs)}</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {!acceptedByMe ? (
+                    <>
+                      <Button size="lg" className="font-bold uppercase tracking-wider bg-yellow-500 hover:bg-yellow-400 text-black" onClick={handleAcceptOffer}>
+                        {event.fee > 0 ? `接受並付款 ($${event.fee})` : '接受補位'}
+                      </Button>
+                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>放棄</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="lg" className="font-bold uppercase tracking-wider bg-primary text-primary-foreground" onClick={() => setPayOfferId(myOffer.id)}>
+                        立即付款 (${event.fee})
+                      </Button>
+                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>放棄</Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Action Bar */}
         {!isFinished && (
-          <div className="border-t border-border p-4 bg-black/20 flex flex-wrap items-center justify-center gap-4">
-            {isToday && !isAttending && !isFull ? (
+          <div className="border-t border-border p-4 bg-black/20 space-y-3">
+            {isWaitlist && !myOffer && (
+              <div className="text-center text-sm text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                你已加入候補（第 {waitlistPos} 位）— 有人放飛機，系統會即時通知你
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-yellow-500 hover:bg-yellow-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)] animate-pulse" onClick={startClaimTimer}>
-                    立即搶位
+                  <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
+                    {isAttending
+                      ? <><Check className="w-5 h-5 mr-2"/> 已出席</>
+                      : isWaitlist
+                        ? '已喺候補名單'
+                        : isFull
+                          ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
+                          : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-card border-border">
-                  <DialogHeader>
-                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">搶位鎖定期</DialogTitle>
-                  </DialogHeader>
-                  <div className="py-8 text-center space-y-4">
-                    <div className="text-6xl font-display font-bold text-yellow-500">
-                      {claimTimeLeft !== null ? formatTime(claimTimeLeft) : '10:00'}
-                    </div>
-                    <p className="text-muted-foreground">請於時限內完成付款以確認佔位。</p>
-                    <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                      Stripe 結帳 (${event.fee})
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <>
-                {!isFull && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
-                        {isAttending ? <><Check className="w-5 h-5 mr-2"/> 已出席</> : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
+                {!isAttending && !isWaitlist && (
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-display uppercase tracking-wider text-2xl">
+                        {isFull ? '加入候補' : '付款確認'}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-6 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        {isFull
+                          ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
+                          : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
+                      </p>
+                      <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
+                        {isFull ? '加入候補' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
                       </Button>
-                    </DialogTrigger>
-                    {!isAttending && (
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle className="font-display uppercase tracking-wider text-2xl">付款確認</DialogTitle>
-                        </DialogHeader>
-                        <div className="py-6">
-                          <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                            {event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    )}
-                  </Dialog>
+                    </div>
+                  </DialogContent>
                 )}
+              </Dialog>
 
-                {isFull && !isAttending && (
-                  <Button size="lg" variant={isWaitlist ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isWaitlist ? 'bg-yellow-500 text-black hover:bg-yellow-400' : ''}`} onClick={() => handleRSVP(isWaitlist ? 'none' : 'waitlist')}>
-                    {isWaitlist ? '已候補（按取消）' : '加入候補'}
-                  </Button>
-                )}
+              <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP(isDeclined ? 'none' : 'declined')}>
+                {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
+              </Button>
 
-                <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8`} onClick={() => handleRSVP('declined')}>
-                  {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
+              {isWaitlist && (
+                <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
+                  取消候補
                 </Button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         )}
       </Card>
+
+      {/* Pay slot dialog */}
+      <Dialog open={!!payOfferId} onOpenChange={(open) => !open && setPayOfferId(null)}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl">補位付款</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="text-center text-5xl font-display font-bold text-yellow-400">
+              {formatRemaining(remainingMs)}
+            </div>
+            <p className="text-sm text-center text-muted-foreground">逾時將會自動畀下一位候補</p>
+            <div className="bg-black/30 p-3 rounded-xl flex justify-between font-bold">
+              <span>應付</span>
+              <span className="text-primary">${event.fee.toFixed(2)}</span>
+            </div>
+            <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={handlePayOffer}>
+              Stripe 結帳 (${event.fee})
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Post Match Scoreboard & Admin Panel */}
       {isFinished && (

@@ -1,6 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment, Role, SeasonStats, EMPTY_SEASON_STATS } from './types';
+import { User, Team, Event, Venue, Notification, PublicMatch, HostProfile, MatchComment, Role, SeasonStats, SlotOffer, RACE_THRESHOLD_HOURS, PAYMENT_WINDOW_MINUTES, EMPTY_SEASON_STATS } from './types';
 import { mockUsers, mockTeams, mockEvents, mockVenues, mockNotifications, mockPublicMatches, mockHostProfiles, mockMatchComments } from './mockData';
+
+const hoursUntil = (iso: string): number => (new Date(iso).getTime() - Date.now()) / 3600000;
+const uid = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+const makeNotif = (message: string): Notification => ({
+  id: uid('n'), type: 'event', message, createdAt: new Date().toISOString(), read: false,
+});
+function makeSlotOffer(waitlistIds: string[], hoursLeft: number): SlotOffer | null {
+  if (waitlistIds.length === 0) return null;
+  const isRace = hoursLeft <= RACE_THRESHOLD_HOURS;
+  return {
+    id: uid('offer'),
+    mode: isRace ? 'race' : 'fifo',
+    eligibleUserIds: isRace ? [...waitlistIds] : waitlistIds.slice(0, 1),
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export function getTeamStats(user: User, teamId: string): SeasonStats {
   return user.seasonStatsByTeam?.[teamId] ?? EMPTY_SEASON_STATS;
@@ -38,7 +54,13 @@ interface AppState {
 
 interface AppContextType extends AppState {
   toggleProMode: () => void;
-  updateEventRSVP: (eventId: string, status: 'attending' | 'declined' | 'waitlist' | 'none') => void;
+  updateEventRSVP: (eventId: string, status: 'attending' | 'declined' | 'none') => void;
+  acceptEventSlot: (eventId: string, offerId: string) => { needPayment: boolean };
+  payEventSlot: (eventId: string, offerId: string) => { ok: boolean; reason?: string };
+  declineEventSlot: (eventId: string, offerId: string) => void;
+  acceptMatchSlot: (matchId: string, offerId: string) => { needPayment: boolean };
+  payMatchSlot: (matchId: string, offerId: string) => { ok: boolean; reason?: string };
+  declineMatchSlot: (matchId: string, offerId: string) => void;
   updateMatchStats: (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => void;
   markNotificationRead: (id: string) => void;
   joinPublicMatch: (matchId: string) => void;
@@ -115,34 +137,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const updateEventRSVP = (eventId: string, status: 'attending' | 'declined' | 'waitlist' | 'none') => {
+  const updateEventRSVP = (eventId: string, status: 'attending' | 'declined' | 'none') => {
     setState(s => {
+      const newNotifs: Notification[] = [];
       const events = s.events.map(e => {
-        if (e.id === eventId) {
-          const wasAttending = e.attendingIds.includes(s.currentUser.id);
-          let attendingIds = e.attendingIds.filter(id => id !== s.currentUser.id);
-          let declinedIds = e.declinedIds.filter(id => id !== s.currentUser.id);
-          let waitlistIds = e.waitlistIds.filter(id => id !== s.currentUser.id);
+        if (e.id !== eventId) return e;
+        const me = s.currentUser.id;
+        const wasAttending = e.attendingIds.includes(me);
+        let attendingIds = e.attendingIds.filter(id => id !== me);
+        let declinedIds = e.declinedIds.filter(id => id !== me);
+        let waitlistIds = e.waitlistIds.filter(id => id !== me);
+        let slotOffers = e.slotOffers.filter(o => o.acceptedBy !== me);
+        slotOffers = slotOffers.map(o => ({ ...o, eligibleUserIds: o.eligibleUserIds.filter(id => id !== me) })).filter(o => o.eligibleUserIds.length > 0 || o.acceptedBy);
 
-          const cap = e.capacity;
-          if (status === 'attending') {
-            if (cap === null || attendingIds.length < cap) attendingIds.push(s.currentUser.id);
-            else waitlistIds.push(s.currentUser.id);
-          }
-          if (status === 'declined') declinedIds.push(s.currentUser.id);
-          if (status === 'waitlist') waitlistIds.push(s.currentUser.id);
-
-          // Auto-promote first waitlisted player when an attending slot opens
-          if (wasAttending && status !== 'attending' && waitlistIds.length > 0 && (cap === null || attendingIds.length < cap)) {
-            const promoted = waitlistIds.shift()!;
-            attendingIds.push(promoted);
-          }
-
-          return { ...e, attendingIds, declinedIds, waitlistIds };
+        const cap = e.capacity;
+        if (status === 'attending') {
+          if (cap === null || attendingIds.length < cap) attendingIds.push(me);
+          else { waitlistIds.push(me); newNotifs.push(makeNotif(`已加入候補：${e.title}（第 ${waitlistIds.length} 位）`)); }
         }
-        return e;
+        if (status === 'declined') declinedIds.push(me);
+
+        // Drop triggers slot offer (exclude users tied to other active offers)
+        if (wasAttending && status !== 'attending' && waitlistIds.length > 0 && (cap === null || attendingIds.length < cap)) {
+          const tiedUp = new Set<string>(slotOffers.flatMap(o => [...o.eligibleUserIds, ...(o.acceptedBy ? [o.acceptedBy] : [])]));
+          const freeWl = waitlistIds.filter(id => !tiedUp.has(id));
+          if (freeWl.length > 0) {
+            const hLeft = hoursUntil(e.datetime);
+            if (e.fee === 0) {
+              const promoted = freeWl[0];
+              waitlistIds = waitlistIds.filter(id => id !== promoted);
+              attendingIds.push(promoted);
+              newNotifs.push(makeNotif(`你已自動補上：${e.title}（免費活動）`));
+            } else {
+              const offer = makeSlotOffer(freeWl, hLeft);
+              if (offer) {
+                slotOffers.push(offer);
+                const label = offer.mode === 'race' ? '搶位中' : '輪到你';
+                newNotifs.push(makeNotif(`【${label}】${e.title} 有位空出，1 小時內接受並付款，逾時下一位補上`));
+              }
+            }
+          }
+        }
+        return { ...e, attendingIds, declinedIds, waitlistIds, slotOffers };
       });
-      return { ...s, events };
+      return { ...s, events, notifications: [...newNotifs, ...s.notifications] };
+    });
+  };
+
+  const acceptEventSlot = (eventId: string, offerId: string): { needPayment: boolean } => {
+    let needPayment = false;
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const events = s.events.map(e => {
+        if (e.id !== eventId) return e;
+        const me = s.currentUser.id;
+        const offer = e.slotOffers.find(o => o.id === offerId);
+        if (!offer || !offer.eligibleUserIds.includes(me) || offer.acceptedBy) return e;
+        if (e.fee === 0) {
+          const attendingIds = [...e.attendingIds, me];
+          const waitlistIds = e.waitlistIds.filter(id => id !== me);
+          const slotOffers = e.slotOffers.filter(o => o.id !== offerId);
+          newNotifs.push(makeNotif(`你已補上：${e.title}`));
+          return { ...e, attendingIds, waitlistIds, slotOffers };
+        }
+        needPayment = true;
+        const deadline = new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60000).toISOString();
+        const slotOffers = e.slotOffers.map(o => o.id === offerId ? { ...o, acceptedBy: me, paymentDeadline: deadline, eligibleUserIds: [me] } : o);
+        return { ...e, slotOffers };
+      });
+      return { ...s, events, notifications: [...newNotifs, ...s.notifications] };
+    });
+    return { needPayment };
+  };
+
+  const payEventSlot = (eventId: string, offerId: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false, reason: 'not-found' };
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const events = s.events.map(e => {
+        if (e.id !== eventId) return e;
+        const me = s.currentUser.id;
+        const offer = e.slotOffers.find(o => o.id === offerId);
+        if (!offer || offer.acceptedBy !== me) { result = { ok: false, reason: 'expired' }; return e; }
+        if (offer.paymentDeadline && new Date(offer.paymentDeadline).getTime() < Date.now()) {
+          result = { ok: false, reason: 'expired' }; return e;
+        }
+        if (e.capacity != null && e.attendingIds.length >= e.capacity) { result = { ok: false, reason: 'full' }; return e; }
+        if (e.attendingIds.includes(me)) { result = { ok: true }; return e; }
+        const attendingIds = [...e.attendingIds, me];
+        const waitlistIds = e.waitlistIds.filter(id => id !== me);
+        const slotOffers = e.slotOffers.filter(o => o.id !== offerId);
+        newNotifs.push(makeNotif(`付款成功，已補上：${e.title}`));
+        result = { ok: true };
+        return { ...e, attendingIds, waitlistIds, slotOffers };
+      });
+      return { ...s, events, notifications: [...newNotifs, ...s.notifications] };
+    });
+    return result;
+  };
+
+  const declineEventSlot = (eventId: string, offerId: string) => {
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const events = s.events.map(e => {
+        if (e.id !== eventId) return e;
+        const me = s.currentUser.id;
+        const offer = e.slotOffers.find(o => o.id === offerId);
+        if (!offer) return e;
+        const waitlistIds = e.waitlistIds.filter(id => id !== me);
+        let slotOffers = e.slotOffers.map(o => {
+          if (o.id !== offerId) return o;
+          // Reset accepted/deadline on decline; recompute eligible from updated waitlist
+          const eligible = waitlistIds.length === 0 ? [] : (o.mode === 'race' ? [...waitlistIds] : waitlistIds.slice(0, 1));
+          if (eligible.length > 0) newNotifs.push(makeNotif(`【補位再開】${e.title} — 1 小時內接受並付款`));
+          return { ...o, acceptedBy: undefined, paymentDeadline: undefined, eligibleUserIds: eligible };
+        }).filter(o => o.eligibleUserIds.length > 0 || o.acceptedBy);
+        return { ...e, waitlistIds, slotOffers };
+      });
+      return { ...s, events, notifications: [...newNotifs, ...s.notifications] };
     });
   };
 
@@ -174,39 +286,185 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const joinPublicMatch = (matchId: string) => {
     setState(s => {
+      const newNotifs: Notification[] = [];
       const matches = s.publicMatches.map(m => {
+        if (m.id !== matchId) return m;
+        const me = s.currentUser.id;
+        if (m.attendees.includes(me) || m.waitlistIds.includes(me)) return m;
         const cap = m.maxPlayers;
         const hasRoom = cap == null || m.attendees.length < cap;
-        if (m.id === matchId && !m.attendees.includes(s.currentUser.id) && hasRoom) {
-          const newAttendees = [...m.attendees, s.currentUser.id];
-          return {
-            ...m,
-            attendees: newAttendees,
-            status: cap != null && newAttendees.length >= cap ? 'full' : m.status
-          };
+        if (hasRoom) {
+          const attendees = [...m.attendees, me];
+          return { ...m, attendees, status: cap != null && attendees.length >= cap ? 'full' as const : m.status };
         }
-        return m;
+        const waitlistIds = [...m.waitlistIds, me];
+        newNotifs.push(makeNotif(`已加入候補：公開場（第 ${waitlistIds.length} 位）`));
+        return { ...m, waitlistIds };
       });
-      return { ...s, publicMatches: matches };
+      return { ...s, publicMatches: matches, notifications: [...newNotifs, ...s.notifications] };
     });
   };
 
   const leavePublicMatch = (matchId: string) => {
     setState(s => {
+      const newNotifs: Notification[] = [];
       const matches = s.publicMatches.map(m => {
-        if (m.id === matchId) {
-          const newAttendees = m.attendees.filter(id => id !== s.currentUser.id);
-          return {
-            ...m,
-            attendees: newAttendees,
-            status: m.status === 'full' ? 'open' : m.status
-          };
+        if (m.id !== matchId) return m;
+        const me = s.currentUser.id;
+        const wasAttending = m.attendees.includes(me);
+        const attendees = m.attendees.filter(id => id !== me);
+        let waitlistIds = m.waitlistIds.filter(id => id !== me);
+        let slotOffers = m.slotOffers
+          .filter(o => o.acceptedBy !== me)
+          .map(o => ({ ...o, eligibleUserIds: o.eligibleUserIds.filter(id => id !== me) }))
+          .filter(o => o.eligibleUserIds.length > 0 || o.acceptedBy);
+        const cap = m.maxPlayers;
+        let status: PublicMatch['status'] = m.status === 'full' ? 'open' : m.status;
+
+        if (wasAttending && waitlistIds.length > 0 && (cap == null || attendees.length < cap)) {
+          const tiedUp = new Set<string>(slotOffers.flatMap(o => [...o.eligibleUserIds, ...(o.acceptedBy ? [o.acceptedBy] : [])]));
+          const freeWl = waitlistIds.filter(id => !tiedUp.has(id));
+          if (freeWl.length > 0) {
+            if (m.fee === 0) {
+              const promoted = freeWl[0];
+              waitlistIds = waitlistIds.filter(id => id !== promoted);
+              attendees.push(promoted);
+              if (cap != null && attendees.length >= cap) status = 'full' as const;
+              newNotifs.push(makeNotif('你已自動補上公開場（免費活動）'));
+            } else {
+              const hLeft = hoursUntil(m.datetime);
+              const offer = makeSlotOffer(freeWl, hLeft);
+              if (offer) {
+                slotOffers.push(offer);
+                const label = offer.mode === 'race' ? '搶位中' : '輪到你';
+                newNotifs.push(makeNotif(`【${label}】公開場有位空出，1 小時內接受並付款，逾時下一位補上`));
+              }
+            }
+          }
         }
-        return m;
+        return { ...m, attendees, waitlistIds, slotOffers, status };
       });
-      return { ...s, publicMatches: matches };
+      return { ...s, publicMatches: matches, notifications: [...newNotifs, ...s.notifications] };
     });
   };
+
+  const acceptMatchSlot = (matchId: string, offerId: string): { needPayment: boolean } => {
+    let needPayment = false;
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const matches = s.publicMatches.map(m => {
+        if (m.id !== matchId) return m;
+        const me = s.currentUser.id;
+        const offer = m.slotOffers.find(o => o.id === offerId);
+        if (!offer || !offer.eligibleUserIds.includes(me) || offer.acceptedBy) return m;
+        if (m.fee === 0) {
+          const attendees = [...m.attendees, me];
+          const waitlistIds = m.waitlistIds.filter(id => id !== me);
+          const slotOffers = m.slotOffers.filter(o => o.id !== offerId);
+          newNotifs.push(makeNotif('你已補上公開場'));
+          const cap = m.maxPlayers;
+          return { ...m, attendees, waitlistIds, slotOffers, status: cap != null && attendees.length >= cap ? 'full' as const : m.status };
+        }
+        needPayment = true;
+        const deadline = new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60000).toISOString();
+        const slotOffers = m.slotOffers.map(o => o.id === offerId ? { ...o, acceptedBy: me, paymentDeadline: deadline, eligibleUserIds: [me] } : o);
+        return { ...m, slotOffers };
+      });
+      return { ...s, publicMatches: matches, notifications: [...newNotifs, ...s.notifications] };
+    });
+    return { needPayment };
+  };
+
+  const payMatchSlot = (matchId: string, offerId: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false, reason: 'not-found' };
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const matches = s.publicMatches.map(m => {
+        if (m.id !== matchId) return m;
+        const me = s.currentUser.id;
+        const offer = m.slotOffers.find(o => o.id === offerId);
+        if (!offer || offer.acceptedBy !== me) { result = { ok: false, reason: 'expired' }; return m; }
+        if (offer.paymentDeadline && new Date(offer.paymentDeadline).getTime() < Date.now()) {
+          result = { ok: false, reason: 'expired' }; return m;
+        }
+        const cap = m.maxPlayers;
+        if (cap != null && m.attendees.length >= cap) { result = { ok: false, reason: 'full' }; return m; }
+        if (m.attendees.includes(me)) { result = { ok: true }; return m; }
+        const attendees = [...m.attendees, me];
+        const waitlistIds = m.waitlistIds.filter(id => id !== me);
+        const slotOffers = m.slotOffers.filter(o => o.id !== offerId);
+        newNotifs.push(makeNotif('付款成功，已補上公開場'));
+        result = { ok: true };
+        return { ...m, attendees, waitlistIds, slotOffers, status: cap != null && attendees.length >= cap ? 'full' as const : m.status };
+      });
+      return { ...s, publicMatches: matches, notifications: [...newNotifs, ...s.notifications] };
+    });
+    return result;
+  };
+
+  const declineMatchSlot = (matchId: string, offerId: string) => {
+    setState(s => {
+      const newNotifs: Notification[] = [];
+      const matches = s.publicMatches.map(m => {
+        if (m.id !== matchId) return m;
+        const me = s.currentUser.id;
+        const offer = m.slotOffers.find(o => o.id === offerId);
+        if (!offer) return m;
+        const waitlistIds = m.waitlistIds.filter(id => id !== me);
+        let slotOffers = m.slotOffers.map(o => {
+          if (o.id !== offerId) return o;
+          const eligible = waitlistIds.length === 0 ? [] : (o.mode === 'race' ? [...waitlistIds] : waitlistIds.slice(0, 1));
+          if (eligible.length > 0) newNotifs.push(makeNotif(`【補位再開】公開場 — 1 小時內接受並付款`));
+          return { ...o, acceptedBy: undefined, paymentDeadline: undefined, eligibleUserIds: eligible };
+        }).filter(o => o.eligibleUserIds.length > 0 || o.acceptedBy);
+        return { ...m, waitlistIds, slotOffers };
+      });
+      return { ...s, publicMatches: matches, notifications: [...newNotifs, ...s.notifications] };
+    });
+  };
+
+  // Tick: expire offers that passed payment deadline; re-open to next user
+  useEffect(() => {
+    const tick = () => {
+      setState(s => {
+        const now = Date.now();
+        let changed = false;
+        const newNotifs: Notification[] = [];
+
+        const expireOffers = <T extends { slotOffers: SlotOffer[]; waitlistIds: string[]; datetime: string; title?: string }>(item: T): T => {
+          const offers = [...item.slotOffers];
+          const wl = [...item.waitlistIds];
+          let local = false;
+          for (let i = 0; i < offers.length; i++) {
+            const o = offers[i];
+            if (o.acceptedBy && o.paymentDeadline && new Date(o.paymentDeadline).getTime() < now) {
+              const expired = o.acceptedBy;
+              const idx = wl.indexOf(expired);
+              if (idx >= 0) wl.splice(idx, 1);
+              const eligible = wl.length === 0 ? [] : (o.mode === 'race' ? [...wl] : wl.slice(0, 1));
+              if (eligible.length === 0) {
+                offers.splice(i, 1); i--;
+              } else {
+                offers[i] = { ...o, acceptedBy: undefined, paymentDeadline: undefined, eligibleUserIds: eligible };
+                newNotifs.push(makeNotif(`【補位再開】${item.title ?? '公開場'} — 1 小時內接受並付款`));
+              }
+              local = true;
+            }
+          }
+          if (!local) return item;
+          changed = true;
+          return { ...item, slotOffers: offers, waitlistIds: wl };
+        };
+
+        const events = s.events.map(expireOffers);
+        const publicMatches = s.publicMatches.map(expireOffers);
+        if (!changed) return s;
+        return { ...s, events, publicMatches, notifications: [...newNotifs, ...s.notifications] };
+      });
+    };
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const createPublicMatch = (matchData: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => {
     setState(s => {
@@ -341,6 +599,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       attendingIds: [state.currentUser.id],
       declinedIds: [],
       waitlistIds: [],
+      slotOffers: [],
       playerStats: [],
     };
     setState(s => ({ ...s, events: [...s.events, ev] }));
@@ -354,6 +613,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...state,
       toggleProMode,
       updateEventRSVP,
+      acceptEventSlot,
+      payEventSlot,
+      declineEventSlot,
+      acceptMatchSlot,
+      payMatchSlot,
+      declineMatchSlot,
       updateMatchStats,
       markNotificationRead,
       joinPublicMatch,

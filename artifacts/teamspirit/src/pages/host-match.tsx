@@ -67,6 +67,8 @@ export default function HostMatch() {
       description: values.description,
       rules: values.rules,
       refundPolicy: values.refundPolicy as RefundPolicyKind,
+      waitlistIds: [],
+      slotOffers: [],
     });
     toast.success('公開場已成功發佈！');
     setLocation('/discover');

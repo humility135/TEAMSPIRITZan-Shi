@@ -32,6 +32,20 @@ export const REFUND_POLICY_LABEL: Record<RefundPolicyKind, string> = {
   auto: '自動（跟天氣）',
 };
 
+export const RACE_THRESHOLD_HOURS = 24;
+export const PAYMENT_WINDOW_MINUTES = 60;
+
+export type SlotOfferMode = 'fifo' | 'race';
+
+export interface SlotOffer {
+  id: string;
+  mode: SlotOfferMode;
+  eligibleUserIds: string[];
+  acceptedBy?: string;
+  paymentDeadline?: string;
+  createdAt: string;
+}
+
 export interface SeasonStats {
   goals: number;
   assists: number;
@@ -117,6 +131,8 @@ export interface PublicMatch {
   status: 'open' | 'full' | 'cancelled' | 'finished';
   createdAt: string;
   isVerified?: boolean;
+  waitlistIds: string[];
+  slotOffers: SlotOffer[];
 }
 
 export interface HostReview {
@@ -160,6 +176,7 @@ export interface Event {
   attendingIds: string[];
   declinedIds: string[];
   waitlistIds: string[];
+  slotOffers: SlotOffer[];
   finalScore?: {
     home: number;
     away: number;

@@ -76,7 +76,9 @@ export const mockPublicMatches: PublicMatch[] = [
     refundPolicy: 'half',
     status: 'open',
     createdAt: new Date().toISOString(),
-    isVerified: true
+    isVerified: true,
+    waitlistIds: [],
+    slotOffers: []
   },
   {
     id: 'pm2',
@@ -88,12 +90,14 @@ export const mockPublicMatches: PublicMatch[] = [
     surface: 'turf',
     skillLevel: 4,
     maxPlayers: 10,
-    attendees: ['u2', 'guest1', 'guest2', 'guest3', 'guest4', 'guest5', 'guest6', 'guest7', 'guest8'],
+    attendees: ['u2', 'guest1', 'guest2', 'guest3', 'guest4', 'guest5', 'guest6', 'guest7', 'guest8', 'guest9'],
     description: '認真踢，有球證。',
     rules: '守門員免費，早15分鐘到場熱身。',
     refundPolicy: 'half',
-    status: 'open',
-    createdAt: new Date(Date.now() - 86400000).toISOString()
+    status: 'full',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    waitlistIds: ['u3', 'guest10'],
+    slotOffers: []
   },
   {
     id: 'pm3',
@@ -110,7 +114,9 @@ export const mockPublicMatches: PublicMatch[] = [
     rules: '開心足球。',
     refundPolicy: 'auto',
     status: 'open',
-    createdAt: new Date(Date.now() - 3600000).toISOString()
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    waitlistIds: [],
+    slotOffers: []
   }
 ];
 
@@ -193,6 +199,7 @@ export const mockEvents: Event[] = [
     attendingIds: ['u1', 'u2'],
     declinedIds: [],
     waitlistIds: [],
+    slotOffers: [],
     playerStats: []
   },
   {
@@ -208,6 +215,7 @@ export const mockEvents: Event[] = [
     attendingIds: ['u1'],
     declinedIds: ['u2'],
     waitlistIds: [],
+    slotOffers: [],
     playerStats: []
   },
   {
@@ -223,6 +231,7 @@ export const mockEvents: Event[] = [
     attendingIds: ['u1'],
     declinedIds: [],
     waitlistIds: [],
+    slotOffers: [],
     finalScore: { home: 3, away: 1 },
     playerStats: [
       { userId: 'u1', goals: 2, assists: 0, yellow: 0, red: 0 }
