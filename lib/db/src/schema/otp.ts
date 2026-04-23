@@ -1,11 +1,11 @@
-import { pgTable, text, timestamp, serial } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
-export const otpCodesTable = pgTable("otp_codes", {
-  id: serial("id").primaryKey(),
-  phone: text("phone").notNull(),
+export const otpCodesTable = sqliteTable("otp_codes", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
   code: text("code").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
 export type OtpCode = typeof otpCodesTable.$inferSelect;

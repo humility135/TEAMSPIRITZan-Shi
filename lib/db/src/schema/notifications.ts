@@ -1,12 +1,12 @@
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
-export const notificationsTable = pgTable("notifications", {
+export const notificationsTable = sqliteTable("notifications", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   type: text("type").notNull(),
   message: text("message").notNull(),
-  read: boolean("read").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  read: integer("read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
 export type NotificationRow = typeof notificationsTable.$inferSelect;

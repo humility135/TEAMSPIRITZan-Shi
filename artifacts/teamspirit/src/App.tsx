@@ -39,18 +39,20 @@ function AppRoutes() {
     <AppProvider>
       <Layout>
         <Switch>
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/discover" component={Discover} />
-          <Route path="/discover/host" component={HostMatch} />
-          <Route path="/discover/:matchId" component={PublicMatchDetail} />
-          <Route path="/teams" component={Teams} />
-          <Route path="/teams/:teamId" component={TeamDetail} />
-          <Route path="/events" component={Events} />
-          <Route path="/events/:eventId" component={EventDetail} />
-          <Route path="/pricing" component={Pricing} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/terms" component={Terms} />
-          <Route component={NotFound} />
+          {[
+            <Route key="dashboard" path="/dashboard" component={Dashboard} />,
+            <Route key="discover" path="/discover" component={Discover} />,
+            <Route key="host" path="/discover/host" component={HostMatch} />,
+            <Route key="public-match" path="/discover/:matchId" component={PublicMatchDetail} />,
+            <Route key="teams" path="/teams" component={Teams} />,
+            <Route key="team-detail" path="/teams/:teamId" component={TeamDetail} />,
+            <Route key="events" path="/events" component={Events} />,
+            <Route key="event-detail" path="/events/:eventId" component={EventDetail} />,
+            <Route key="pricing" path="/pricing" component={Pricing} />,
+            <Route key="profile" path="/profile" component={Profile} />,
+            <Route key="terms" path="/terms" component={Terms} />,
+            <Route key="not-found" component={NotFound} />
+          ]}
         </Switch>
       </Layout>
     </AppProvider>
