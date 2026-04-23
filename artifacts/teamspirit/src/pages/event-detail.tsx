@@ -51,6 +51,8 @@ export default function EventDetail() {
   const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
 
+  const isAdmin = currentUser.role?.[event.teamId] === 'Admin' || currentUser.role?.[event.teamId] === 'Owner';
+
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
     updateEventRSVP(event.id, status);
     if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
@@ -265,7 +267,9 @@ export default function EventDetail() {
           </Card>
 
           <Card className="p-6 border-border bg-card/50 backdrop-blur">
-            <h2 className="text-xl font-display font-bold uppercase tracking-wide mb-6">Match Stats (Admin)</h2>
+            <h2 className="text-xl font-display font-bold uppercase tracking-wide mb-6">
+              Match Stats {isAdmin && <span className="text-primary text-sm">(Admin Mode)</span>}
+            </h2>
             <div className="space-y-4">
               {event.attendingIds.map(id => {
                 const stat = event.playerStats.find(s => s.userId === id) || { goals: 0, assists: 0, yellow: 0, red: 0 };
@@ -276,12 +280,12 @@ export default function EventDetail() {
                       <span className="font-bold">{id === 'u1' ? 'Ah Fai' : id === 'u2' ? 'Kit C.' : 'Ming'}</span>
                     </div>
                     <div className="flex items-center gap-6">
-                      <StatCounter label="Goals" value={stat.goals} onMinus={() => updateMatchStats(event.id, id, 'goals', -1)} onPlus={() => updateMatchStats(event.id, id, 'goals', 1)} />
-                      <StatCounter label="Assists" value={stat.assists} onMinus={() => updateMatchStats(event.id, id, 'assists', -1)} onPlus={() => updateMatchStats(event.id, id, 'assists', 1)} />
+                      <StatCounter disabled={!isAdmin} label="Goals" value={stat.goals} onMinus={() => updateMatchStats(event.id, id, 'goals', -1)} onPlus={() => updateMatchStats(event.id, id, 'goals', 1)} />
+                      <StatCounter disabled={!isAdmin} label="Assists" value={stat.assists} onMinus={() => updateMatchStats(event.id, id, 'assists', -1)} onPlus={() => updateMatchStats(event.id, id, 'assists', 1)} />
                       
                       <div className="flex gap-2">
-                        <Button size="icon" variant="outline" className={`w-8 h-8 rounded ${stat.yellow > 0 ? 'bg-yellow-500 border-yellow-500' : 'border-yellow-500/50 text-yellow-500'}`} onClick={() => updateMatchStats(event.id, id, 'yellow', stat.yellow > 0 ? -1 : 1)}></Button>
-                        <Button size="icon" variant="outline" className={`w-8 h-8 rounded ${stat.red > 0 ? 'bg-red-500 border-red-500' : 'border-red-500/50 text-red-500'}`} onClick={() => updateMatchStats(event.id, id, 'red', stat.red > 0 ? -1 : 1)}></Button>
+                        <Button disabled={!isAdmin} size="icon" variant="outline" className={`w-8 h-8 rounded ${stat.yellow > 0 ? 'bg-yellow-500 border-yellow-500' : 'border-yellow-500/50 text-yellow-500'}`} onClick={() => updateMatchStats(event.id, id, 'yellow', stat.yellow > 0 ? -1 : 1)}></Button>
+                        <Button disabled={!isAdmin} size="icon" variant="outline" className={`w-8 h-8 rounded ${stat.red > 0 ? 'bg-red-500 border-red-500' : 'border-red-500/50 text-red-500'}`} onClick={() => updateMatchStats(event.id, id, 'red', stat.red > 0 ? -1 : 1)}></Button>
                       </div>
                     </div>
                   </div>
@@ -338,13 +342,17 @@ export default function EventDetail() {
   );
 }
 
-function StatCounter({ label, value, onMinus, onPlus }: any) {
+function StatCounter({ label, value, onMinus, onPlus, disabled }: any) {
   return (
     <div className="flex items-center gap-2">
       <div className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground w-12">{label}</div>
-      <Button size="icon" variant="outline" className="w-8 h-8 rounded-full" onClick={onMinus}><Minus className="w-3 h-3" /></Button>
+      {!disabled && (
+        <Button size="icon" variant="outline" className="w-8 h-8 rounded-full" onClick={onMinus}><Minus className="w-3 h-3" /></Button>
+      )}
       <div className="w-6 text-center font-display font-bold text-xl">{value}</div>
-      <Button size="icon" variant="outline" className="w-8 h-8 rounded-full" onClick={onPlus}><Plus className="w-3 h-3" /></Button>
+      {!disabled && (
+        <Button size="icon" variant="outline" className="w-8 h-8 rounded-full" onClick={onPlus}><Plus className="w-3 h-3" /></Button>
+      )}
     </div>
   )
 }
