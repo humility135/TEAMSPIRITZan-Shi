@@ -12,8 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-
-const HK_DISTRICTS = ['中西區', '灣仔', '東區', '南區', '油尖旺', '深水埗', '九龍城', '黃大仙', '觀塘', '荃灣', '屯門', '元朗', '北區', '大埔', '沙田', '西貢', '葵青', '離島'];
+import { HKMapPicker } from '@/components/hk-map-picker';
 
 export default function Teams() {
   const { teams, currentUser } = useAppStore();
@@ -21,7 +20,17 @@ export default function Teams() {
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-  const [districtOpen, setDistrictOpen] = useState(false);
+  const [teamName, setTeamName] = useState('');
+  const [district, setDistrict] = useState<string>('');
+  const [level, setLevel] = useState<string>('');
+
+  const handleCreate = () => {
+    if (!teamName.trim()) { toast({ title: '請輸入球隊名稱', variant: 'destructive' }); return; }
+    if (!district) { toast({ title: '請喺地圖揀主場地區', variant: 'destructive' }); return; }
+    setCreateOpen(false);
+    toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
+    setTeamName(''); setDistrict(''); setLevel('');
+  };
 
   const filtered = teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -71,49 +80,24 @@ export default function Teams() {
                   創立球隊
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">創立新球隊</DialogTitle>
                 </DialogHeader>
                 <ScrollArea className="flex-1 pr-4" type="always">
-                  <div className="space-y-4 py-4 pb-8">
+                  <div className="space-y-5 py-4 pb-8">
                     <div className="space-y-2">
                       <Label htmlFor="team-name">球隊名稱</Label>
-                      <Input id="team-name" placeholder="例如 東九龍勁旅" />
+                      <Input id="team-name" value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="例如 東九龍勁旅" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="team-district">主場地區</Label>
-                      <Dialog open={districtOpen} onOpenChange={setDistrictOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="w-full justify-between font-normal">
-                            <span className="text-muted-foreground">揀地區</span>
-                            <ArrowRight className="w-4 h-4 opacity-50" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-sm max-h-[80vh] flex flex-col">
-                          <DialogHeader>
-                            <DialogTitle className="font-display uppercase tracking-wider text-2xl">主場地區</DialogTitle>
-                          </DialogHeader>
-                          <ScrollArea className="flex-1 pr-4">
-                            <div className="grid gap-2 py-2 pb-6">
-                              {HK_DISTRICTS.map(d => (
-                                <Button
-                                  key={d}
-                                  variant="ghost"
-                                  className="justify-start"
-                                  onClick={() => { setDistrictOpen(false); toast({ title: `已揀：${d}` }); }}
-                                >
-                                  {d}
-                                </Button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </DialogContent>
-                      </Dialog>
+                      <Label>主場地區</Label>
+                      <p className="text-xs text-muted-foreground">喺地圖上面點一下你嘅主場地區（18 區）。</p>
+                      <HKMapPicker value={district} onChange={setDistrict} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="team-level">水平 (1-5★)</Label>
-                      <Select>
+                      <Select value={level} onValueChange={setLevel}>
                         <SelectTrigger id="team-level">
                           <SelectValue placeholder="揀水平" />
                         </SelectTrigger>
@@ -126,7 +110,7 @@ export default function Teams() {
                   </div>
                 </ScrollArea>
                 <DialogFooter>
-                  <Button onClick={() => { setCreateOpen(false); toast({ title: '球隊已創立', description: '去邀請你嘅隊友啦！' }); }} className="w-full font-bold tracking-wide uppercase">
+                  <Button onClick={handleCreate} className="w-full font-bold tracking-wide uppercase">
                     立即創立
                   </Button>
                 </DialogFooter>
