@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useRoute } from 'wouter';
-import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass } from 'lucide-react';
+import { useRoute, Link } from 'wouter';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, ShieldAlert } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -50,12 +50,19 @@ export default function EventDetail() {
   const acceptedByMe = myOffer?.acceptedBy === currentUser.id;
   const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
+  
+  const [paymentAck, setPaymentAck] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isAdmin = currentUser.role?.[event.teamId] === 'Admin' || currentUser.role?.[event.teamId] === 'Owner';
 
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
-    updateEventRSVP(event.id, status);
-    if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
+    setIsProcessing(true);
+    setTimeout(() => {
+      updateEventRSVP(event.id, status);
+      setIsProcessing(false);
+      if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
+    }, 1500);
   };
 
   const handleAcceptOffer = async () => {
@@ -183,35 +190,83 @@ export default function EventDetail() {
               </div>
             )}
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Dialog>
+              <Dialog onOpenChange={(open) => { if(open) setPaymentAck(false); }}>
                 <DialogTrigger asChild>
-                  <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
-                    {isAttending
-                      ? <><Check className="w-5 h-5 mr-2"/> 已出席</>
-                      : isWaitlist
-                        ? '已喺候補名單'
-                        : isFull
-                          ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
-                          : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
-                  </Button>
+                  {isAttending ? (
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-green-500 text-black hover:bg-green-400">
+                      <Check className="w-5 h-5 mr-2"/> 已出席
+                    </Button>
+                  ) : isWaitlist ? (
+                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
+                      已喺候補名單
+                    </Button>
+                  ) : isFull ? (
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground">
+                      加入候補{event.fee > 0 ? '（$0 留位）' : ''}
+                    </Button>
+                  ) : (
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground">
+                      我要報名{event.fee > 0 ? ` ($${event.fee})` : ''}
+                    </Button>
+                  )}
                 </DialogTrigger>
                 {!isAttending && !isWaitlist && (
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-md border-border bg-card">
                     <DialogHeader>
-                      <DialogTitle className="font-display uppercase tracking-wider text-2xl">
-                        {isFull ? '加入候補' : '付款確認'}
+                      <DialogTitle className="font-display uppercase tracking-wide text-2xl">
+                        {isFull ? '加入候補' : '報名確認與付款'}
                       </DialogTitle>
+                      <DialogDescription>
+                        報名費由平台暫時代存，活動完結後才會發放給搞手。
+                      </DialogDescription>
                     </DialogHeader>
-                    <div className="py-6 space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        {isFull
-                          ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
-                          : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
-                      </p>
-                      <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                        {isFull ? '加入候補' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
-                      </Button>
+                    
+                    <div className="bg-black/30 p-4 rounded-xl space-y-3 my-4">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">報名費</span>
+                        <span>${event.fee.toFixed(2)}</span>
+                      </div>
+                      {event.fee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">平台手續費 (4%)</span>
+                          <span>${(event.fee * 0.04).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="h-px bg-border my-2"></div>
+                      <div className="flex justify-between font-bold text-lg text-primary">
+                        <span>總計</span>
+                        <span>${(event.fee * (event.fee > 0 ? 1.04 : 1)).toFixed(2)}</span>
+                      </div>
                     </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl text-xs space-y-2 leading-relaxed">
+                      <div className="flex items-center gap-2 font-bold text-amber-200">
+                        <ShieldAlert className="w-4 h-4" /> 報名前請睇清楚
+                      </div>
+                      <ul className="space-y-1 list-disc list-inside text-amber-100/90">
+                        <li>TEAMSPIRIT 只係撮合及代收款平台，並非主辦方。場地安全、人身意外、保險由搞手同參加者自行承擔。</li>
+                        <li>足球活動有受傷風險，自願參加，建議自備保險。</li>
+                        <li>如果搞手要求私下過數（FPS / 現金）而唔係經平台付款，平台無法保障亦唔負責任何金錢糾紛。</li>
+                      </ul>
+                      <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                        <input type="checkbox" checked={paymentAck} onChange={e => setPaymentAck(e.target.checked)} className="w-4 h-4 accent-primary" />
+                        <span>我已閱讀並同意以上條款及<Link href="/terms" className="underline hover:text-amber-50">完整免責聲明</Link></span>
+                      </label>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                      <Button variant="outline" disabled={isProcessing} onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))}>
+                        取消
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        className="font-bold tracking-wider uppercase" 
+                        disabled={isProcessing || !paymentAck} 
+                        onClick={() => handleRSVP('attending')}
+                      >
+                        {isProcessing ? "處理中..." : isFull ? '加入候補' : event.fee > 0 ? `確認付款並報名` : '確認出席'}
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 )}
               </Dialog>
