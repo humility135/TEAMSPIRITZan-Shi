@@ -94,7 +94,7 @@ export default function Profile() {
                 onClick={async () => {
                   try {
                     await logout();
-                    setLocation('/login');
+                    setLocation('/');
                   } catch (e) {
                     toast({ title: '登出失敗', variant: 'destructive' });
                   }

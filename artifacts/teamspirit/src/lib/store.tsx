@@ -126,10 +126,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const commentsQ = useQuery({ queryKey: ['matchComments'], queryFn: () => api<MatchComment[]>('/match-comments'), enabled, select: (data) => data.map(hydrateComment) });
   const notifsQ = useQuery({ queryKey: ['notifications'], queryFn: () => api<Notification[]>('/notifications'), enabled, refetchInterval: POLL_MS, select: (data) => data.map(hydrateNotif) });
 
-  // 401 → redirect to /login
+  // 401 → redirect to /
   useEffect(() => {
     if (meQ.isError && meQ.error instanceof ApiError && (meQ.error as ApiError).status === 401) {
-      setLoc('/login');
+      setLoc('/');
     }
   }, [meQ.isError, meQ.error, setLoc]);
 
@@ -301,7 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' });
     qc.clear();
-    setLoc('/login');
+    setLoc('/');
   }, [qc, setLoc]);
 
   const getRole = useCallback((teamId: string): Role | undefined => {
