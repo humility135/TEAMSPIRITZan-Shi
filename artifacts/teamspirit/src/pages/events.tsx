@@ -420,7 +420,8 @@ function TeamEventRow({ event }: { event: any }) {
 
 function PublicMatchRow({ match }: { match: any }) {
   const { venues, currentUser } = useAppStore();
-  const venue = venues.find(v => v.id === match.venueId);
+  const venue = match.venueId ? venues.find((v: any) => v.id === match.venueId) : undefined;
+  const venueLabel = venue?.name ?? match.venueAddress ?? '—';
   const isHost = match.hostId === currentUser.id;
 
   return (
@@ -445,10 +446,10 @@ function PublicMatchRow({ match }: { match: any }) {
               )}
               {match.status === 'cancelled' && <Badge variant="destructive" className="text-[10px] tracking-widest uppercase">已取消</Badge>}
             </div>
-            <h3 className="font-bold text-lg leading-tight truncate">{venue?.name}</h3>
+            <h3 className="font-bold text-lg leading-tight truncate">{venueLabel}</h3>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venue?.district}</span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {match.attendees.length}/{match.maxPlayers}</span>
+              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venue?.district ?? '搵手填地址'}</span>
+              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {match.attendees.length}{match.maxPlayers != null ? `/${match.maxPlayers}` : ''}</span>
               <span>${match.fee}/人</span>
             </div>
           </div>

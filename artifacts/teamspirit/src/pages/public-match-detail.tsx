@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,14 +24,19 @@ export default function PublicMatchDetail() {
     return <div className="p-8 text-center">找不到此公開場</div>;
   }
 
-  const venue = venues.find(v => v.id === match.venueId);
+  const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+  const venueLabel = venue?.name ?? match.venueAddress ?? '—';
+  const districtLabel = venue?.district ?? '搵手填地址';
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.venueAddress ?? venue?.name ?? '')}`;
   const host = users.find(u => u.id === match.hostId);
   const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
   const comments = matchComments.filter(c => c.matchId === match.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  
+  const refundOpt = REFUND_POLICY_OPTIONS.find(o => o.value === match.refundPolicy);
+
   const isHost = currentUser.id === match.hostId;
   const isAttending = match.attendees.includes(currentUser.id);
-  const isFull = match.attendees.length >= match.maxPlayers;
+  const cap = match.maxPlayers;
+  const isFull = cap != null && match.attendees.length >= cap;
   
   const handleJoin = () => {
     setIsProcessing(true);
@@ -59,9 +65,12 @@ export default function PublicMatchDetail() {
               <Badge variant="outline" className="bg-primary/20 text-primary border-primary/50 tracking-widest uppercase">公開場</Badge>
               {match.isVerified && <Badge variant="outline" className="bg-blue-500/20 text-blue-400 border-blue-500/50 tracking-widest uppercase flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> 已驗證</Badge>}
             </div>
-            <h1 className="text-3xl md:text-5xl font-display font-bold uppercase tracking-tight">{venue?.name}</h1>
+            <h1 className="text-3xl md:text-5xl font-display font-bold uppercase tracking-tight">{venueLabel}</h1>
             <p className="text-muted-foreground mt-2 flex items-center gap-2">
-              <MapPin className="w-4 h-4" /> {venue?.district}
+              <MapPin className="w-4 h-4" /> {districtLabel}
+              <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
+                <ExternalLink className="w-3 h-3" /> 開地圖
+              </a>
             </p>
           </div>
         </div>
@@ -97,7 +106,13 @@ export default function PublicMatchDetail() {
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">時間</div>
-                <div className="font-bold">{new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+                <div className="font-bold flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  {new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  {match.endDatetime && (
+                    <span className="text-muted-foreground"> – {new Date(match.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                  )}
+                </div>
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">場地</div>
@@ -118,7 +133,13 @@ export default function PublicMatchDetail() {
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-primary" /> 規則與退款</h3>
                 <div className="bg-black/20 p-4 rounded-xl space-y-2">
                   <p className="text-sm"><span className="font-bold">規則：</span>{match.rules}</p>
-                  <p className="text-sm"><span className="font-bold">退款：</span>{match.refundPolicy}</p>
+                  <p className="text-sm">
+                    <span className="font-bold">退款政策：</span>
+                    {refundOpt ? `${refundOpt.label} — ${refundOpt.description}` : String(match.refundPolicy)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">
+                    平台只係撮合工具，活動安全、保險同人身意外責任由搞手同參加者自行承擔。
+                  </p>
                 </div>
               </div>
             </div>
@@ -126,8 +147,8 @@ export default function PublicMatchDetail() {
 
           <Card className="p-6 border-border bg-card/50 backdrop-blur">
             <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" /> 
-              已報名名單 ({match.attendees.length}/{match.maxPlayers})
+              <Users className="w-5 h-5 text-primary" />
+              已報名名單 ({match.attendees.length}{cap != null ? `/${cap}` : ' · 不設上限'})
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {match.attendees.map((attendeeId, i) => {
@@ -142,7 +163,7 @@ export default function PublicMatchDetail() {
                   </div>
                 );
               })}
-              {Array.from({ length: match.maxPlayers - match.attendees.length }).map((_, i) => (
+              {cap != null && Array.from({ length: Math.max(0, cap - match.attendees.length) }).map((_, i) => (
                 <div key={`empty-${i}`} className="flex flex-col items-center gap-2 p-3 border border-dashed border-border/50 rounded-xl opacity-50">
                   <div className="w-12 h-12 rounded-full border border-dashed border-border flex items-center justify-center">
                     <span className="text-xs text-muted-foreground">空</span>

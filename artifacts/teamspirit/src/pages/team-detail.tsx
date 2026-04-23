@@ -11,7 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Role } from '@/lib/types';
+import type { Role, RefundPolicyKind, SurfaceType } from '@/lib/types';
+import { REFUND_POLICY_OPTIONS } from '@/lib/types';
+import { ShieldAlert } from 'lucide-react';
 
 const ACCENT_COLORS = ['#84cc16', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#10b981'];
 
@@ -36,10 +38,20 @@ export default function TeamDetail() {
   const [evStart, setEvStart] = useState('');
   const [evEnd, setEvEnd] = useState('');
   const [evAddress, setEvAddress] = useState('');
+  const [evSurface, setEvSurface] = useState<SurfaceType>('hard');
+  const [evSkill, setEvSkill] = useState<number>(3);
   const [evFee, setEvFee] = useState('');
   const [evCap, setEvCap] = useState('');
-  const [evIsFree, setEvIsFree] = useState(true);
-  const [evHasCap, setEvHasCap] = useState(false);
+  const [evDesc, setEvDesc] = useState('');
+  const [evRules, setEvRules] = useState('');
+  const [evRefund, setEvRefund] = useState<RefundPolicyKind>('full');
+  const [evAck, setEvAck] = useState(false);
+
+  const resetEventForm = () => {
+    setEvTitle(''); setEvDate(''); setEvStart(''); setEvEnd(''); setEvAddress('');
+    setEvSurface('hard'); setEvSkill(3); setEvFee(''); setEvCap('');
+    setEvDesc(''); setEvRules(''); setEvRefund('full'); setEvAck(false);
+  };
 
   if (!team) return <div className="p-8 text-center">Team not found</div>;
 
@@ -102,30 +114,35 @@ export default function TeamDetail() {
   const handleCreateEvent = () => {
     if (!evTitle.trim()) { toast({ title: '請輸入活動名稱', variant: 'destructive' }); return; }
     if (!evDate || !evStart || !evEnd) { toast({ title: '請填妥日期、開始同完結時間', variant: 'destructive' }); return; }
+    if (evEnd <= evStart) { toast({ title: '完結時間要喺開始之後', variant: 'destructive' }); return; }
     if (!evAddress.trim()) { toast({ title: '請輸入場地地址', variant: 'destructive' }); return; }
+    if (evCap.trim() !== '' && (!Number.isInteger(Number(evCap)) || Number(evCap) <= 0)) {
+      toast({ title: '人數上限要係大過 0 嘅整數', variant: 'destructive' }); return;
+    }
+    if (evFee.trim() !== '' && (Number.isNaN(Number(evFee)) || Number(evFee) < 0)) {
+      toast({ title: '報名費要係 0 或正數', variant: 'destructive' }); return;
+    }
+    if (evDesc.trim().length < 10) { toast({ title: '活動描述至少 10 個字', variant: 'destructive' }); return; }
+    if (evRules.trim().length < 5) { toast({ title: '請填寫特別規則', variant: 'destructive' }); return; }
+    if (!evAck) { toast({ title: '請確認免責聲明', variant: 'destructive' }); return; }
     const datetime = new Date(`${evDate}T${evStart}`).toISOString();
     const endDatetime = new Date(`${evDate}T${evEnd}`).toISOString();
-    if (new Date(endDatetime).getTime() <= new Date(datetime).getTime()) {
-      toast({ title: '完結時間要喺開始之後', variant: 'destructive' }); return;
-    }
-    if (!evIsFree && (evFee.trim() === '' || parseInt(evFee, 10) <= 0)) {
-      toast({ title: '請輸入收費金額', variant: 'destructive' }); return;
-    }
-    if (evHasCap && (evCap.trim() === '' || parseInt(evCap, 10) < 1)) {
-      toast({ title: '請輸入人數上限', variant: 'destructive' }); return;
-    }
     createEvent({
       teamId: team.id,
       title: evTitle.trim(),
       datetime,
       endDatetime,
       venueAddress: evAddress.trim(),
-      fee: evIsFree ? 0 : Math.max(0, parseInt(evFee, 10) || 0),
-      capacity: evHasCap ? Math.max(1, parseInt(evCap, 10) || 1) : null,
+      surface: evSurface,
+      skillLevel: evSkill,
+      fee: evFee.trim() === '' ? 0 : Number(evFee),
+      capacity: evCap.trim() === '' ? null : Number(evCap),
+      description: evDesc.trim(),
+      rules: evRules.trim(),
+      refundPolicy: evRefund,
     });
     setCreateEventOpen(false);
-    setEvTitle(''); setEvDate(''); setEvStart(''); setEvEnd(''); setEvAddress(''); setEvFee(''); setEvCap('');
-    setEvIsFree(true); setEvHasCap(false);
+    resetEventForm();
     toast({ title: '活動已發起', description: evTitle });
   };
 
@@ -313,67 +330,113 @@ export default function TeamDetail() {
             <Calendar className="w-6 h-6 text-primary" /> 球隊活動
           </h2>
           {canManage && (
-            <Dialog open={createEventOpen} onOpenChange={setCreateEventOpen}>
+            <Dialog open={createEventOpen} onOpenChange={(o) => { setCreateEventOpen(o); if (!o) resetEventForm(); }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="font-bold tracking-wide uppercase">
                   <Plus className="w-4 h-4 mr-1" /> 發起活動
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="font-display uppercase tracking-wider text-2xl">發起新活動</DialogTitle>
                   <DialogDescription>建立比賽、訓練或練波局，隊友可即時 RSVP。</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ev-title">活動名稱</Label>
-                    <Input id="ev-title" value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="例如 友誼賽 vs 紅磡聯" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ev-date">日期</Label>
-                    <Input id="ev-date" type="date" value={evDate} onChange={e => setEvDate(e.target.value)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-5 py-2">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b border-border pb-1.5">基本資料</h3>
                     <div className="space-y-2">
-                      <Label htmlFor="ev-start">開始時間</Label>
-                      <Input id="ev-start" type="time" value={evStart} onChange={e => setEvStart(e.target.value)} />
+                      <Label htmlFor="ev-title">活動名稱</Label>
+                      <Input id="ev-title" value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="例如 友誼賽 vs 紅磡聯" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ev-end">完結時間</Label>
-                      <Input id="ev-end" type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} />
+                      <Label htmlFor="ev-address">場地地址</Label>
+                      <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 黃大仙鳳舞街40號 摩士公園足球場 3號場" />
+                      <p className="text-[11px] text-muted-foreground">會用作 Google Maps 定位。</p>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ev-address">場地地址</Label>
-                    <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 摩士公園3號場、九龍黃大仙鳳德道" />
-                    <p className="text-[11px] text-muted-foreground">會用作 Google Maps 定位，寫得清楚啲方便隊友搵路。</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>費用</Label>
-                    <div className="inline-flex rounded-lg bg-black/40 p-1 w-full">
-                      <button type="button" onClick={() => setEvIsFree(true)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${evIsFree ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>免費</button>
-                      <button type="button" onClick={() => setEvIsFree(false)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${!evIsFree ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>收費</button>
+                    <div className="space-y-2">
+                      <Label htmlFor="ev-date">日期</Label>
+                      <Input id="ev-date" type="date" value={evDate} onChange={e => setEvDate(e.target.value)} />
                     </div>
-                    {!evIsFree && (
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input id="ev-fee" type="number" min={1} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="例如 50" className="pl-7" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="ev-start">開始時間</Label>
+                        <Input id="ev-start" type="time" value={evStart} onChange={e => setEvStart(e.target.value)} />
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <Label htmlFor="ev-end">完結時間</Label>
+                        <Input id="ev-end" type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>場地類型</Label>
+                      <Select value={evSurface} onValueChange={(v) => setEvSurface(v as SurfaceType)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hard">硬地 (Hard)</SelectItem>
+                          <SelectItem value="turf">仿真草 (Turf)</SelectItem>
+                          <SelectItem value="grass">真草 (Grass)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="ev-cap">人數上限</Label>
+                        <Input id="ev-cap" type="number" min={1} step={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="留空 = 不設上限" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ev-fee">報名費 / 人</Label>
+                        <Input id="ev-fee" type="number" min={0} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="留空 = 免費" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>水平 (1-5★)</Label>
+                        <Select value={String(evSkill)} onValueChange={(v) => setEvSkill(Number(v))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1★ 新手</SelectItem>
+                            <SelectItem value="2">2★ 業餘</SelectItem>
+                            <SelectItem value="3">3★ 常規</SelectItem>
+                            <SelectItem value="4">4★ 競技</SelectItem>
+                            <SelectItem value="5">5★ 職業</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>人數上限</Label>
-                    <div className="inline-flex rounded-lg bg-black/40 p-1 w-full">
-                      <button type="button" onClick={() => setEvHasCap(false)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${!evHasCap ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>無上限</button>
-                      <button type="button" onClick={() => setEvHasCap(true)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${evHasCap ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>設定上限</button>
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b border-border pb-1.5">詳細資料</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="ev-desc">活動描述</Label>
+                      <textarea id="ev-desc" value={evDesc} onChange={e => setEvDesc(e.target.value)} rows={3} placeholder="例如：聯賽第 3 輪，務求穩陣攞 3 分。" className="w-full rounded-md bg-background border border-input px-3 py-2 text-sm" />
                     </div>
-                    {evHasCap ? (
-                      <Input id="ev-cap" type="number" min={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="例如 14" />
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground">所有人都可以報名，唔會有候補名單。</p>
-                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="ev-rules">特別規則</Label>
+                      <textarea id="ev-rules" value={evRules} onChange={e => setEvRules(e.target.value)} rows={2} placeholder="例如：自備一淺一深波衫、守門員免費。" className="w-full rounded-md bg-background border border-input px-3 py-2 text-sm" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>退款政策</Label>
+                      <Select value={evRefund} onValueChange={(v) => setEvRefund(v as RefundPolicyKind)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {REFUND_POLICY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label} · {opt.short}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">{REFUND_POLICY_OPTIONS.find(o => o.value === evRefund)?.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl space-y-2 text-xs leading-relaxed">
+                    <div className="flex items-center gap-2 font-bold text-amber-200">
+                      <ShieldAlert className="w-4 h-4" /> 免責聲明
+                    </div>
+                    <p>TEAMSPIRIT 只係撮合工具同代收款服務，並非主辦方。場地安全、保險、人身意外責任由搞手同隊員自行承擔。</p>
+                    <p>退款金額由平台代收嘅報名費直接退返畀隊員，<span className="font-bold">唔會由你倒貼</span>。但你已支付嘅場租等費用要自己處理。</p>
+                    <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                      <input type="checkbox" checked={evAck} onChange={e => setEvAck(e.target.checked)} className="w-4 h-4 accent-primary" />
+                      <span>我已閱讀並同意以上條款</span>
+                    </label>
                   </div>
                 </div>
                 <DialogFooter>

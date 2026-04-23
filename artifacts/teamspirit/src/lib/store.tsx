@@ -52,7 +52,7 @@ interface AppContextType extends AppState {
   leaveTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
-  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime?: string; venueAddress: string; fee: number; capacity: number | null }) => Event;
+  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string; refundPolicy?: import('./types').RefundPolicyKind }) => Event;
   getRole: (teamId: string) => Role | undefined;
 }
 
@@ -175,12 +175,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const joinPublicMatch = (matchId: string) => {
     setState(s => {
       const matches = s.publicMatches.map(m => {
-        if (m.id === matchId && !m.attendees.includes(s.currentUser.id) && m.attendees.length < m.maxPlayers) {
+        const cap = m.maxPlayers;
+        const hasRoom = cap == null || m.attendees.length < cap;
+        if (m.id === matchId && !m.attendees.includes(s.currentUser.id) && hasRoom) {
           const newAttendees = [...m.attendees, s.currentUser.id];
           return {
             ...m,
             attendees: newAttendees,
-            status: newAttendees.length >= m.maxPlayers ? 'full' : m.status
+            status: cap != null && newAttendees.length >= cap ? 'full' : m.status
           };
         }
         return m;
@@ -321,7 +323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const createEvent = (data: { teamId: string; title: string; datetime: string; endDatetime?: string; venueAddress: string; fee: number; capacity: number | null }) => {
+  const createEvent = (data: Parameters<AppContextType['createEvent']>[0]) => {
     const ev: Event = {
       id: `e${Date.now()}`,
       teamId: data.teamId,
@@ -329,8 +331,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       datetime: data.datetime,
       endDatetime: data.endDatetime,
       venueAddress: data.venueAddress,
+      surface: data.surface,
+      skillLevel: data.skillLevel,
       fee: data.fee,
       capacity: data.capacity,
+      description: data.description,
+      rules: data.rules,
+      refundPolicy: data.refundPolicy,
       status: 'scheduled',
       attendingIds: [state.currentUser.id],
       declinedIds: [],

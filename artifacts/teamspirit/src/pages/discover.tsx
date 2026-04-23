@@ -17,8 +17,9 @@ export default function Discover() {
   const activeMatches = publicMatches.filter(m => m.status === 'open' || m.status === 'full');
 
   const filteredMatches = activeMatches.filter(m => {
-    const venue = venues.find(v => v.id === m.venueId);
-    if (districtFilter !== 'all' && venue?.district !== districtFilter) return false;
+    const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
+    const district = venue?.district ?? (m.venueAddress ? '其他' : undefined);
+    if (districtFilter !== 'all' && district !== districtFilter) return false;
     if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
     return true;
   }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
@@ -91,12 +92,15 @@ export default function Discover() {
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
           {filteredMatches.map((match, i) => {
-            const venue = venues.find(v => v.id === match.venueId);
+            const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+            const venueLabel = venue?.name ?? match.venueAddress ?? '—';
+            const districtLabel = venue?.district ?? '搵手填地址';
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = match.attendees.includes(currentUser.id);
-            const isFull = match.attendees.length >= match.maxPlayers;
-            const fillPercentage = (match.attendees.length / match.maxPlayers) * 100;
+            const cap = match.maxPlayers;
+            const isFull = cap != null && match.attendees.length >= cap;
+            const fillPercentage = cap != null ? (match.attendees.length / cap) * 100 : 0;
 
             return (
               <motion.div
@@ -132,9 +136,9 @@ export default function Discover() {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-bold text-lg leading-tight line-clamp-1">{venue?.name}</h3>
+                        <h3 className="font-bold text-lg leading-tight line-clamp-1">{venueLabel}</h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="w-3 h-3" /> {venue?.district}
+                          <MapPin className="w-3 h-3" /> {districtLabel}
                         </p>
                       </div>
                     </div>
@@ -155,12 +159,14 @@ export default function Discover() {
 
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-medium">
-                          <span>已報名 {match.attendees.length} / {match.maxPlayers}</span>
+                          <span>已報名 {match.attendees.length}{cap != null ? ` / ${cap}` : ' (不設上限)'}</span>
                           <span className={`${isFull ? 'text-destructive' : 'text-primary'}`}>
-                            {isFull ? '已滿額' : `尚餘 ${match.maxPlayers - match.attendees.length} 位`}
+                            {cap == null ? '無限位' : isFull ? '已滿額' : `尚餘 ${cap - match.attendees.length} 位`}
                           </span>
                         </div>
-                        <Progress value={fillPercentage} className={`h-2 ${isFull ? 'bg-destructive/20' : 'bg-primary/20'}`} indicatorClassName={isFull ? 'bg-destructive' : 'bg-primary'} />
+                        {cap != null && (
+                          <Progress value={fillPercentage} className={`h-2 ${isFull ? 'bg-destructive/20' : 'bg-primary/20'}`} indicatorClassName={isFull ? 'bg-destructive' : 'bg-primary'} />
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t border-border">

@@ -3,6 +3,41 @@ export type SubscriptionStatus = 'free' | 'pro';
 export type EventStatus = 'scheduled' | 'live' | 'finished';
 export type RSVPStatus = 'attending' | 'declined' | 'waitlist' | 'none';
 export type SurfaceType = 'hard' | 'turf' | 'grass';
+export type RefundPolicyKind = 'full' | 'half' | 'auto';
+
+export interface RefundPolicyOption {
+  value: RefundPolicyKind;
+  label: string;
+  short: string;
+  description: string;
+}
+
+export const REFUND_POLICY_OPTIONS: RefundPolicyOption[] = [
+  {
+    value: 'full',
+    label: '全退',
+    short: '24h 前可全退',
+    description: '開賽前 24 小時 100% 退款，之後不退。',
+  },
+  {
+    value: 'half',
+    label: '半退',
+    short: '分階段退款',
+    description: '48 小時前 100% / 24 小時前 50% / 6 小時前 0%。',
+  },
+  {
+    value: 'auto',
+    label: '自動（跟天氣）',
+    short: '掛 8 號 / 黑雨自動全退',
+    description: '系統綁定香港天文台資料，掛 8 號風球或黑雨警告會自動全額退款。',
+  },
+];
+
+export const REFUND_POLICY_LABEL: Record<RefundPolicyKind, string> = {
+  full: '全退（24h 前 100%）',
+  half: '半退（48/24/6h 階梯）',
+  auto: '自動（跟天氣）',
+};
 
 export interface SeasonStats {
   goals: number;
@@ -74,16 +109,18 @@ export interface PlayerStat {
 export interface PublicMatch {
   id: string;
   hostId: string;
-  venueId: string;
+  venueId?: string;
+  venueAddress?: string;
   datetime: string;
+  endDatetime?: string;
   fee: number;
   surface: SurfaceType;
   skillLevel: number;
-  maxPlayers: number;
+  maxPlayers: number | null;
   attendees: string[];
   description: string;
   rules: string;
-  refundPolicy: string;
+  refundPolicy: RefundPolicyKind;
   status: 'open' | 'full' | 'cancelled' | 'finished';
   createdAt: string;
   isVerified?: boolean;
@@ -120,8 +157,13 @@ export interface Event {
   endDatetime?: string;
   venueId?: string;
   venueAddress?: string;
+  surface?: SurfaceType;
+  skillLevel?: number;
   fee: number;
   capacity: number | null;
+  description?: string;
+  rules?: string;
+  refundPolicy?: RefundPolicyKind;
   status: EventStatus;
   attendingIds: string[];
   declinedIds: string[];

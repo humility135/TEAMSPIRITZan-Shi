@@ -89,13 +89,14 @@ export default function Dashboard() {
               <h2 className="text-2xl font-display font-bold uppercase tracking-wide">我主辦緊嘅公開場</h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {myHostedMatches.map(m => {
-                  const venue = venues.find(v => v.id === m.venueId);
+                  const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
+                  const label = venue?.name ?? m.venueAddress ?? '—';
                   return (
                     <Link key={m.id} href={`/discover/${m.id}`}>
                       <Card className="p-4 border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-colors h-full">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-bold truncate">{venue?.name}</span>
-                          <Badge className="bg-primary text-primary-foreground">{m.attendees.length}/{m.maxPlayers}</Badge>
+                          <span className="font-bold truncate">{label}</span>
+                          <Badge className="bg-primary text-primary-foreground">{m.attendees.length}{m.maxPlayers != null ? `/${m.maxPlayers}` : ''}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {new Date(m.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -119,7 +120,9 @@ export default function Dashboard() {
             
             <div className="grid sm:grid-cols-2 gap-4">
               {nearbyMatches.map((match, i) => {
-                const venue = venues.find(v => v.id === match.venueId);
+                const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+                const label = venue?.name ?? match.venueAddress ?? '—';
+                const district = venue?.district ?? '';
                 return (
                   <motion.div key={match.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                     <Link href={`/discover/${match.id}`}>
@@ -128,13 +131,13 @@ export default function Dashboard() {
                           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 tracking-widest uppercase">公開場</Badge>
                           <div className="text-sm font-bold">${match.fee}</div>
                         </div>
-                        <h3 className="font-bold text-lg leading-tight mb-2 truncate">{venue?.name}</h3>
+                        <h3 className="font-bold text-lg leading-tight mb-2 truncate">{label}</h3>
                         <div className="space-y-2 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {venue?.district}</div>
+                          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {district || '搵手填地址'}</div>
                           <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> {new Date(match.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-center text-xs font-bold text-primary group-hover:text-white transition-colors">
-                          <span>{match.attendees.length} / {match.maxPlayers} 人已報</span>
+                          <span>{match.attendees.length}{match.maxPlayers != null ? ` / ${match.maxPlayers}` : ''} 人已報</span>
                           <ArrowRight className="w-4 h-4" />
                         </div>
                       </Card>
