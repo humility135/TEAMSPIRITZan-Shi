@@ -14,6 +14,7 @@ import EventDetail from "@/pages/event-detail";
 import Pricing from "@/pages/pricing";
 import Profile from "@/pages/profile";
 import Discover from "@/pages/discover";
+import Teams from "@/pages/teams";
 import PublicMatchDetail from "@/pages/public-match-detail";
 import HostMatch from "@/pages/host-match";
 
@@ -28,6 +29,7 @@ function Router() {
         <Route path="/discover" component={Discover} />
         <Route path="/discover/host" component={HostMatch} />
         <Route path="/discover/:matchId" component={PublicMatchDetail} />
+        <Route path="/teams" component={Teams} />
         <Route path="/teams/:teamId" component={TeamDetail} />
         <Route path="/events/:eventId" component={EventDetail} />
         <Route path="/pricing" component={Pricing} />

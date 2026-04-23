@@ -40,9 +40,33 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          
+      <div className="space-y-8">
+
+          {/* Hosted matches inline */}
+          {myHostedMatches.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-display font-bold uppercase tracking-wide">我主辦緊嘅公開場</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myHostedMatches.map(m => {
+                  const venue = venues.find(v => v.id === m.venueId);
+                  return (
+                    <Link key={m.id} href={`/discover/${m.id}`}>
+                      <Card className="p-4 border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-colors h-full">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="font-bold truncate">{venue?.name}</span>
+                          <Badge className="bg-primary text-primary-foreground">{m.attendees.length}/{m.maxPlayers}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(m.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </div>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Public Matches Section */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -141,64 +165,6 @@ export default function Dashboard() {
               })}
             </div>
           </div>
-        </div>
-
-        <div className="space-y-8">
-          {/* Hosted matches card */}
-          {myHostedMatches.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-display font-bold uppercase tracking-wide">我主辦緊嘅公開場</h2>
-              {myHostedMatches.map(m => {
-                const venue = venues.find(v => v.id === m.venueId);
-                return (
-                  <Link key={m.id} href={`/discover/${m.id}`}>
-                    <Card className="p-4 border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold truncate">{venue?.name}</span>
-                        <Badge className="bg-primary text-primary-foreground">{m.attendees.length}/{m.maxPlayers}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(m.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
-                      </div>
-                    </Card>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-display font-bold uppercase tracking-wide">My Teams</h2>
-            </div>
-            
-            <div className="grid gap-4">
-              {teams.map((team, i) => (
-                <motion.div
-                  key={team.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <Link href={`/teams/${team.id}`}>
-                    <Card className="p-4 border-border bg-card/50 backdrop-blur hover:bg-white/5 transition-colors cursor-pointer group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-xl bg-black overflow-hidden relative">
-                          <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                          <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg leading-tight">{team.name}</h3>
-                          <p className="text-sm text-muted-foreground">{team.memberIds.length} Members</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { href: '/dashboard', label: '主頁', icon: Home },
     { href: '/discover', label: '公開場', icon: Compass },
-    { href: '/teams/t1', label: '球隊', icon: Shield },
+    { href: '/teams', label: '球隊', icon: Shield },
     { href: '/events/e1', label: '活動', icon: Calendar },
     { href: '/profile', label: '檔案', icon: UserIcon },
   ];
