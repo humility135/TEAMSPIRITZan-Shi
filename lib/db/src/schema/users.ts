@@ -10,7 +10,7 @@ export type SeasonStats = {
 
 export const usersTable = sqliteTable("users", {
   id: text("id").primaryKey(),
-  phone: text("phone").notNull().unique(),
+  email: text("email").notNull().unique(),
   name: text("name").notNull(),
   avatarUrl: text("avatar_url").notNull().default(""),
   tokensBalance: integer("tokens_balance").notNull().default(0),

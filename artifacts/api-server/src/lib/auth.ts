@@ -60,10 +60,3 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   (req as AuthedRequest).user = u;
   next();
 }
-
-export function normalizePhone(raw: string): string {
-  const cleaned = raw.replace(/[^\d+]/g, "");
-  if (cleaned.startsWith("+")) return cleaned;
-  if (cleaned.length === 8) return `+852${cleaned}`;
-  return cleaned.startsWith("852") ? `+${cleaned}` : `+${cleaned}`;
-}

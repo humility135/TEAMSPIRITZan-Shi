@@ -6,15 +6,14 @@ import {
   setSessionCookie,
   clearSessionCookie,
   getUserIdFromReq,
-  normalizePhone,
 } from "../lib/auth";
 import { newId } from "../lib/ids";
 
 const router: IRouter = Router();
 
-const RequestOtpBody = z.object({ phone: z.string().min(8) });
+const RequestOtpBody = z.object({ email: z.string().email() });
 const VerifyOtpBody = z.object({
-  phone: z.string().min(8),
+  email: z.string().email(),
   code: z.string().min(4),
   name: z.string().min(1).max(40).optional(),
 });
@@ -23,9 +22,9 @@ const MOCK_OTP = "123456";
 
 router.post("/auth/request-otp", async (req, res): Promise<void> => {
   const parsed = RequestOtpBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid phone" }); return; }
-  const phone = normalizePhone(parsed.data.phone);
-  req.log.info({ phone }, `[Mock SMS] OTP for ${phone}: ${MOCK_OTP}`);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid email" }); return; }
+  const email = parsed.data.email.toLowerCase().trim();
+  req.log.info({ email }, `[Mock Email] OTP for ${email}: ${MOCK_OTP}`);
   res.json({ ok: true, hint: `Demo OTP: ${MOCK_OTP}` });
 });
 
@@ -33,14 +32,14 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   const parsed = VerifyOtpBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
   if (parsed.data.code !== MOCK_OTP) { res.status(401).json({ error: "驗證碼錯誤" }); return; }
-  const phone = normalizePhone(parsed.data.phone);
+  const email = parsed.data.email.toLowerCase().trim();
 
-  let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
+  let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!user) {
     const id = newId("u");
-    const fallbackName = parsed.data.name?.trim() || `球員${phone.slice(-4)}`;
+    const fallbackName = parsed.data.name?.trim() || `球員${email.split('@')[0]}`;
     [user] = await db.insert(usersTable).values({
-      id, phone, name: fallbackName,
+      id, email, name: fallbackName,
       avatarUrl: `https://i.pravatar.cc/150?u=${id}`,
       tokensBalance: 0, subscription: "free",
       seasonStatsByTeam: {},

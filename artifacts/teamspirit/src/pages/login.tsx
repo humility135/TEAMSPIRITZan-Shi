@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default function Login() {
   const [, setLoc] = useLocation();
   const qc = useQueryClient();
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [hint, setHint] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function Login() {
     try {
       const r = await api<{ ok: boolean; hint?: string }>('/auth/request-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email }),
       });
       setHint(r.hint ?? null);
       setStep('otp');
@@ -39,7 +39,7 @@ export default function Login() {
     try {
       await api('/auth/verify-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone, code, name: name.trim() || undefined }),
+        body: JSON.stringify({ email, code, name: name.trim() || undefined }),
       });
       await qc.invalidateQueries();
       setLoc('/dashboard');
@@ -57,22 +57,22 @@ export default function Login() {
         <CardHeader>
           <CardTitle className="text-2xl">TEAMSPIRIT</CardTitle>
           <CardDescription>
-            {step === 'phone' ? '輸入電話號碼登入或註冊' : '輸入收到嘅驗證碼'}
+            {step === 'email' ? '輸入 Email 登入或註冊' : '輸入收到嘅驗證碼'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {step === 'phone' ? (
+          {step === 'email' ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="phone">香港電話號碼</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="例如 91110001"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  data-testid="input-phone"
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  placeholder="例如 player@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  data-testid="input-email"
                 />
               </div>
               <div className="space-y-2">
@@ -88,7 +88,7 @@ export default function Login() {
               {err && <div className="text-sm text-red-400">{err}</div>}
               <Button
                 className="w-full"
-                disabled={!phone || loading}
+                disabled={!email || loading}
                 onClick={requestOtp}
                 data-testid="button-request-otp"
               >
@@ -128,7 +128,7 @@ export default function Login() {
               <Button
                 variant="ghost"
                 className="w-full"
-                onClick={() => { setStep('phone'); setCode(''); setErr(null); }}
+                onClick={() => { setStep('email'); setCode(''); setErr(null); }}
               >
                 返回
               </Button>

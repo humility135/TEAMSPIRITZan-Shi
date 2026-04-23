@@ -25,18 +25,18 @@ async function main() {
   await db.delete(hostProfilesTable);
   await db.delete(usersTable);
 
-  // Users — phones are mock for demo
+  // Users — emails are mock for demo
   await db.insert(usersTable).values([
-    { id: "u1", phone: "+85291110001", name: "Ah Fai", avatarUrl: "https://i.pravatar.cc/150?u=u1",
+    { id: "u1", email: "player1@example.com", name: "張家輝", avatarUrl: "https://i.pravatar.cc/150?u=u1",
       tokensBalance: 40, subscription: "pro",
       seasonStatsByTeam: {
         t1: { goals: 8, assists: 5, attendance: 88, yellow: 1, red: 0, matches: 12 },
         t2: { goals: 4, assists: 3, attendance: 80, yellow: 1, red: 0, matches: 8 },
       } },
-    { id: "u2", phone: "+85291110002", name: "Kit C.", avatarUrl: "https://i.pravatar.cc/150?u=u2",
+    { id: "u2", email: "player2@example.com", name: "陳大文", avatarUrl: "https://i.pravatar.cc/150?u=u2",
       tokensBalance: 10, subscription: "free",
       seasonStatsByTeam: { t1: { goals: 2, assists: 15, attendance: 90, yellow: 1, red: 0, matches: 22 } } },
-    { id: "u3", phone: "+85291110003", name: "Ming", avatarUrl: "https://i.pravatar.cc/150?u=u3",
+    { id: "u3", email: "player3@example.com", name: "李小龍", avatarUrl: "https://i.pravatar.cc/150?u=u3",
       tokensBalance: 0, subscription: "free",
       seasonStatsByTeam: { t1: { goals: 5, assists: 2, attendance: 60, yellow: 4, red: 1, matches: 15 } } },
   ]);
