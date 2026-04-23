@@ -39,7 +39,7 @@ export default function Profile() {
                 {currentUser.subscription.toUpperCase()} PLAN
               </Badge>
               <span className="text-sm text-muted-foreground font-bold tracking-wider uppercase">
-                {currentUser.tokensBalance} Tokens
+                {currentUser.subscription === 'pro' ? 'Pro 會員' : 'Free Forever'}
               </span>
             </div>
           </div>
