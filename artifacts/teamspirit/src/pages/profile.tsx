@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Star, ShieldCheck, Camera, Pencil } from 'lucide-react';
+import { Star, ShieldCheck, Camera, Pencil, Radar as RadarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
@@ -205,7 +205,7 @@ export default function Profile() {
               {!isProMode ? (
                 <div className="text-center z-10">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 blur-sm">
-                    <Radar className="w-8 h-8 text-primary" />
+                    <RadarIcon className="w-8 h-8 text-primary" />
                   </div>
                   <h3 className="font-bold text-lg mb-2">Pro Feature</h3>
                   <p className="text-sm text-muted-foreground mb-4">解鎖完整的球員能力雷達圖分析。</p>
