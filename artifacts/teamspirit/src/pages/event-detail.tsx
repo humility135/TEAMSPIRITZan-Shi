@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useRoute } from 'wouter';
-import { MapPin, Clock, CloudLightning, ShieldAlert, Check, X, Minus, Plus } from 'lucide-react';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
-  const { events, venues, currentUser, updateEventRSVP, updateMatchStats, isProMode } = useAppStore();
+  const { events, currentUser, updateEventRSVP, updateMatchStats } = useAppStore();
   const [claimTimeLeft, setClaimTimeLeft] = useState<number | null>(null);
-  
+
   const event = events.find(e => e.id === params?.eventId);
-  const venue = venues.find(v => v.id === event?.venueId);
 
   useEffect(() => {
     let timer: any;
@@ -33,9 +33,8 @@ export default function EventDetail() {
   const isFinished = event.status === 'finished';
   const hasCap = event.capacity != null;
   const isFull = hasCap && event.attendingIds.length >= (event.capacity as number);
-  const venueName = venue?.name ?? event.venueAddress ?? '—';
-  const venueAddress = venue?.address ?? event.venueAddress ?? '';
-  const mapsQuery = venue ? `${venue.lat},${venue.lng}` : encodeURIComponent(event.venueAddress ?? '');
+  const venueAddress = event.venueAddress ?? '';
+  const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : '';
 
   const handleRSVP = (status: 'attending' | 'declined' | 'waitlist') => {
     updateEventRSVP(event.id, status);
@@ -55,67 +54,50 @@ export default function EventDetail() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       {/* Header Card */}
       <Card className="overflow-hidden border-border bg-card/50 backdrop-blur relative">
-        {venue?.weather.lightningWarning && (
-          <div className="absolute top-0 inset-x-0 h-1 bg-yellow-500 animate-pulse" />
-        )}
-        <div className="p-8 md:p-12 flex flex-col md:flex-row gap-8">
-          <div className="flex-1 space-y-6">
+        <div className="p-8 md:p-12 space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase border border-primary/20">
               {event.status === 'finished' ? '已完場' : '即將舉行'}
             </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">{event.title}</h1>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <span className="font-bold text-white">{event.attendingIds.length}</span>{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="ml-1 text-[10px] tracking-widest uppercase text-primary">無上限</span>}
-              </span>
-              {isFull && <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 text-[10px] font-bold tracking-widest uppercase border border-yellow-500/40">已滿額</span>}
-            </div>
-
-            <div className="flex flex-col gap-4 text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-primary" />
-                <span className="text-lg">
-                  {new Date(event.datetime).toLocaleDateString('zh-HK')} · {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  {event.endDatetime && ` – ${new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-primary" />
-                <div className="flex-1">
-                  <div className="text-lg text-white">{venueName}</div>
-                  {venueAddress && venueAddress !== venueName && <div className="text-sm">{venueAddress}</div>}
-                </div>
-                {mapsQuery && (
-                  <Button variant="outline" size="sm" className="ml-auto bg-white/5 uppercase tracking-wider font-bold text-xs" onClick={() => window.open(`https://maps.google.com/?q=${mapsQuery}`)}>
-                    導航
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold">$</div>
-                <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee}` : '免費'}</span>
-              </div>
-            </div>
+            {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase">免費</Badge>}
+            {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase">無上限</Badge>}
+            {isFull && <Badge className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/40 text-[10px] tracking-widest uppercase">已滿額</Badge>}
           </div>
 
-          {/* Weather Widget — only when venue is in our database */}
-          {venue && (
-            <div className="md:w-64 shrink-0">
-              <div className={`rounded-2xl p-6 border ${venue.weather.lightningWarning ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-white/5 border-white/10 text-white'}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm font-bold tracking-wider uppercase">天文台預測</div>
-                  {venue.weather.lightningWarning ? <CloudLightning className="w-6 h-6 animate-pulse" /> : <div className="text-2xl">🌤</div>}
-                </div>
-                <div className="text-4xl font-display font-bold mb-1">{venue.weather.temp}°C</div>
-                <div className="text-sm opacity-80">{venue.weather.condition}</div>
-                {venue.weather.lightningWarning && (
-                  <div className="mt-4 text-xs font-bold flex items-start gap-2">
-                    <ShieldAlert className="w-4 h-4 shrink-0" /> 雷暴警告現正生效
-                  </div>
-                )}
-              </div>
+          <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">{event.title}</h1>
+
+          <div className="flex items-center gap-3 text-sm">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="font-bold text-white text-base">{event.attendingIds.length}</span>{hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">人（無上限）</span>}
+              {hasCap && <span className="text-xs">人已報名</span>}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-4 text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-lg">
+                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'short' })} · {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {event.endDatetime && <span className="text-muted-foreground"> – {new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>}
+              </span>
             </div>
-          )}
+            <div className="flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
+              <div className="flex-1 min-w-0">
+                <div className="text-lg text-white break-words">{venueAddress || '—'}</div>
+                <div className="text-xs mt-1">點 <span className="text-primary">導航</span> 可喺 Google Maps 開啟。</div>
+              </div>
+              {mapsUrl && (
+                <Button variant="outline" size="sm" className="bg-white/5 uppercase tracking-wider font-bold text-xs gap-1.5 shrink-0" onClick={() => window.open(mapsUrl, '_blank')}>
+                  <Navigation className="w-3.5 h-3.5" /> 導航
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold shrink-0">$</div>
+              <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee} / 人` : '免費入場'}</span>
+            </div>
+          </div>
         </div>
 
         {/* Action Bar */}

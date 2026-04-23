@@ -38,6 +38,8 @@ export default function TeamDetail() {
   const [evAddress, setEvAddress] = useState('');
   const [evFee, setEvFee] = useState('');
   const [evCap, setEvCap] = useState('');
+  const [evIsFree, setEvIsFree] = useState(true);
+  const [evHasCap, setEvHasCap] = useState(false);
 
   if (!team) return <div className="p-8 text-center">Team not found</div>;
 
@@ -106,17 +108,24 @@ export default function TeamDetail() {
     if (new Date(endDatetime).getTime() <= new Date(datetime).getTime()) {
       toast({ title: '完結時間要喺開始之後', variant: 'destructive' }); return;
     }
+    if (!evIsFree && (evFee.trim() === '' || parseInt(evFee, 10) <= 0)) {
+      toast({ title: '請輸入收費金額', variant: 'destructive' }); return;
+    }
+    if (evHasCap && (evCap.trim() === '' || parseInt(evCap, 10) < 1)) {
+      toast({ title: '請輸入人數上限', variant: 'destructive' }); return;
+    }
     createEvent({
       teamId: team.id,
       title: evTitle.trim(),
       datetime,
       endDatetime,
       venueAddress: evAddress.trim(),
-      fee: evFee.trim() === '' ? 0 : parseInt(evFee, 10) || 0,
-      capacity: evCap.trim() === '' ? null : Math.max(1, parseInt(evCap, 10) || 0),
+      fee: evIsFree ? 0 : Math.max(0, parseInt(evFee, 10) || 0),
+      capacity: evHasCap ? Math.max(1, parseInt(evCap, 10) || 1) : null,
     });
     setCreateEventOpen(false);
     setEvTitle(''); setEvDate(''); setEvStart(''); setEvEnd(''); setEvAddress(''); setEvFee(''); setEvCap('');
+    setEvIsFree(true); setEvHasCap(false);
     toast({ title: '活動已發起', description: evTitle });
   };
 
@@ -337,16 +346,34 @@ export default function TeamDetail() {
                   <div className="space-y-2">
                     <Label htmlFor="ev-address">場地地址</Label>
                     <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 摩士公園3號場、九龍黃大仙鳳德道" />
+                    <p className="text-[11px] text-muted-foreground">會用作 Google Maps 定位，寫得清楚啲方便隊友搵路。</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-fee">費用 ($) <span className="text-muted-foreground font-normal">— 可留空</span></Label>
-                      <Input id="ev-fee" type="number" min={0} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="0" />
+
+                  <div className="space-y-2">
+                    <Label>費用</Label>
+                    <div className="inline-flex rounded-lg bg-black/40 p-1 w-full">
+                      <button type="button" onClick={() => setEvIsFree(true)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${evIsFree ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>免費</button>
+                      <button type="button" onClick={() => setEvIsFree(false)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${!evIsFree ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>收費</button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-cap">人數上限 <span className="text-muted-foreground font-normal">— 留空 = 無上限</span></Label>
-                      <Input id="ev-cap" type="number" min={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="無上限" />
+                    {!evIsFree && (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                        <Input id="ev-fee" type="number" min={1} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="例如 50" className="pl-7" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>人數上限</Label>
+                    <div className="inline-flex rounded-lg bg-black/40 p-1 w-full">
+                      <button type="button" onClick={() => setEvHasCap(false)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${!evHasCap ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>無上限</button>
+                      <button type="button" onClick={() => setEvHasCap(true)} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-colors ${evHasCap ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>設定上限</button>
                     </div>
+                    {evHasCap ? (
+                      <Input id="ev-cap" type="number" min={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="例如 14" />
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">所有人都可以報名，唔會有候補名單。</p>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
@@ -466,10 +493,10 @@ function EventRow({ event, venues, past }: { event: any; venues: any[]; past?: b
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{event.title}</div>
           <div className="text-xs text-muted-foreground flex items-center gap-3 mt-1 flex-wrap">
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{venueLabel}</span>
-            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}</span>
-            {event.fee > 0 && <span>${event.fee}/人</span>}
-            {!past && isFull && <Badge variant="outline" className="border-yellow-500 text-yellow-500 text-[10px]">已滿</Badge>}
+            <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate max-w-[200px]">{venueLabel}</span></span>
+            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}{!hasCap && <span className="text-primary ml-0.5">無上限</span>}</span>
+            <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/人` : '免費'}</span>
+            {!past && isFull && <Badge variant="outline" className="border-yellow-500 text-yellow-500 text-[10px]">已滿額</Badge>}
           </div>
         </div>
         {past && event.finalScore && (

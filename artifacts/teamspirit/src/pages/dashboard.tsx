@@ -157,9 +157,10 @@ export default function Dashboard() {
             
             <div className="space-y-4">
               {upcomingEvents.map((event, i) => {
-                const venue = venues.find(v => v.id === event.venueId);
+                const venueLabel = event.venueAddress ?? venues.find(v => v.id === event.venueId)?.name ?? '—';
                 const team = teams.find(t => t.id === event.teamId);
                 const isAttending = event.attendingIds.includes(currentUser.id);
+                const hasCap = event.capacity != null;
                 
                 return (
                   <motion.div 
@@ -186,8 +187,9 @@ export default function Dashboard() {
                             </div>
                             <h3 className="text-xl font-bold mb-4">{event.title}</h3>
                             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {venue?.name}</div>
-                              <div className="flex items-center gap-1"><Users className="w-4 h-4" /> {event.attendingIds.length} 人</div>
+                              <div className="flex items-center gap-1 min-w-0"><MapPin className="w-4 h-4 shrink-0" /> <span className="truncate max-w-[200px]">{venueLabel}</span></div>
+                              <div className="flex items-center gap-1"><Users className="w-4 h-4" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary text-xs ml-1">無上限</span>}</div>
+                              {event.fee === 0 && <span className="text-green-400 text-xs font-bold">免費</span>}
                             </div>
                           </div>
                           <div className="p-6 flex items-center justify-center sm:justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">

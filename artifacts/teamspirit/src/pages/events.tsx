@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -130,6 +130,7 @@ function FullScreenCalendar({
   const today = new Date();
   const [cursor, setCursor] = useState<Date>(selectedDate ?? today);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [onlyEventDays, setOnlyEventDays] = useState(false);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -160,6 +161,20 @@ function FullScreenCalendar({
     return map;
   }, [allEntries]);
 
+  const monthStats = useMemo(() => {
+    let total = 0;
+    let daysWithEvents = 0;
+    for (const d of grid) {
+      if (d.getMonth() !== month) continue;
+      const list = entriesByDay.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? [];
+      if (list.length > 0) {
+        daysWithEvents++;
+        total += list.length;
+      }
+    }
+    return { total, daysWithEvents };
+  }, [grid, entriesByDay, month]);
+
   const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
   const goPrev = () => setCursor(new Date(year, month - 1, 1));
@@ -181,16 +196,35 @@ function FullScreenCalendar({
     <>
       <Card className="overflow-hidden bg-card/50 backdrop-blur border-border">
         {/* Month nav */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-black/30">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-wide">
-              {year}年 {month + 1}月
-            </h2>
+        <div className="p-4 border-b border-border bg-black/30 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <h2 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-wide">
+                {year}年 {month + 1}月
+              </h2>
+              <span className="text-xs text-muted-foreground tracking-wider uppercase">
+                {monthStats.total > 0
+                  ? <>本月 <span className="text-primary font-bold">{monthStats.total}</span> 個活動 · {monthStats.daysWithEvents} 日</>
+                  : '本月暫無活動'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={goToday} className="font-bold uppercase tracking-wider text-xs">今日</Button>
+              <Button variant="ghost" size="icon" onClick={goPrev} aria-label="上個月"><ChevronLeft className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={goNext} aria-label="下個月"><ChevronRight className="w-5 h-5" /></Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={goToday} className="font-bold uppercase tracking-wider text-xs">今日</Button>
-            <Button variant="ghost" size="icon" onClick={goPrev} aria-label="上個月"><ChevronLeft className="w-5 h-5" /></Button>
-            <Button variant="ghost" size="icon" onClick={goNext} aria-label="下個月"><ChevronRight className="w-5 h-5" /></Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOnlyEventDays(v => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-widest uppercase border transition-colors ${
+                onlyEventDays
+                  ? 'bg-primary/15 text-primary border-primary/40'
+                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white'
+              }`}
+            >
+              <Filter className="w-3 h-3" /> 只睇有活動日
+            </button>
           </div>
         </div>
 
@@ -215,13 +249,14 @@ function FullScreenCalendar({
             const isWeekend = d.getDay() === 0 || d.getDay() === 6;
             const events = entriesByDay.get(dayKey(d)) ?? [];
 
+            const dimNoEvent = onlyEventDays && events.length === 0 && inMonth;
             return (
               <button
                 key={i}
                 onClick={() => handleDayClick(d)}
                 className={`relative text-left p-1.5 sm:p-2 min-h-[72px] sm:min-h-[100px] border-r border-b border-border/60 last:border-r-0 transition-colors hover:bg-primary/5 focus:outline-none focus:bg-primary/10 ${
                   !inMonth ? 'opacity-35' : ''
-                } ${isSelected ? 'bg-primary/15 ring-1 ring-inset ring-primary' : ''} ${
+                } ${dimNoEvent ? 'opacity-25' : ''} ${isSelected ? 'bg-primary/15 ring-1 ring-inset ring-primary' : ''} ${
                   (i + 1) % 7 === 0 ? 'border-r-0' : ''
                 } ${i >= 35 ? 'border-b-0' : ''}`}
               >
@@ -333,10 +368,10 @@ function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
 }
 
 function TeamEventRow({ event }: { event: any }) {
-  const { teams, venues, currentUser } = useAppStore();
-  const venue = venues.find(v => v.id === event.venueId);
-  const venueLabel = venue?.name ?? event.venueAddress ?? '—';
+  const { teams, currentUser } = useAppStore();
+  const venueLabel = event.venueAddress ?? '—';
   const hasCap = event.capacity != null;
+  const isFull = hasCap && event.attendingIds.length >= event.capacity;
   const team = teams.find(t => t.id === event.teamId);
   const rsvp = event.attendingIds.includes(currentUser.id)
     ? 'attending'
@@ -365,12 +400,13 @@ function TeamEventRow({ event }: { event: any }) {
               {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
               {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
               {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
+              {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
             </div>
             <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venueLabel}</span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人</span>
-              {event.fee > 0 && <span>${event.fee}/人</span>}
+              <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
+              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
+              <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/人` : '免費'}</span>
             </div>
           </div>
           <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">
