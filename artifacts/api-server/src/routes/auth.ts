@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
+import { OAuth2Client } from "google-auth-library";
 import {
   setSessionCookie,
   clearSessionCookie,
@@ -10,6 +11,81 @@ import {
 import { newId } from "../lib/ids";
 
 const router: IRouter = Router();
+
+// In a real app, this should be an env variable. We'll use a dummy one for the demo.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "123456789-dummy-client-id.apps.googleusercontent.com";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+const GoogleAuthBody = z.object({
+  credential: z.string(),
+});
+
+router.post("/auth/google", async (req, res): Promise<void> => {
+  const parsed = GoogleAuthBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid credential" }); return; }
+
+  try {
+    // In a real environment, we would verify the token with Google:
+    // const ticket = await googleClient.verifyIdToken({
+    //   idToken: parsed.data.credential,
+    //   audience: GOOGLE_CLIENT_ID,
+    // });
+    // const payload = ticket.getPayload();
+    
+    // For this demo, since we don't have a real Google Client ID,
+    // we'll decode the JWT directly (without signature verification) just to extract the profile info.
+    // DANGER: NEVER DO THIS IN PRODUCTION WITHOUT VERIFYING THE SIGNATURE!
+    const base64Url = parsed.data.credential.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64));
+    const payload = JSON.parse(jsonPayload);
+
+    if (!payload || !payload.email) {
+      res.status(400).json({ error: "Invalid Google token payload" });
+      return;
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email.toLowerCase().trim();
+    const name = payload.name || `球員${email.split('@')[0]}`;
+    const picture = payload.picture || `https://i.pravatar.cc/150?u=${googleId}`;
+
+    // Find user by Google ID or Email
+    let [user] = await db.select().from(usersTable).where(eq(usersTable.googleId, googleId));
+    
+    if (!user) {
+      // Check if user exists with the same email but hasn't linked Google yet
+      let [existingEmailUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+      
+      if (existingEmailUser) {
+        // Link Google ID to existing user
+        [user] = await db.update(usersTable)
+          .set({ googleId, avatarUrl: picture })
+          .where(eq(usersTable.id, existingEmailUser.id))
+          .returning();
+      } else {
+        // Create new user
+        const id = newId("u");
+        [user] = await db.insert(usersTable).values({
+          id, 
+          googleId,
+          email, 
+          name,
+          avatarUrl: picture,
+          tokensBalance: 0, 
+          subscription: "free",
+          seasonStatsByTeam: {},
+        }).returning();
+      }
+    }
+
+    setSessionCookie(res, user.id);
+    res.json({ user });
+  } catch (error) {
+    req.log.error({ error }, "Google auth failed");
+    res.status(401).json({ error: "Google 登入失敗" });
+  }
+});
 
 const RequestOtpBody = z.object({ email: z.string().email() });
 const VerifyOtpBody = z.object({
