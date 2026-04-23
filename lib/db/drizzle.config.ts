@@ -1,8 +1,8 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-// Ensure we always use the exact same file regardless of where the script is executed from
-const dbPath = path.resolve(__dirname, "../local.db");
+// Use an absolute path to ensure all tools and servers use the exact same SQLite file
+const dbPath = "/workspace/local.db";
 const dbUrl = process.env.DATABASE_URL || `file:${dbPath}`;
 
 export default defineConfig({
