@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 type Entry =
   | { kind: 'team'; item: any; datetime: string }
@@ -105,51 +105,216 @@ export default function Events() {
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="grid lg:grid-cols-[auto_1fr] gap-6 items-start">
-          <Card className="p-3 sm:p-4 bg-card/50 backdrop-blur border-border w-full lg:w-auto">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              modifiers={{ hasEvent: eventDates }}
-              modifiersClassNames={{
-                hasEvent: 'relative font-bold text-primary after:content-[""] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:rounded-full after:bg-primary',
-              }}
-              className="rounded-xl mx-auto [--cell-size:2.4rem] sm:[--cell-size:2.25rem]"
-            />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 px-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" /> 有活動嘅日子
-            </div>
-          </Card>
+        <FullScreenCalendar
+          allEntries={allEntries}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          dayEntries={dayEntries}
+        />
+      )}
+    </div>
+  );
+}
 
-          <div className="space-y-4">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-2xl font-display font-bold uppercase tracking-wide">
-                {selectedDate
-                  ? selectedDate.toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'short' })
-                  : '揀一個日子'}
-              </h2>
-              <span className="text-sm text-muted-foreground">{dayEntries.length} 個活動</span>
-            </div>
+function FullScreenCalendar({
+  allEntries,
+  selectedDate,
+  onSelectDate,
+  dayEntries,
+}: {
+  allEntries: Entry[];
+  selectedDate: Date | undefined;
+  onSelectDate: (d: Date | undefined) => void;
+  dayEntries: Entry[];
+}) {
+  const today = new Date();
+  const [cursor, setCursor] = useState<Date>(selectedDate ?? today);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+
+  // Build 6-week grid (Sunday-start)
+  const grid = useMemo(() => {
+    const firstOfMonth = new Date(year, month, 1);
+    const startDay = firstOfMonth.getDay(); // 0 = Sun
+    const start = new Date(year, month, 1 - startDay);
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [year, month]);
+
+  const entriesByDay = useMemo(() => {
+    const map = new Map<string, Entry[]>();
+    for (const e of allEntries) {
+      const d = new Date(e.datetime);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+    }
+    return map;
+  }, [allEntries]);
+
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+  const goPrev = () => setCursor(new Date(year, month - 1, 1));
+  const goNext = () => setCursor(new Date(year, month + 1, 1));
+  const goToday = () => {
+    const t = new Date();
+    setCursor(t);
+    onSelectDate(t);
+  };
+
+  const handleDayClick = (d: Date) => {
+    onSelectDate(d);
+    setSheetOpen(true);
+  };
+
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+  return (
+    <>
+      <Card className="overflow-hidden bg-card/50 backdrop-blur border-border">
+        {/* Month nav */}
+        <div className="flex items-center justify-between p-4 border-b border-border bg-black/30">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-wide">
+              {year}年 {month + 1}月
+            </h2>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={goToday} className="font-bold uppercase tracking-wider text-xs">今日</Button>
+            <Button variant="ghost" size="icon" onClick={goPrev} aria-label="上個月"><ChevronLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={goNext} aria-label="下個月"><ChevronRight className="w-5 h-5" /></Button>
+          </div>
+        </div>
+
+        {/* Weekday header */}
+        <div className="grid grid-cols-7 border-b border-border bg-black/20">
+          {weekdays.map((w, i) => (
+            <div
+              key={w}
+              className={`text-center py-2 text-[11px] sm:text-xs font-bold tracking-widest uppercase ${i === 0 || i === 6 ? 'text-primary/70' : 'text-muted-foreground'}`}
+            >
+              {w}
+            </div>
+          ))}
+        </div>
+
+        {/* Day grid: 6 weeks. Each row min-height responsive */}
+        <div className="grid grid-cols-7 grid-rows-6 auto-rows-fr">
+          {grid.map((d, i) => {
+            const inMonth = d.getMonth() === month;
+            const isToday = sameDay(d, today);
+            const isSelected = !!selectedDate && sameDay(d, selectedDate);
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            const events = entriesByDay.get(dayKey(d)) ?? [];
+
+            return (
+              <button
+                key={i}
+                onClick={() => handleDayClick(d)}
+                className={`relative text-left p-1.5 sm:p-2 min-h-[72px] sm:min-h-[100px] border-r border-b border-border/60 last:border-r-0 transition-colors hover:bg-primary/5 focus:outline-none focus:bg-primary/10 ${
+                  !inMonth ? 'opacity-35' : ''
+                } ${isSelected ? 'bg-primary/15 ring-1 ring-inset ring-primary' : ''} ${
+                  (i + 1) % 7 === 0 ? 'border-r-0' : ''
+                } ${i >= 35 ? 'border-b-0' : ''}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span
+                    className={`inline-flex items-center justify-center text-xs sm:text-sm font-bold ${
+                      isToday
+                        ? 'w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground'
+                        : isWeekend
+                        ? 'text-primary/80'
+                        : 'text-foreground'
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                  {events.length > 0 && (
+                    <span className="text-[9px] sm:text-[10px] font-bold text-primary">{events.length}</span>
+                  )}
+                </div>
+
+                {/* Event chips - hide title on mobile, show on sm+ */}
+                <div className="space-y-0.5">
+                  {events.slice(0, 2).map((e, idx) => {
+                    const isPublic = e.kind === 'public';
+                    return (
+                      <div
+                        key={idx}
+                        className={`hidden sm:block truncate text-[10px] leading-tight px-1 py-0.5 rounded ${
+                          isPublic
+                            ? 'bg-primary/25 text-primary border-l-2 border-primary'
+                            : 'bg-white/10 text-foreground border-l-2 border-white/40'
+                        }`}
+                        title={e.kind === 'team' ? e.item.title : '公開場'}
+                      >
+                        {new Date(e.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })} {e.kind === 'team' ? e.item.title : '公開場'}
+                      </div>
+                    );
+                  })}
+                  {events.length > 2 && (
+                    <div className="hidden sm:block text-[10px] text-muted-foreground px-1">+{events.length - 2}</div>
+                  )}
+
+                  {/* Mobile: dot row */}
+                  {events.length > 0 && (
+                    <div className="flex sm:hidden items-center gap-0.5 flex-wrap">
+                      {events.slice(0, 3).map((e, idx) => (
+                        <span
+                          key={idx}
+                          className={`w-1.5 h-1.5 rounded-full ${e.kind === 'public' ? 'bg-primary' : 'bg-white/70'}`}
+                        />
+                      ))}
+                      {events.length > 3 && <span className="text-[9px] text-muted-foreground ml-0.5">+{events.length - 3}</span>}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 p-3 border-t border-border bg-black/20 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/70" /> 球隊活動</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /> 公開場</span>
+        </div>
+      </Card>
+
+      {/* Day detail Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto bg-background border-t border-border">
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-2xl font-display font-bold uppercase tracking-wide">
+              {selectedDate?.toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'long' })}
+            </SheetTitle>
+            <p className="text-sm text-muted-foreground">{dayEntries.length} 個活動</p>
+          </SheetHeader>
+          <div className="mt-4 space-y-3 pb-4">
             {dayEntries.length === 0 ? (
               <Card className="p-10 text-center border-dashed">
                 <CalendarIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">呢日冇任何活動。</p>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {dayEntries.map((entry, i) => (
-                  <motion.div key={`${entry.kind}-${entry.item.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                    {entry.kind === 'team' ? <TeamEventRow event={entry.item} /> : <PublicMatchRow match={entry.item} />}
-                  </motion.div>
-                ))}
-              </div>
+              dayEntries.map((entry, i) => (
+                <motion.div key={`${entry.kind}-${entry.item.id}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                  {entry.kind === 'team' ? <TeamEventRow event={entry.item} /> : <PublicMatchRow match={entry.item} />}
+                </motion.div>
+              ))
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
