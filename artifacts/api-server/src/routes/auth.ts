@@ -65,6 +65,28 @@ router.post("/auth/google", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/auth/demo", async (req, res): Promise<void> => {
+  const email = "player1@example.com";
+  let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  
+  if (!user) {
+    const id = newId("u");
+    [user] = await db.insert(usersTable).values({
+      id,
+      googleId: "demo-google-id",
+      email,
+      name: "Demo Player",
+      avatarUrl: `https://i.pravatar.cc/150?u=${id}`,
+      tokensBalance: 40,
+      subscription: "pro",
+      seasonStatsByTeam: {},
+    }).returning();
+  }
+
+  setSessionCookie(res, user.id);
+  res.json({ user });
+});
+
 router.post("/auth/logout", async (_req, res): Promise<void> => {
   clearSessionCookie(res);
   res.json({ ok: true });

@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const GOOGLE_CLIENT_ID = "123456789-dummy-client-id.apps.googleusercontent.com"; // Should be in env
@@ -11,6 +12,7 @@ export default function Login() {
   const [, setLoc] = useLocation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setErr(null);
@@ -24,6 +26,22 @@ export default function Login() {
     } catch (e: any) {
       if (e instanceof ApiError) setErr(e.body?.error ?? 'Google 登入失敗');
       else setErr(e?.message ?? 'Google 登入失敗');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setErr(null);
+    setLoading(true);
+    try {
+      await api('/auth/demo', { method: 'POST' });
+      await qc.invalidateQueries();
+      setLoc('/dashboard');
+    } catch (e: any) {
+      setErr('測試登入失敗');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,6 +75,24 @@ export default function Login() {
                 width="300"
               />
             </div>
+            
+            <div className="w-full max-w-[300px] mt-4 relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-zinc-800" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-zinc-900 px-2 text-zinc-500">開發測試專用</span>
+              </div>
+            </div>
+
+            <Button 
+              variant="outline" 
+              className="w-full max-w-[300px] mt-4" 
+              onClick={handleDemoLogin}
+              disabled={loading}
+            >
+              一鍵登入 (Demo User)
+            </Button>
             
             <p className="text-xs text-zinc-600 text-center max-w-[280px] mt-4">
               登入即表示您同意我們的服務條款與隱私權政策。
