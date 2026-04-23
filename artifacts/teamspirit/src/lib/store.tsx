@@ -25,6 +25,8 @@ interface AppContextType extends AppState {
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => void;
   cancelPublicMatch: (matchId: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
+  updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
+  updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor'>>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -205,6 +207,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const updateCurrentUser = (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => {
+    setState(s => ({
+      ...s,
+      currentUser: { ...s.currentUser, ...patch },
+      users: s.users.map(u => u.id === s.currentUser.id ? { ...u, ...patch } : u)
+    }));
+  };
+
+  const updateTeam = (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor'>>) => {
+    setState(s => ({
+      ...s,
+      teams: s.teams.map(t => t.id === teamId ? { ...t, ...patch } : t)
+    }));
+  };
+
   return (
     <AppContext.Provider value={{
       ...state,
@@ -216,7 +233,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       leavePublicMatch,
       createPublicMatch,
       cancelPublicMatch,
-      addMatchComment
+      addMatchComment,
+      updateCurrentUser,
+      updateTeam
     }}>
       {children}
     </AppContext.Provider>

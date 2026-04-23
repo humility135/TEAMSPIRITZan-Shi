@@ -1,18 +1,53 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'wouter';
 import { useAppStore } from '@/lib/store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Star, ShieldCheck } from 'lucide-react';
+import { Star, ShieldCheck, Camera, Pencil } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
-  const { currentUser, isProMode, hostProfiles } = useAppStore();
+  const { currentUser, isProMode, hostProfiles, updateCurrentUser } = useAppStore();
+  const { toast } = useToast();
   const stats = currentUser.seasonStats;
   const hostProfile = hostProfiles.find(p => p.userId === currentUser.id);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [name, setName] = useState(currentUser.name);
+  const [bio, setBio] = useState(localStorage.getItem('teamspirit_bio') || 'A reliable midfielder with a knack for showing up when it counts. Active since 2022.');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: '圖片太大', description: '頭像上限 2MB', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = () => {
+    updateCurrentUser({
+      name: name.trim() || currentUser.name,
+      ...(avatarPreview ? { avatarUrl: avatarPreview } : {})
+    });
+    localStorage.setItem('teamspirit_bio', bio);
+    setEditOpen(false);
+    setAvatarPreview(null);
+    toast({ title: '個人資料已更新' });
+  };
 
   // Radar chart data mock based on stats
   const radarData = [
@@ -26,14 +61,28 @@ export default function Profile() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-        <Avatar className="w-32 h-32 md:w-48 md:h-48 ring-4 ring-primary/20">
-          <AvatarImage src={currentUser.avatarUrl} />
-          <AvatarFallback>{currentUser.name[0]}</AvatarFallback>
-        </Avatar>
-        
+        <div className="relative group">
+          <Avatar className="w-32 h-32 md:w-48 md:h-48 ring-4 ring-primary/20">
+            <AvatarImage src={currentUser.avatarUrl} />
+            <AvatarFallback>{currentUser.name[0]}</AvatarFallback>
+          </Avatar>
+          <button
+            onClick={() => setEditOpen(true)}
+            className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+            title="編輯個人資料"
+          >
+            <Camera className="w-5 h-5" />
+          </button>
+        </div>
+
         <div className="flex-1 text-center md:text-left space-y-4">
           <div>
-            <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-tight">{currentUser.name}</h1>
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-tight">{currentUser.name}</h1>
+              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary">
+                <Pencil className="w-4 h-4" />
+              </Button>
+            </div>
             <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
               <Badge variant="outline" className={`font-bold tracking-widest uppercase ${currentUser.subscription === 'pro' ? 'border-primary text-primary' : ''}`}>
                 {currentUser.subscription.toUpperCase()} PLAN
@@ -43,12 +92,47 @@ export default function Profile() {
               </span>
             </div>
           </div>
-          <p className="text-muted-foreground max-w-lg">
-            A reliable midfielder with a knack for showing up when it counts. 
-            Active since 2022.
-          </p>
+          <p className="text-muted-foreground max-w-lg whitespace-pre-line">{bio}</p>
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl">編輯個人資料</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
+                <Avatar className="w-28 h-28 ring-2 ring-border">
+                  <AvatarImage src={avatarPreview || currentUser.avatarUrl} />
+                  <AvatarFallback>{currentUser.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-7 h-7 text-white" />
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} className="text-xs text-primary">
+                <Camera className="w-3 h-3 mr-1" /> 更換頭像
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-name">名稱</Label>
+              <Input id="p-name" value={name} onChange={e => setName(e.target.value)} maxLength={30} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-bio">自我介紹</Label>
+              <Textarea id="p-bio" value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={150} placeholder="講下你嘅踢波風格 / 位置…" />
+              <div className="text-xs text-muted-foreground text-right">{bio.length}/150</div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setEditOpen(false); setAvatarPreview(null); setName(currentUser.name); }}>取消</Button>
+            <Button onClick={handleSave} className="font-bold tracking-wide uppercase">儲存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="stats" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0 bg-black/40 p-1 rounded-xl">
