@@ -106,7 +106,7 @@ export default function Events() {
         </Tabs>
       ) : (
         <div className="grid lg:grid-cols-[auto_1fr] gap-6 items-start">
-          <Card className="p-4 bg-card/50 backdrop-blur border-border w-fit mx-auto lg:mx-0">
+          <Card className="p-3 sm:p-4 bg-card/50 backdrop-blur border-border w-full lg:w-auto">
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -115,7 +115,8 @@ export default function Events() {
               modifiersClassNames={{
                 hasEvent: 'relative font-bold text-primary after:content-[""] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:rounded-full after:bg-primary',
               }}
-              className="rounded-xl"
+              classNames={{ root: 'w-full' }}
+              className="rounded-xl w-full [--cell-size:2.75rem] sm:[--cell-size:2.25rem]"
             />
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 px-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" /> 有活動嘅日子
