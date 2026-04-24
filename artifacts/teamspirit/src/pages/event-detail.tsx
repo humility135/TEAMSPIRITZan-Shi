@@ -206,7 +206,7 @@ export default function EventDetail() {
                     </Button>
                   ) : (
                     <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground">
-                      我要報名{event.fee > 0 ? ` ($${event.fee})` : ''}
+                      出席{event.fee > 0 ? ` ($${event.fee})` : ''}
                     </Button>
                   )}
                 </DialogTrigger>
