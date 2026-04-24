@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 export default function Pricing() {
   const { currentUser } = useAppStore();
-  const isPro = currentUser.subscription === 'pro';
+  const isPro = currentUser?.subscription === 'pro';
 
   return (
     <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in duration-500 pb-20 pt-8">

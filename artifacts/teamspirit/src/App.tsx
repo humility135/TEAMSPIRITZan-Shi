@@ -35,6 +35,9 @@ function AppRoutes() {
   if (loc === '/') {
     return <Home />;
   }
+  if (loc === '/pricing') {
+    return <Pricing />;
+  }
   return (
     <AppProvider>
       <Layout>
@@ -47,7 +50,6 @@ function AppRoutes() {
           <Route path="/teams/:teamId" component={TeamDetail} />
           <Route path="/events" component={Events} />
           <Route path="/events/:eventId" component={EventDetail} />
-          <Route path="/pricing" component={Pricing} />
           <Route path="/profile" component={Profile} />
           <Route path="/terms" component={Terms} />
           <Route component={NotFound} />
