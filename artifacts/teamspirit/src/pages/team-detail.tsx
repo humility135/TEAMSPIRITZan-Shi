@@ -123,7 +123,6 @@ export default function TeamDetail() {
     if (evFee.trim() !== '' && (Number.isNaN(Number(evFee)) || Number(evFee) < 0)) {
       toast({ title: '報名費要係 0 或正數', variant: 'destructive' }); return;
     }
-    if (evDesc.trim().length < 10) { toast({ title: '活動描述至少 10 個字', variant: 'destructive' }); return; }
     if (evRules.trim().length < 5) { toast({ title: '請填寫特別規則', variant: 'destructive' }); return; }
     if (!evAck) { toast({ title: '請確認免責聲明', variant: 'destructive' }); return; }
     const datetime = new Date(`${evDate}T${evStart}`).toISOString();

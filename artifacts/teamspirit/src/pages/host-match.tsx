@@ -23,7 +23,7 @@ const hostSchema = z.object({
   skillLevel: z.coerce.number().min(1).max(5),
   maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), '請輸入大過 0 嘅整數'),
   fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
-  description: z.string().min(10, '描述太短'),
+  description: z.string(),
   rules: z.string().min(5, '請填寫規則'),
 }).refine(d => d.endTime > d.startTime, { message: '完結時間要喺開始之後', path: ['endTime'] });
 
