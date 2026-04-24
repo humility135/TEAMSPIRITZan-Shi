@@ -130,7 +130,7 @@ function FullScreenCalendar({
   const today = new Date();
   const [cursor, setCursor] = useState<Date>(selectedDate ?? today);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [onlyEventDays, setOnlyEventDays] = useState(false);
+  const [onlyEventDays, setOnlyEventDays] = useState(true);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
