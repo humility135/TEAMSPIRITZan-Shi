@@ -52,7 +52,7 @@ router.post("/events", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(row);
 });
 
-const RsvpBody = z.object({ status: z.enum(["attending", "declined", "none"]) });
+const RsvpBody = z.object({ status: z.enum(["attending", "declined", "none"]), ignoreConflict: z.boolean().optional() });
 
 router.put("/events/:id/rsvp", requireAuth, async (req, res): Promise<void> => {
   const parsed = RsvpBody.safeParse(req.body);
@@ -75,10 +75,12 @@ router.put("/events/:id/rsvp", requireAuth, async (req, res): Promise<void> => {
   const notifs: Array<{ userId: string; message: string }> = [];
 
   if (parsed.data.status === "attending") {
-    const isConflict = await checkUserTimeConflict(me.id, e.datetime, e.endDatetime);
-    if (isConflict) {
-      res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
-      return;
+    if (!parsed.data.ignoreConflict) {
+      const isConflict = await checkUserTimeConflict(me.id, e.datetime, e.endDatetime);
+      if (isConflict) {
+        res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
+        return;
+      }
     }
 
     if (cap == null || attendingIds.length < cap) {

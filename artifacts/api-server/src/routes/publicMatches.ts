@@ -62,17 +62,24 @@ router.post("/public-matches", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(row);
 });
 
+const JoinMatchBody = z.object({ ignoreConflict: z.boolean().optional() }).optional();
+
 router.post("/public-matches/:id/join", requireAuth, async (req, res): Promise<void> => {
+  const parsed = JoinMatchBody.safeParse(req.body);
+  const ignoreConflict = parsed.success && parsed.data?.ignoreConflict;
+  
   const me = (req as AuthedRequest).user;
   const id = String(req.params.id);
   const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
   if (!m) { res.status(404).json({ error: "Not found" }); return; }
   if (m.attendees.includes(me.id) || m.waitlistIds.includes(me.id)) { res.json(m); return; }
 
-  const isConflict = await checkUserTimeConflict(me.id, m.datetime, m.endDatetime);
-  if (isConflict) {
-    res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
-    return;
+  if (!ignoreConflict) {
+    const isConflict = await checkUserTimeConflict(me.id, m.datetime, m.endDatetime);
+    if (isConflict) {
+      res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
+      return;
+    }
   }
 
   const cap = m.maxPlayers;

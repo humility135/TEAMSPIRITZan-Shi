@@ -46,7 +46,7 @@ interface AppState {
 
 interface AppContextType extends AppState {
   toggleProMode: () => void;
-  updateEventRSVP: (eventId: string, status: 'attending' | 'declined' | 'none') => void;
+  updateEventRSVP: (eventId: string, status: 'attending' | 'declined' | 'none', ignoreConflict?: boolean) => void;
   acceptEventSlot: (eventId: string, offerId: string) => Promise<{ needPayment: boolean }>;
   payEventSlot: (eventId: string, offerId: string) => Promise<{ ok: boolean; reason?: string }>;
   declineEventSlot: (eventId: string, offerId: string) => void;
@@ -55,7 +55,7 @@ interface AppContextType extends AppState {
   declineMatchSlot: (matchId: string, offerId: string) => void;
   updateMatchStats: (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => void;
   markNotificationRead: (id: string) => void;
-  joinPublicMatch: (matchId: string) => void;
+  joinPublicMatch: (matchId: string, ignoreConflict?: boolean) => void;
   leavePublicMatch: (matchId: string) => void;
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => Promise<PublicMatch | void>;
   cancelPublicMatch: (matchId: string) => void;
@@ -177,17 +177,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['me', 'users']);
   }, []);
 
-  const updateEventRSVP = useCallback(async (eventId: string, status: 'attending' | 'declined' | 'none') => {
-    try {
-      await api(`/events/${eventId}/rsvp`, { method: 'PUT', body: JSON.stringify({ status }) });
-      inv(['events', 'notifications']);
-    } catch (e: any) {
-      if (e instanceof ApiError) {
-        toast({ title: e.body?.error ?? `操作失敗（${e.status}）`, variant: 'destructive' });
-        return;
+  const updateEventRSVP = useCallback(async (eventId: string, status: 'attending' | 'declined' | 'none', ignoreConflict = false) => {
+    const doRSVP = async (force: boolean) => {
+      try {
+        await api(`/events/${eventId}/rsvp`, { method: 'PUT', body: JSON.stringify({ status, ignoreConflict: force }) });
+        inv(['events', 'notifications']);
+      } catch (e: any) {
+        if (e instanceof ApiError && e.status === 409) {
+          if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續出席？')) {
+            doRSVP(true);
+          }
+          return;
+        }
+        toast({ title: e?.body?.error ?? e?.message ?? '操作失敗', variant: 'destructive' });
       }
-      toast({ title: e?.message ?? '操作失敗', variant: 'destructive' });
-    }
+    };
+    doRSVP(ignoreConflict);
   }, []);
 
   const acceptEventSlot = useCallback(async (eventId: string, offerId: string) => {
@@ -242,17 +247,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['notifications']);
   }, []);
 
-  const joinPublicMatch = useCallback(async (matchId: string) => {
-    try {
-      await api(`/public-matches/${matchId}/join`, { method: 'POST' });
-      inv(['publicMatches', 'notifications']);
-    } catch (e: any) {
-      if (e instanceof ApiError) {
-        toast({ title: e.body?.error ?? `操作失敗（${e.status}）`, variant: 'destructive' });
-        return;
+  const joinPublicMatch = useCallback(async (matchId: string, ignoreConflict = false) => {
+    const doJoin = async (force: boolean) => {
+      try {
+        await api(`/public-matches/${matchId}/join`, { method: 'POST', body: JSON.stringify({ ignoreConflict: force }) });
+        inv(['publicMatches', 'notifications']);
+      } catch (e: any) {
+        if (e instanceof ApiError && e.status === 409) {
+          if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續報名？')) {
+            doJoin(true);
+          }
+          return;
+        }
+        toast({ title: e?.body?.error ?? e?.message ?? '操作失敗', variant: 'destructive' });
       }
-      toast({ title: e?.message ?? '操作失敗', variant: 'destructive' });
-    }
+    };
+    doJoin(ignoreConflict);
   }, []);
 
   const leavePublicMatch = useCallback(async (matchId: string) => {
