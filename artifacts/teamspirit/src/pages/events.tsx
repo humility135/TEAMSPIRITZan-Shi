@@ -409,7 +409,7 @@ function PublicMatchRow({ match }: { match: any }) {
   const { venues, currentUser } = useAppStore();
   const venue = match.venueId ? venues.find((v: any) => v.id === match.venueId) : undefined;
   const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-  const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
+  const districtLabel = extractDistrict(venue?.district || match.venueAddress || '') || venue?.district || '球場地址';
   const isHost = match.hostId === currentUser.id;
 
   return (

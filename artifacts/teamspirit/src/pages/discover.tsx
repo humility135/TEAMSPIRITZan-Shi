@@ -19,7 +19,8 @@ export default function Discover() {
 
   const filteredMatches = activeMatches.filter(m => {
     const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
-    const district = venue?.district ?? (m.venueAddress ? (extractDistrict(m.venueAddress) || '其他') : undefined);
+    const venueDistrict = venue?.district ? (extractDistrict(venue.district) || venue.district) : undefined;
+    const district = venueDistrict ?? (m.venueAddress ? (extractDistrict(m.venueAddress) || '其他') : undefined);
     if (districtFilter !== 'all' && district !== districtFilter) return false;
     if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
     return true;
@@ -27,7 +28,7 @@ export default function Discover() {
 
   const uniqueDistricts = Array.from(new Set([
     ...HK_DISTRICTS, 
-    ...venues.map(v => v.district)
+    ...venues.map(v => extractDistrict(v.district) || v.district)
   ]));
 
   return (
@@ -99,8 +100,9 @@ export default function Discover() {
         <div className="grid md:grid-cols-2 gap-6">
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+            const venueDistrict = venue?.district ? (extractDistrict(venue.district) || venue.district) : undefined;
             const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
+            const districtLabel = venueDistrict ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = match.attendees.includes(currentUser.id);
