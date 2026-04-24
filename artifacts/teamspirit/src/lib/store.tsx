@@ -316,13 +316,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Provide mock context for public routes when not logged in
   const mockContextForPublic: AppContextType | undefined = !state ? {
-    currentUser: { id: '', email: '', name: '', avatarUrl: '', tokensBalance: 0, subscription: 'free', seasonStatsByTeam: {}, role: {} },
+    currentUser: { id: '', name: '訪客', avatarUrl: '', tokensBalance: 0, subscription: 'free', seasonStatsByTeam: {}, role: {} },
     users: [], teams: [], events: [], venues: [], notifications: [], publicMatches: [], hostProfiles: [], matchComments: [], isProMode: false,
     toggleProMode: () => {}, updateEventRSVP: () => {}, acceptEventSlot: async () => ({ needPayment: false }),
     payEventSlot: async () => ({ ok: false }), declineEventSlot: () => {}, acceptMatchSlot: async () => ({ needPayment: false }),
     payMatchSlot: async () => ({ ok: false }), declineMatchSlot: () => {}, updateMatchStats: () => {}, markNotificationRead: () => {},
     joinPublicMatch: () => {}, leavePublicMatch: () => {}, createPublicMatch: async () => {}, cancelPublicMatch: () => {},
-    addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', district: '', level: 1, adminIds: [], createdAt: '' }),
+    addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', logoUrl: '', accentColor: '#84cc16', memberIds: [], record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 }, isPro: false }),
     leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), getRole: () => undefined, logout: async () => {},
   } : undefined;
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useRoute, Link } from 'wouter';
+import { useRoute, Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert, Zap, Hourglass } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -21,12 +21,15 @@ function formatRemaining(ms: number) {
 
 export default function PublicMatchDetail() {
   const [, params] = useRoute('/discover/:matchId');
-  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot } = useAppStore();
+  const [, setLoc] = useLocation();
+  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentAck, setPaymentAck] = useState(false);
   const [slotPayOpen, setSlotPayOpen] = useState(false);
   const [slotAck, setSlotAck] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -112,6 +115,13 @@ export default function PublicMatchDetail() {
     if (!myOffer) return;
     await declineMatchSlot(match.id, myOffer.id);
     toast.info("已放棄此次補位");
+  };
+
+  const handleCancelMatch = () => {
+    cancelPublicMatch(match.id);
+    setCancelOpen(false);
+    toast.success('已取消此公開場');
+    setLoc('/discover');
   };
 
   return (
@@ -311,8 +321,8 @@ export default function PublicMatchDetail() {
 
             {isHost ? (
               <div className="space-y-3">
-                <Button className="w-full font-bold uppercase tracking-wider" variant="outline">管理名單</Button>
-                <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90">取消此公開場</Button>
+                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setManageOpen(true)}>管理名單</Button>
+                <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => setCancelOpen(true)}>取消此公開場</Button>
               </div>
             ) : isAttending ? (
               <div className="space-y-4">
@@ -456,6 +466,81 @@ export default function PublicMatchDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSlotPayOpen(false)}>稍後</Button>
             <Button onClick={handlePaySlot} disabled={!slotAck} className="font-bold">確認付款</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+        <DialogContent className="sm:max-w-lg border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl">管理名單</DialogTitle>
+            <DialogDescription>已報名同候補名單</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">已報名 · {match.attendees.length}</div>
+              <div className="rounded-xl border border-border overflow-hidden">
+                {match.attendees.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">暫時未有人報名</div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {match.attendees.map((id) => {
+                      const u = users.find(x => x.id === id);
+                      return (
+                        <div key={id} className="p-3 flex items-center gap-3">
+                          <Avatar className="w-9 h-9">
+                            <AvatarImage src={u?.avatarUrl} />
+                            <AvatarFallback>{u?.name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="font-bold">{u?.name || id}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">候補 · {match.waitlistIds.length}</div>
+              <div className="rounded-xl border border-border overflow-hidden">
+                {match.waitlistIds.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">暫時未有人候補</div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {match.waitlistIds.map((id, idx) => {
+                      const u = users.find(x => x.id === id);
+                      return (
+                        <div key={id} className="p-3 flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">{idx + 1}</div>
+                          <Avatar className="w-9 h-9">
+                            <AvatarImage src={u?.avatarUrl} />
+                            <AvatarFallback>{u?.name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="font-bold">{u?.name || id}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageOpen(false)}>關閉</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl">取消此公開場</DialogTitle>
+            <DialogDescription>取消後，所有已報名人士會收到通知。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>返回</Button>
+            <Button variant="destructive" onClick={handleCancelMatch}>確定取消</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
