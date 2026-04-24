@@ -30,7 +30,10 @@ export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
   const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot } = useAppStore();
   const now = useNow(1000);
+  
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
+  const [paymentAck, setPaymentAck] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
   if (!event) return <div>Event not found</div>;
@@ -51,9 +54,6 @@ export default function EventDetail() {
   const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
   
-  const [paymentAck, setPaymentAck] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
   const isAdmin = currentUser.role?.[event.teamId] === 'Admin' || currentUser.role?.[event.teamId] === 'Owner';
 
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
