@@ -62,7 +62,10 @@ export default function TeamDetail() {
   const isAdmin = role === 'Admin';
   const canManage = isOwner || isAdmin;
 
-  const teamEvents = events.filter(e => e.teamId === team.id);
+  const teamEvents = events
+    .filter(e => e.teamId === team.id)
+    .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+    
   const upcomingEvents = teamEvents.filter(e => e.status === 'scheduled');
   const pastEvents = teamEvents.filter(e => e.status === 'finished');
 
