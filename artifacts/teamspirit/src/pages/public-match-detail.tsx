@@ -7,6 +7,8 @@ import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -28,8 +30,10 @@ export default function PublicMatchDetail() {
   const [paymentAck, setPaymentAck] = useState(false);
   const [slotPayOpen, setSlotPayOpen] = useState(false);
   const [slotAck, setSlotAck] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [manageOpen, setManageOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [ignoreConflict, setIgnoreConflict] = useState(false);
 
@@ -148,9 +152,14 @@ export default function PublicMatchDetail() {
   };
 
   const handleCancelMatch = () => {
-    cancelPublicMatch(match.id);
+    const finalReason = cancelReason === 'custom' ? customReason : cancelReason;
+    if (!finalReason) {
+      toast('請填寫取消原因');
+      return;
+    }
+    cancelPublicMatch(match.id, finalReason);
     setCancelOpen(false);
-    toast.success('已取消此公開場');
+    toast('已取消此公開場');
     setLoc('/discover');
   };
 
@@ -180,6 +189,14 @@ export default function PublicMatchDetail() {
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-8">
           <Card className="p-6 border-border bg-card/50 backdrop-blur space-y-6">
+            {match.status === 'cancelled' && (
+              <div className="bg-destructive/15 border border-destructive/30 text-destructive-foreground p-4 rounded-xl mb-6">
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <AlertTriangle className="w-5 h-5" /> 此公開場已取消
+                </div>
+                {match.cancelReason && <p className="text-sm opacity-90">取消原因：{match.cancelReason}</p>}
+              </div>
+            )}
             <div className="flex justify-between items-center pb-6 border-b border-border">
               <div className="flex items-center gap-4">
                 <Avatar className="w-12 h-12 border border-border">
@@ -314,7 +331,7 @@ export default function PublicMatchDetail() {
               <div className="text-xs text-muted-foreground mt-2">+ ${(match.fee * 0.04).toFixed(1)} 平台手續費 (4%)</div>
             </div>
 
-            {myOffer && !isHost && (
+            {myOffer && !isHost && match.status !== 'cancelled' && (
               <div className={`mb-5 p-4 rounded-xl border ${myOffer.mode === 'race' ? 'bg-yellow-500/10 border-yellow-500/40' : 'bg-primary/10 border-primary/40'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   {myOffer.mode === 'race' ? <Zap className="w-5 h-5 text-yellow-500" /> : <Hourglass className="w-5 h-5 text-primary" />}
@@ -352,7 +369,13 @@ export default function PublicMatchDetail() {
             {isHost ? (
               <div className="space-y-3">
                 <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setManageOpen(true)}>管理名單</Button>
-                <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => setCancelOpen(true)}>取消此公開場</Button>
+                {match.status !== 'cancelled' && (
+                  <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => setCancelOpen(true)}>取消此公開場</Button>
+                )}
+              </div>
+            ) : match.status === 'cancelled' ? (
+              <div className="bg-destructive/15 text-destructive border border-destructive/30 p-4 rounded-xl text-center font-bold">
+                活動已取消
               </div>
             ) : isAttending ? (
               <div className="space-y-4">
@@ -562,15 +585,40 @@ export default function PublicMatchDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+      <Dialog open={cancelOpen} onOpenChange={(open) => { setCancelOpen(open); if(!open) { setCancelReason(''); setCustomReason(''); } }}>
         <DialogContent className="sm:max-w-md border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-display uppercase tracking-wide text-2xl">取消此公開場</DialogTitle>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> 取消此公開場
+            </DialogTitle>
             <DialogDescription>取消後，所有已報名人士會收到通知。</DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">取消原因</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {['人數不足', '天氣惡劣', '場地問題', 'custom'].map(r => (
+                  <Button 
+                    key={r} 
+                    variant={cancelReason === r ? 'default' : 'outline'}
+                    className={cancelReason === r ? 'border-primary' : ''}
+                    onClick={() => setCancelReason(r)}
+                  >
+                    {r === 'custom' ? '其他原因' : r}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {cancelReason === 'custom' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">自訂原因</Label>
+                <Input value={customReason} onChange={e => setCustomReason(e.target.value)} placeholder="輸入取消原因" />
+              </div>
+            )}
+          </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCancelOpen(false)}>返回</Button>
-            <Button variant="destructive" onClick={handleCancelMatch}>確定取消</Button>
+            <Button variant="destructive" onClick={handleCancelMatch} disabled={!cancelReason || (cancelReason === 'custom' && !customReason.trim())}>確定取消</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useRoute, Link } from 'wouter';
-import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, ShieldAlert, Layers } from 'lucide-react';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, ShieldAlert, Layers, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +36,7 @@ const surfaceMapping: Record<string, string> = {
 
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
-  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, hasTimeConflict } = useAppStore();
+  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, hasTimeConflict, cancelEvent } = useAppStore();
   const now = useNow(1000);
   
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
@@ -42,6 +44,9 @@ export default function EventDetail() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [ignoreConflict, setIgnoreConflict] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
 
   const event = events.find(e => e.id === params?.eventId);
   if (!event) {
@@ -133,10 +138,29 @@ export default function EventDetail() {
     toast.info('已放棄此次補位');
   };
 
+  const handleCancelEvent = () => {
+    const finalReason = cancelReason === 'custom' ? customReason : cancelReason;
+    if (!finalReason) {
+      toast('請填寫取消原因');
+      return;
+    }
+    cancelEvent(event.id, finalReason);
+    setCancelOpen(false);
+    toast('已取消此活動');
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       {/* Header Card */}
       <Card className="overflow-hidden border-border bg-card/50 backdrop-blur relative">
+        {event.status === 'cancelled' && (
+          <div className="bg-destructive/15 border-b border-destructive/30 text-destructive-foreground p-6">
+            <div className="flex items-center gap-2 font-bold text-lg mb-2">
+              <AlertTriangle className="w-6 h-6" /> 此活動已取消
+            </div>
+            {event.cancelReason && <p className="opacity-90">取消原因：{event.cancelReason}</p>}
+          </div>
+        )}
         <div className="p-8 md:p-12 space-y-6">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase border border-primary/20">
@@ -236,7 +260,7 @@ export default function EventDetail() {
         )}
 
         {/* Action Bar */}
-        {!isFinished && (
+        {!isFinished && event.status !== 'cancelled' && (
           <div className="border-t border-border p-4 bg-black/20 space-y-3">
             {isWaitlist && !myOffer && (
               <div className="text-center text-sm text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
@@ -352,6 +376,11 @@ export default function EventDetail() {
                   取消候補
                 </Button>
               )}
+              {isAdmin && (
+                <Button size="lg" variant="destructive" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 hover:bg-destructive/90" onClick={() => setCancelOpen(true)}>
+                  取消活動
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -465,6 +494,45 @@ export default function EventDetail() {
           )}
         </div>
       )}
+
+      <Dialog open={cancelOpen} onOpenChange={(open) => { setCancelOpen(open); if(!open) { setCancelReason(''); setCustomReason(''); } }}>
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> 取消此活動
+            </DialogTitle>
+            <DialogDescription>取消後，所有出席同候補人士會收到通知。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">取消原因</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {['人數不足', '天氣惡劣', '場地問題', 'custom'].map(r => (
+                  <Button 
+                    key={r} 
+                    variant={cancelReason === r ? 'default' : 'outline'}
+                    className={cancelReason === r ? 'border-primary' : ''}
+                    onClick={() => setCancelReason(r)}
+                  >
+                    {r === 'custom' ? '其他原因' : r}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {cancelReason === 'custom' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">自訂原因</Label>
+                <Input value={customReason} onChange={e => setCustomReason(e.target.value)} placeholder="輸入取消原因" />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>返回</Button>
+            <Button variant="destructive" onClick={handleCancelEvent} disabled={!cancelReason || (cancelReason === 'custom' && !customReason.trim())}>確定取消</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

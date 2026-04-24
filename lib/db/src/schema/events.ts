@@ -30,6 +30,7 @@ export const eventsTable = sqliteTable("events", {
   description: text("description"),
   rules: text("rules"),
   status: text("status").notNull().default("scheduled"),
+  cancelReason: text("cancel_reason"),
   attendingIds: text("attending_ids", { mode: "json" }).notNull().default(sql`'[]'`),
   declinedIds: text("declined_ids", { mode: "json" }).notNull().default(sql`'[]'`),
   waitlistIds: text("waitlist_ids", { mode: "json" }).notNull().default(sql`'[]'`),

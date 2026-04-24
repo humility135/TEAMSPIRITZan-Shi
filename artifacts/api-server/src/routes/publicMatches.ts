@@ -143,13 +143,26 @@ router.post("/public-matches/:id/leave", requireAuth, async (req, res): Promise<
   res.json(updated);
 });
 
+const CancelMatchBody = z.object({ reason: z.string().optional() });
+
 router.post("/public-matches/:id/cancel", requireAuth, async (req, res): Promise<void> => {
+  const parsed = CancelMatchBody.safeParse(req.body);
+  const reason = parsed.success ? parsed.data.reason : undefined;
   const me = (req as AuthedRequest).user;
   const id = String(req.params.id);
   const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
   if (!m) { res.status(404).json({ error: "Not found" }); return; }
   if (m.hostId !== me.id) { res.status(403).json({ error: "Forbidden" }); return; }
-  const [updated] = await db.update(publicMatchesTable).set({ status: "cancelled" }).where(eq(publicMatchesTable.id, id)).returning();
+  const [updated] = await db.update(publicMatchesTable)
+    .set({ status: "cancelled", cancelReason: reason })
+    .where(eq(publicMatchesTable.id, id)).returning();
+    
+  const notifyIds = [...new Set([...m.attendees, ...m.waitlistIds])];
+  const msg = `公開場已取消${reason ? ` (${reason})` : ''}`;
+  for (const uid of notifyIds) {
+    if (uid !== me.id) await notify(uid, msg);
+  }
+  
   res.json(updated);
 });
 

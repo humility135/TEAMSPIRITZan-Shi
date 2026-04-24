@@ -129,6 +129,7 @@ export interface PublicMatch {
   rules: string;
   refundPolicy: RefundPolicyKind;
   status: 'open' | 'full' | 'cancelled' | 'finished';
+  cancelReason?: string;
   createdAt: string;
   isVerified?: boolean;
   waitlistIds: string[];
@@ -180,7 +181,8 @@ export interface Event {
   capacity: number | null;
   description?: string;
   rules?: string;
-  status: EventStatus;
+  status: EventStatus | 'cancelled';
+  cancelReason?: string;
   attendingIds: string[];
   declinedIds: string[];
   waitlistIds: string[];

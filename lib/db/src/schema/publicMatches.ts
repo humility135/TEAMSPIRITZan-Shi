@@ -18,6 +18,7 @@ export const publicMatchesTable = sqliteTable("public_matches", {
   rules: text("rules").notNull().default(""),
   refundPolicy: text("refund_policy").notNull().default("half"),
   status: text("status").notNull().default("open"),
+  cancelReason: text("cancel_reason"),
   isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
   waitlistIds: text("waitlist_ids", { mode: "json" }).notNull().default(sql`'[]'`),
   slotOffers: text("slot_offers", { mode: "json" }).$type<SlotOffer[]>().notNull().default(sql`'[]'`),

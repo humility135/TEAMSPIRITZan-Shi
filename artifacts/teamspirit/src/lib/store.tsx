@@ -59,7 +59,7 @@ interface AppContextType extends AppState {
   joinPublicMatch: (matchId: string, ignoreConflict?: boolean) => void;
   leavePublicMatch: (matchId: string) => void;
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => Promise<PublicMatch | void>;
-  cancelPublicMatch: (matchId: string) => void;
+  cancelPublicMatch: (matchId: string, reason?: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
   updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => void;
@@ -68,6 +68,7 @@ interface AppContextType extends AppState {
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
   createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
+  cancelEvent: (eventId: string, reason?: string) => void;
   getRole: (teamId: string) => Role | undefined;
   logout: () => Promise<void>;
 }
@@ -303,8 +304,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return created;
   }, []);
 
-  const cancelPublicMatch = useCallback(async (matchId: string) => {
-    await api(`/public-matches/${matchId}/cancel`, { method: 'POST' });
+  const cancelPublicMatch = useCallback(async (matchId: string, reason?: string) => {
+    await api(`/public-matches/${matchId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
     inv(['publicMatches']);
   }, []);
 
@@ -350,6 +351,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return ev;
   }, []);
 
+  const cancelEvent = useCallback(async (eventId: string, reason?: string) => {
+    await api(`/events/${eventId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
+    inv(['events']);
+  }, []);
+
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' });
     qc.clear();
@@ -377,7 +383,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     payMatchSlot: async () => ({ ok: false }), declineMatchSlot: () => {}, updateMatchStats: () => {}, markNotificationRead: () => {},
     joinPublicMatch: () => {}, leavePublicMatch: () => {}, createPublicMatch: async () => {}, cancelPublicMatch: () => {},
     addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', logoUrl: '', accentColor: '#84cc16', memberIds: [], record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 }, isPro: false }),
-    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), getRole: () => undefined, hasTimeConflict: () => false, logout: async () => {},
+    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), cancelEvent: () => {}, getRole: () => undefined, hasTimeConflict: () => false, logout: async () => {},
   } : undefined;
 
   return (
@@ -405,6 +411,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeMember,
       setMemberRole,
       createEvent,
+      cancelEvent,
       getRole,
       logout,
     } : mockContextForPublic!}>
