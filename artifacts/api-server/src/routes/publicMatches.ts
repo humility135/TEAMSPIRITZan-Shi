@@ -59,7 +59,7 @@ router.post("/public-matches", requireAuth, async (req, res): Promise<void> => {
     description: parsed.data.description ?? "", rules: parsed.data.rules ?? "",
     refundPolicy: parsed.data.refundPolicy,
     status: "open",
-    attendees: [me.id], waitlistIds: [], slotOffers: [],
+    attendees: [], waitlistIds: [], slotOffers: [],
   }).returning();
   res.status(201).json(row);
 });

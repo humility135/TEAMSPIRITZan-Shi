@@ -46,7 +46,7 @@ router.post("/events", requireAuth, async (req, res): Promise<void> => {
     fee: parsed.data.fee, capacity: parsed.data.capacity,
     description: parsed.data.description, rules: parsed.data.rules,
     status: "scheduled",
-    attendingIds: [me.id], declinedIds: [], waitlistIds: [], slotOffers: [], playerStats: [],
+    attendingIds: [], declinedIds: [], waitlistIds: [], slotOffers: [], playerStats: [],
   }).returning();
   res.status(201).json(row);
 });
