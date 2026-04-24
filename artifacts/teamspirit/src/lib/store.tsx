@@ -70,6 +70,7 @@ interface AppContextType extends AppState {
   createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
   cancelEvent: (eventId: string, reason?: string) => void;
   getRole: (teamId: string) => Role | undefined;
+  rateHost: (hostId: string, rating: number, comment?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -356,6 +357,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['events']);
   }, []);
 
+  const rateHost = useCallback(async (hostId: string, rating: number, comment?: string) => {
+    await api(`/host-profiles/${hostId}/rate`, { method: 'POST', body: JSON.stringify({ rating, comment }) });
+    inv(['hostProfiles']);
+  }, []);
+
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' });
     qc.clear();
@@ -383,7 +389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     payMatchSlot: async () => ({ ok: false }), declineMatchSlot: () => {}, updateMatchStats: () => {}, markNotificationRead: () => {},
     joinPublicMatch: () => {}, leavePublicMatch: () => {}, createPublicMatch: async () => {}, cancelPublicMatch: () => {},
     addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', logoUrl: '', accentColor: '#84cc16', memberIds: [], record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 }, isPro: false }),
-    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), cancelEvent: () => {}, getRole: () => undefined, hasTimeConflict: () => false, logout: async () => {},
+    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), cancelEvent: () => {}, getRole: () => undefined, rateHost: async () => {}, hasTimeConflict: () => false, logout: async () => {},
   } : undefined;
 
   return (
@@ -413,6 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createEvent,
       cancelEvent,
       getRole,
+      rateHost,
       logout,
     } : mockContextForPublic!}>
       {children}
