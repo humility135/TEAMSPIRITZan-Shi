@@ -76,7 +76,7 @@ router.put("/events/:id/rsvp", requireAuth, async (req, res): Promise<void> => {
 
   if (parsed.data.status === "attending") {
     if (!parsed.data.ignoreConflict) {
-      const isConflict = await checkUserTimeConflict(me.id, e.datetime, e.endDatetime);
+      const isConflict = await checkUserTimeConflict(me.id, e.datetime, e.endDatetime, e.id);
       if (isConflict) {
         res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
         return;

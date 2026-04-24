@@ -75,7 +75,7 @@ router.post("/public-matches/:id/join", requireAuth, async (req, res): Promise<v
   if (m.attendees.includes(me.id) || m.waitlistIds.includes(me.id)) { res.json(m); return; }
 
   if (!ignoreConflict) {
-    const isConflict = await checkUserTimeConflict(me.id, m.datetime, m.endDatetime);
+    const isConflict = await checkUserTimeConflict(me.id, m.datetime, m.endDatetime, undefined, m.id);
     if (isConflict) {
       res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
       return;

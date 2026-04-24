@@ -22,11 +22,12 @@ export function hasTimeConflict(
   return s1 < e2 && e1 > s2;
 }
 
-export async function checkUserTimeConflict(userId: string, start: Date, end?: Date | null): Promise<boolean> {
+export async function checkUserTimeConflict(userId: string, start: Date, end?: Date | null, excludeEventId?: string, excludeMatchId?: string): Promise<boolean> {
   const upcomingEvents = await db.select().from(eventsTable)
     .where(gte(eventsTable.datetime, new Date())); 
 
   for (const e of upcomingEvents) {
+    if (e.id === excludeEventId) continue;
     if (e.attendingIds.includes(userId)) {
       if (hasTimeConflict(start, end, e.datetime, e.endDatetime)) return true;
     }
@@ -36,6 +37,7 @@ export async function checkUserTimeConflict(userId: string, start: Date, end?: D
     .where(gte(publicMatchesTable.datetime, new Date()));
 
   for (const m of upcomingMatches) {
+    if (m.id === excludeMatchId) continue;
     if (m.attendees.includes(userId)) {
       if (hasTimeConflict(start, end, m.datetime, m.endDatetime)) return true;
     }
