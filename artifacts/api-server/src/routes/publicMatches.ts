@@ -1,14 +1,12 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { eq, asc } from "drizzle-orm";
-import {
-  db, publicMatchesTable, matchCommentsTable, ordersTable,
-  type SlotOffer,
-} from "@workspace/db";
+import { db, publicMatchesTable, matchCommentsTable, ordersTable, type SlotOffer } from "@workspace/db";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 import { notify, notifyMany } from "../lib/notify";
 import { hoursUntil, makeSlotOffer, tiedUpSet, PAYMENT_WINDOW_MINUTES } from "../lib/slotOffer";
+import { checkUserTimeConflict } from "../lib/conflicts";
 
 const router: IRouter = Router();
 
@@ -70,6 +68,13 @@ router.post("/public-matches/:id/join", requireAuth, async (req, res): Promise<v
   const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
   if (!m) { res.status(404).json({ error: "Not found" }); return; }
   if (m.attendees.includes(me.id) || m.waitlistIds.includes(me.id)) { res.json(m); return; }
+
+  const isConflict = await checkUserTimeConflict(me.id, m.datetime, m.endDatetime);
+  if (isConflict) {
+    res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
+    return;
+  }
+
   const cap = m.maxPlayers;
   const hasRoom = cap == null || m.attendees.length < cap;
   let updated;

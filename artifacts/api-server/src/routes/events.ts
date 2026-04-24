@@ -6,6 +6,7 @@ import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 import { notify, notifyMany } from "../lib/notify";
 import { hoursUntil, makeSlotOffer, tiedUpSet, PAYMENT_WINDOW_MINUTES } from "../lib/slotOffer";
+import { checkUserTimeConflict } from "../lib/conflicts";
 
 const router: IRouter = Router();
 
@@ -74,6 +75,12 @@ router.put("/events/:id/rsvp", requireAuth, async (req, res): Promise<void> => {
   const notifs: Array<{ userId: string; message: string }> = [];
 
   if (parsed.data.status === "attending") {
+    const isConflict = await checkUserTimeConflict(me.id, e.datetime, e.endDatetime);
+    if (isConflict) {
+      res.status(409).json({ error: "時間衝突：您在該時段已有其他活動或比賽" });
+      return;
+    }
+
     if (cap == null || attendingIds.length < cap) {
       attendingIds.push(me.id);
     } else {
