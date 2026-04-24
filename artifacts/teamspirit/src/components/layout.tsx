@@ -27,7 +27,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     <div className="min-h-screen bg-background text-foreground pb-20 md:pb-0 md:pl-64">
       {/* Top Bar for Mobile */}
       <div className="md:hidden sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center justify-between">
-        <h1 className="text-xl font-display font-bold tracking-wider text-primary">TEAMSPIRIT</h1>
+        <Link href="/dashboard">
+          <h1 className="text-xl font-display font-bold tracking-wider text-primary">TEAMSPIRIT</h1>
+        </Link>
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger className="relative">
@@ -57,7 +59,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-border bg-card/50 backdrop-blur-xl z-50">
         <div className="p-6">
-          <Link href="/" className="text-3xl font-display font-bold tracking-wider text-primary block hover:opacity-80 transition-opacity">TEAMSPIRIT</Link>
+          <Link href="/dashboard" className="text-3xl font-display font-bold tracking-wider text-primary block hover:opacity-80 transition-opacity">TEAMSPIRIT</Link>
         </div>
         
         <div className="px-6 pb-6 flex items-center gap-2">

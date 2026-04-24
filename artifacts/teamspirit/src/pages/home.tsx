@@ -12,15 +12,9 @@ export default function Home() {
       <header className="fixed top-0 inset-x-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="text-xl font-display font-bold tracking-widest text-primary uppercase">
+          <Link href="/dashboard" className="text-xl font-display font-bold tracking-widest text-primary uppercase">
             TEAMSPIRIT
           </Link>
-
-          {/* Centre Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#about" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">About Me</a>
-            <a href="#contact" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Contact Us</a>
-          </nav>
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-3">
