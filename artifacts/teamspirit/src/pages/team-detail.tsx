@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown, MessageSquare, Send } from 'lucide-react';
 import { useAppStore, getTeamStats } from '@/lib/store';
+import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -360,7 +361,12 @@ export default function TeamDetail() {
                       <Input id="ev-title" value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="例如 友誼賽 vs 紅磡聯" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ev-address">場地地址</Label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="ev-address">場地地址</Label>
+                        {extractDistrict(evAddress) && (
+                          <Badge variant="secondary" className="text-[10px] h-5 tracking-widest">{extractDistrict(evAddress)}</Badge>
+                        )}
+                      </div>
                       <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 黃大仙鳳舞街40號 摩士公園足球場 3號場" />
                       <p className="text-[11px] text-muted-foreground">會用作 Google Maps 定位。</p>
                     </div>

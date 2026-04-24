@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Calendar, Users, Filter, Star, Plus } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { extractDistrict, HK_DISTRICTS } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,17 +19,11 @@ export default function Discover() {
 
   const filteredMatches = activeMatches.filter(m => {
     const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
-    const district = venue?.district ?? (m.venueAddress ? '其他' : undefined);
+    const district = venue?.district ?? (m.venueAddress ? (extractDistrict(m.venueAddress) || '其他') : undefined);
     if (districtFilter !== 'all' && district !== districtFilter) return false;
     if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
     return true;
   }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
-
-  const HK_DISTRICTS = [
-    '中西區', '東區', '南區', '灣仔區',
-    '九龍城區', '觀塘區', '深水埗區', '黃大仙區', '油尖旺區',
-    '離島區', '葵青區', '北區', '西貢區', '沙田區', '大埔區', '荃灣區', '屯門區', '元朗區'
-  ];
 
   const uniqueDistricts = Array.from(new Set([
     ...HK_DISTRICTS, 
@@ -103,7 +98,7 @@ export default function Discover() {
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
             const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? '搵手填地址';
+            const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '搵手填地址') : '搵手填地址');
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = match.attendees.includes(currentUser.id);

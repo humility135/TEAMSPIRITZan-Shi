@@ -5,10 +5,12 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Users, Check, AlertTriangle, Info } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -70,6 +72,8 @@ export default function HostMatch() {
     setLocation('/discover');
   };
 
+  const detectedDistrict = extractDistrict(form.watch('venueAddress') || '');
+
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div>
@@ -91,7 +95,12 @@ export default function HostMatch() {
                 name="venueAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>場地地址</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormLabel>場地地址</FormLabel>
+                      {detectedDistrict && (
+                        <Badge variant="secondary" className="text-[10px] h-5 tracking-widest">{detectedDistrict}</Badge>
+                      )}
+                    </div>
                     <FormControl>
                       <Input placeholder="例如 黃大仙鳳舞街40號 摩士公園足球場 3號場" {...field} />
                     </FormControl>
