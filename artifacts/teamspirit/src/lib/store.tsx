@@ -76,7 +76,7 @@ const POLL_MS = 30_000;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const qc = useQueryClient();
-  const [, setLoc] = useLocation();
+  const [loc, setLoc] = useLocation();
 
   const meQ = useQuery({
     queryKey: ['me'],
