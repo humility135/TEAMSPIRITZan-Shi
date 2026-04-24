@@ -24,7 +24,7 @@ const hostSchema = z.object({
   maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), '請輸入大過 0 嘅整數'),
   fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
   description: z.string(),
-  rules: z.string().min(5, '請填寫規則'),
+  rules: z.string(),
 }).refine(d => d.endTime > d.startTime, { message: '完結時間要喺開始之後', path: ['endTime'] });
 
 type HostFormValues = z.infer<typeof hostSchema>;
