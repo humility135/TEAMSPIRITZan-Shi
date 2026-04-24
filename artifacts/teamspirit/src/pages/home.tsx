@@ -61,7 +61,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
               <Button asChild size="lg" className="w-full sm:w-auto text-lg h-14 px-8 font-bold tracking-wide uppercase group">
-                <Link href="/discover">
+                <Link href="/login">
                   立即體驗
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -96,7 +96,7 @@ export default function Home() {
               </ul>
               <div className="pt-4">
                 <Button asChild size="lg" className="font-bold tracking-wide uppercase group">
-                  <Link href="/discover">
+                  <Link href="/login">
                     <Compass className="w-5 h-5 mr-2" /> 探索附近場地
                   </Link>
                 </Button>

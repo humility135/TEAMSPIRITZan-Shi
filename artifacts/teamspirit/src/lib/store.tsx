@@ -98,7 +98,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 401 → redirect to /login
   useEffect(() => {
-    if (loc === '/pricing' || loc.startsWith('/discover')) return; // Allow public access to pricing and discover pages
+    if (loc === '/pricing') return; // Allow public access to pricing pages
     if (meQ.isError && meQ.error instanceof ApiError && (meQ.error as ApiError).status === 401) {
       setLoc('/login');
     }
@@ -309,7 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   if (meQ.isLoading || (meQ.data && !state)) {
     return <div className="min-h-screen flex items-center justify-center text-zinc-400">載入中…</div>;
   }
-  if (!state && loc !== '/pricing' && !loc.startsWith('/discover')) {
+  if (!state && loc !== '/pricing') {
     // 401 effect above will navigate to /login
     return <div className="min-h-screen flex items-center justify-center text-zinc-400">前往登入…</div>;
   }
