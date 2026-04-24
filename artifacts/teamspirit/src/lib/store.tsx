@@ -6,6 +6,7 @@ import {
   Role, SeasonStats, EMPTY_SEASON_STATS,
 } from './types';
 import { api, ApiError } from './api';
+import { toast } from 'sonner';
 
 export function getTeamStats(user: User, teamId: string): SeasonStats {
   return user.seasonStatsByTeam?.[teamId] ?? EMPTY_SEASON_STATS;
@@ -177,8 +178,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const updateEventRSVP = useCallback(async (eventId: string, status: 'attending' | 'declined' | 'none') => {
-    await api(`/events/${eventId}/rsvp`, { method: 'PUT', body: JSON.stringify({ status }) });
-    inv(['events', 'notifications']);
+    try {
+      await api(`/events/${eventId}/rsvp`, { method: 'PUT', body: JSON.stringify({ status }) });
+      inv(['events', 'notifications']);
+    } catch (e: any) {
+      if (e instanceof ApiError) {
+        toast.error(e.body?.error ?? `操作失敗（${e.status}）`);
+        return;
+      }
+      toast.error(e?.message ?? '操作失敗');
+    }
   }, []);
 
   const acceptEventSlot = useCallback(async (eventId: string, offerId: string) => {
@@ -234,8 +243,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const joinPublicMatch = useCallback(async (matchId: string) => {
-    await api(`/public-matches/${matchId}/join`, { method: 'POST' });
-    inv(['publicMatches', 'notifications']);
+    try {
+      await api(`/public-matches/${matchId}/join`, { method: 'POST' });
+      inv(['publicMatches', 'notifications']);
+    } catch (e: any) {
+      if (e instanceof ApiError) {
+        toast.error(e.body?.error ?? `操作失敗（${e.status}）`);
+        return;
+      }
+      toast.error(e?.message ?? '操作失敗');
+    }
   }, []);
 
   const leavePublicMatch = useCallback(async (matchId: string) => {
