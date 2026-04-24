@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup } from '@/components/ui/select';
 
 export default function Discover() {
   const { publicMatches, venues, users, hostProfiles, currentUser } = useAppStore();
@@ -54,11 +54,13 @@ export default function Discover() {
               <SelectTrigger>
                 <SelectValue placeholder="地區" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">所有地區</SelectItem>
-                {uniqueDistricts.map(d => (
-                  <SelectItem key={d} value={d}>{d}</SelectItem>
-                ))}
+              <SelectContent className="max-h-[400px] md:w-[300px]">
+                <SelectItem value="all" className="mb-1 font-bold">所有地區</SelectItem>
+                <SelectGroup className="grid grid-cols-2 gap-x-2">
+                  {uniqueDistricts.map(d => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
