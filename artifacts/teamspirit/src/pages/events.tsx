@@ -130,7 +130,6 @@ function FullScreenCalendar({
   const today = new Date();
   const [cursor, setCursor] = useState<Date>(selectedDate ?? today);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [onlyEventDays, setOnlyEventDays] = useState(true);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -214,18 +213,6 @@ function FullScreenCalendar({
               <Button variant="ghost" size="icon" onClick={goNext} aria-label="下個月"><ChevronRight className="w-5 h-5" /></Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOnlyEventDays(v => !v)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-widest uppercase border transition-colors ${
-                onlyEventDays
-                  ? 'bg-primary/15 text-primary border-primary/40'
-                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white'
-              }`}
-            >
-              <Filter className="w-3 h-3" /> 只睇有活動日
-            </button>
-          </div>
         </div>
 
         {/* Weekday header */}
@@ -249,14 +236,13 @@ function FullScreenCalendar({
             const isWeekend = d.getDay() === 0 || d.getDay() === 6;
             const events = entriesByDay.get(dayKey(d)) ?? [];
 
-            const dimNoEvent = onlyEventDays && events.length === 0 && inMonth;
             return (
               <button
                 key={i}
                 onClick={() => handleDayClick(d)}
                 className={`relative text-left p-1.5 sm:p-2 min-h-[72px] sm:min-h-[100px] border-r border-b border-border/60 last:border-r-0 transition-colors hover:bg-primary/5 focus:outline-none focus:bg-primary/10 ${
                   !inMonth ? 'opacity-35' : ''
-                } ${dimNoEvent ? 'opacity-25' : ''} ${isSelected ? 'bg-primary/15 ring-1 ring-inset ring-primary' : ''} ${
+                } ${isSelected ? 'bg-primary/15 ring-1 ring-inset ring-primary' : ''} ${
                   (i + 1) % 7 === 0 ? 'border-r-0' : ''
                 } ${i >= 35 ? 'border-b-0' : ''}`}
               >
