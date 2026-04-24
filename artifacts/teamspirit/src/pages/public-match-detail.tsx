@@ -22,7 +22,7 @@ function formatRemaining(ms: number) {
 export default function PublicMatchDetail() {
   const [, params] = useRoute('/discover/:matchId');
   const [, setLoc] = useLocation();
-  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch } = useAppStore();
+  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch, addMatchComment, hasTimeConflict } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentAck, setPaymentAck] = useState(false);
@@ -31,16 +31,12 @@ export default function PublicMatchDetail() {
   const [manageOpen, setManageOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [ignoreConflict, setIgnoreConflict] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-
-  const openPaymentDialog = () => {
-    setPaymentAck(false);
-    setShowPaymentDialog(true);
-  };
 
   const matchId = params?.matchId;
   const match = publicMatches.find(m => m.id === matchId);
@@ -70,19 +66,53 @@ export default function PublicMatchDetail() {
   const deadlineMs = myOffer?.paymentDeadline ? new Date(myOffer.paymentDeadline).getTime() : null;
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
 
+  const handleAttendClick = () => {
+    const hasConflict = hasTimeConflict(match.datetime, match.endDatetime, undefined, match.id);
+    if (hasConflict) {
+      if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續報名？')) {
+        setIgnoreConflict(true);
+        if (match.fee > 0) {
+          setPaymentAck(false);
+          setShowPaymentDialog(true);
+        } else {
+          setIsProcessing(true);
+          setTimeout(() => {
+            joinPublicMatch(match.id, true);
+            setIsProcessing(false);
+            setIgnoreConflict(false);
+            if (isFull && !isAttending) toast.success('已滿額，已自動加入候補名單');
+            else toast.success("報名成功！");
+          }, 500);
+        }
+      }
+      return;
+    }
+    
+    setIgnoreConflict(false);
+    if (match.fee > 0) {
+      setPaymentAck(false);
+      setShowPaymentDialog(true);
+    } else {
+      setIsProcessing(true);
+      setTimeout(() => {
+        joinPublicMatch(match.id, false);
+        setIsProcessing(false);
+        if (isFull && !isAttending) toast.success('已滿額，已自動加入候補名單');
+        else toast.success("報名成功！");
+      }, 500);
+    }
+  };
+
   const handleJoin = () => {
     setIsProcessing(true);
     setTimeout(() => {
-      joinPublicMatch(match.id);
+      joinPublicMatch(match.id, ignoreConflict);
       setIsProcessing(false);
       setShowPaymentDialog(false);
-      toast.success("報名成功！");
+      setIgnoreConflict(false);
+      if (isFull && !isAttending) toast.success('已滿額，已自動加入候補名單');
+      else toast.success("報名成功！");
     }, 1500);
-  };
-
-  const handleJoinWaitlist = () => {
-    joinPublicMatch(match.id);
-    toast.success("已加入候補名單，有人放飛機會即時通知你");
   };
 
   const handleLeave = () => {
@@ -342,14 +372,14 @@ export default function PublicMatchDetail() {
             ) : isFull ? (
               <Button
                 className="w-full font-bold uppercase tracking-wider h-14 text-lg"
-                onClick={handleJoinWaitlist}
+                onClick={handleAttendClick}
               >
                 加入候補（$0 留位）
               </Button>
             ) : (
               <Button
                 className="w-full font-bold uppercase tracking-wider h-14 text-lg animate-pulse hover:animate-none"
-                onClick={openPaymentDialog}
+                onClick={handleAttendClick}
               >
                 我要報名
               </Button>

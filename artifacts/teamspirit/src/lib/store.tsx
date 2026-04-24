@@ -42,6 +42,7 @@ interface AppState {
   hostProfiles: HostProfile[];
   matchComments: MatchComment[];
   isProMode: boolean;
+  hasTimeConflict: (start: string, end?: string, excludeEventId?: string, excludeMatchId?: string) => boolean;
 }
 
 interface AppContextType extends AppState {
@@ -143,6 +144,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
     });
 
+    const hasTimeConflict = (start: string, end?: string, excludeEventId?: string, excludeMatchId?: string) => {
+      const DEFAULT_DURATION_MS = 2 * 60 * 60 * 1000;
+      const getEndMs = (d: string, e?: string) => e ? new Date(e).getTime() : new Date(d).getTime() + DEFAULT_DURATION_MS;
+      
+      const s1 = new Date(start).getTime();
+      const e1 = getEndMs(start, end);
+      
+      const checkOverlap = (s2: number, e2: number) => s1 < e2 && e1 > s2;
+
+      for (const ev of (eventsQ.data ?? []).map(hydrateEvent)) {
+        if (ev.id === excludeEventId) continue;
+        if (ev.attendingIds.includes(me.id)) {
+          if (checkOverlap(new Date(ev.datetime).getTime(), getEndMs(ev.datetime, ev.endDatetime))) return true;
+        }
+      }
+
+      for (const m of (matchesQ.data ?? []).map(hydrateMatch)) {
+        if (m.id === excludeMatchId) continue;
+        if (m.attendees.includes(me.id)) {
+          if (checkOverlap(new Date(m.datetime).getTime(), getEndMs(m.datetime, m.endDatetime))) return true;
+        }
+      }
+      return false;
+    };
+
     return {
       currentUser: me,
       users,
@@ -154,6 +180,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       hostProfiles: hostsQ.data ?? [],
       matchComments: (commentsQ.data ?? []).map(hydrateComment),
       isProMode: me.subscription === 'pro',
+      hasTimeConflict,
     };
   }, [meQ.data, usersQ.data, teamsQ.data, teamMembersQ.data, venuesQ.data, eventsQ.data, matchesQ.data, hostsQ.data, commentsQ.data, notifsQ.data]);
 
@@ -350,7 +377,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     payMatchSlot: async () => ({ ok: false }), declineMatchSlot: () => {}, updateMatchStats: () => {}, markNotificationRead: () => {},
     joinPublicMatch: () => {}, leavePublicMatch: () => {}, createPublicMatch: async () => {}, cancelPublicMatch: () => {},
     addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', logoUrl: '', accentColor: '#84cc16', memberIds: [], record: { w: 0, d: 0, l: 0, gf: 0, ga: 0 }, isPro: false }),
-    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), getRole: () => undefined, logout: async () => {},
+    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), getRole: () => undefined, hasTimeConflict: () => false, logout: async () => {},
   } : undefined;
 
   return (

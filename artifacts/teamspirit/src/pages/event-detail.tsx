@@ -34,15 +34,19 @@ const surfaceMapping: Record<string, string> = {
 
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
-  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot } = useAppStore();
+  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, hasTimeConflict } = useAppStore();
   const now = useNow(1000);
   
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
   const [paymentAck, setPaymentAck] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [ignoreConflict, setIgnoreConflict] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
-  if (!event) return <div>Event not found</div>;
+  if (!event) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">搵唔到呢個活動</div>;
+  }
 
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
@@ -65,10 +69,45 @@ export default function EventDetail() {
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
     setIsProcessing(true);
     setTimeout(() => {
-      updateEventRSVP(event.id, status);
+      updateEventRSVP(event.id, status, ignoreConflict);
       setIsProcessing(false);
-      if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
+      setPaymentDialogOpen(false);
+      setIgnoreConflict(false);
+      if (status === 'attending' && isFull && !isAttending) toast('已滿額，已自動加入候補名單');
     }, 1500);
+  };
+
+  const handleAttendClick = () => {
+    const hasConflict = hasTimeConflict(event.datetime, event.endDatetime, event.id, undefined);
+    if (hasConflict) {
+      if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續出席？')) {
+        setIgnoreConflict(true);
+        if (event.fee > 0) {
+          setPaymentDialogOpen(true);
+        } else {
+          setIsProcessing(true);
+          setTimeout(() => {
+            updateEventRSVP(event.id, 'attending', true);
+            setIsProcessing(false);
+            setIgnoreConflict(false);
+            if (isFull && !isAttending) toast('已滿額，已自動加入候補名單');
+          }, 500);
+        }
+      }
+      return;
+    }
+    
+    setIgnoreConflict(false);
+    if (event.fee > 0) {
+      setPaymentDialogOpen(true);
+    } else {
+      setIsProcessing(true);
+      setTimeout(() => {
+        updateEventRSVP(event.id, 'attending', false);
+        setIsProcessing(false);
+        if (isFull && !isAttending) toast('已滿額，已自動加入候補名單');
+      }, 500);
+    }
   };
 
   const handleAcceptOffer = async () => {
@@ -206,26 +245,24 @@ export default function EventDetail() {
             )}
             <div className="flex flex-wrap items-center justify-center gap-4">
               {event.fee > 0 ? (
-                <Dialog onOpenChange={(open) => { if(open) setPaymentAck(false); }}>
-                  <DialogTrigger asChild>
-                    {isAttending ? (
-                      <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-green-500 text-black hover:bg-green-400">
-                        <Check className="w-5 h-5 mr-2"/> 已出席
-                      </Button>
-                    ) : isWaitlist ? (
-                      <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
-                        已喺候補名單
-                      </Button>
-                    ) : isFull ? (
-                      <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground">
-                        加入候補（$0 留位）
-                      </Button>
-                    ) : (
-                      <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg">
-                        出席 (${event.fee})
-                      </Button>
-                    )}
-                  </DialogTrigger>
+                <Dialog open={paymentDialogOpen} onOpenChange={(open) => { setPaymentDialogOpen(open); if(open) setPaymentAck(false); }}>
+                  {isAttending ? (
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-green-500 text-black hover:bg-green-400">
+                      <Check className="w-5 h-5 mr-2"/> 已出席
+                    </Button>
+                  ) : isWaitlist ? (
+                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
+                      已喺候補名單
+                    </Button>
+                  ) : isFull ? (
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground" onClick={handleAttendClick}>
+                      加入候補（$0 留位）
+                    </Button>
+                  ) : (
+                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg" onClick={handleAttendClick}>
+                      出席 (${event.fee})
+                    </Button>
+                  )}
                   {!isAttending && !isWaitlist && (
                     <DialogContent className="sm:max-w-md border-border bg-card">
                       <DialogHeader>
@@ -295,11 +332,11 @@ export default function EventDetail() {
                       已喺候補名單
                     </Button>
                   ) : isFull ? (
-                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground" onClick={() => handleRSVP('attending')} disabled={isProcessing}>
+                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground" onClick={handleAttendClick} disabled={isProcessing}>
                       {isProcessing ? '處理中...' : '加入候補'}
                     </Button>
                   ) : (
-                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg" onClick={() => handleRSVP('attending')} disabled={isProcessing}>
+                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg" onClick={handleAttendClick} disabled={isProcessing}>
                       {isProcessing ? '處理中...' : '出席'}
                     </Button>
                   )}
