@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter, Star } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CircleCheck, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter, Star } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -385,7 +385,7 @@ function TeamEventRow({ event }: { event: any }) {
           <div className="p-5 flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-white/20"><Shield className="w-3 h-3 mr-1"/>{team?.name}</Badge>
-              {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已確認</Badge>}
+              {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CircleCheck className="w-3 h-3 mr-1"/>已確認</Badge>}
               {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
               {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
               {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
@@ -450,7 +450,7 @@ function PublicMatchRow({ match }: { match: any }) {
                 {isHost ? (
                   <Badge className="bg-primary text-primary-foreground border-0 text-[10px] tracking-widest uppercase">我主辦</Badge>
                 ) : (
-                  <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已報名</Badge>
+                  <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CircleCheck className="w-3 h-3 mr-1"/>已報名</Badge>
                 )}
                 {isCancelled && <Badge variant="destructive" className="text-[10px] tracking-widest uppercase">已取消</Badge>}
               </div>
