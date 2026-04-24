@@ -24,7 +24,16 @@ export default function Discover() {
     return true;
   }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
-  const uniqueDistricts = Array.from(new Set(venues.map(v => v.district)));
+  const HK_DISTRICTS = [
+    '中西區', '東區', '南區', '灣仔區',
+    '九龍城區', '觀塘區', '深水埗區', '黃大仙區', '油尖旺區',
+    '離島區', '葵青區', '北區', '西貢區', '沙田區', '大埔區', '荃灣區', '屯門區', '元朗區'
+  ];
+
+  const uniqueDistricts = Array.from(new Set([
+    ...HK_DISTRICTS, 
+    ...venues.map(v => v.district)
+  ]));
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
