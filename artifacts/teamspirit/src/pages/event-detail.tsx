@@ -264,7 +264,7 @@ export default function EventDetail() {
                         disabled={isProcessing || !paymentAck} 
                         onClick={() => handleRSVP('attending')}
                       >
-                        {isProcessing ? "處理中..." : isFull ? '加入候補' : event.fee > 0 ? `確認付款並報名` : '確認出席'}
+                        {isProcessing ? "處理中..." : isFull ? '加入候補' : event.fee > 0 ? `確認付款並出席` : '確認出席'}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
