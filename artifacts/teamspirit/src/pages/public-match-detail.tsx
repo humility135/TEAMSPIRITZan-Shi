@@ -52,7 +52,7 @@ export default function PublicMatchDetail() {
 
   const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
   const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-  const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '搵手填地址') : '搵手填地址');
+  const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.venueAddress ?? venue?.name ?? '')}`;
   const host = users.find(u => u.id === match.hostId);
   const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
@@ -76,7 +76,7 @@ export default function PublicMatchDetail() {
     if (hasConflict) {
       if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續報名？')) {
         setIgnoreConflict(true);
-        if (match.fee > 0) {
+        if (match.fee > 0 && !isHost) {
           setPaymentAck(false);
           setShowPaymentDialog(true);
         } else {
@@ -94,7 +94,7 @@ export default function PublicMatchDetail() {
     }
     
     setIgnoreConflict(false);
-    if (match.fee > 0) {
+    if (match.fee > 0 && !isHost) {
       setPaymentAck(false);
       setShowPaymentDialog(true);
     } else {
@@ -372,6 +372,12 @@ export default function PublicMatchDetail() {
                 <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setManageOpen(true)}>管理名單</Button>
                 {match.status !== 'cancelled' && (
                   <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => setCancelOpen(true)}>取消此公開場</Button>
+                )}
+                {!isAttending && match.status !== 'cancelled' && (
+                  <Button className="w-full font-bold uppercase tracking-wider" onClick={handleAttendClick}>我要出席 (搞手免費)</Button>
+                )}
+                {isAttending && match.status !== 'cancelled' && (
+                  <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>取消出席</Button>
                 )}
               </div>
             ) : match.status === 'cancelled' ? (

@@ -87,7 +87,7 @@ export default function EventDetail() {
     if (hasConflict) {
       if (window.confirm('時間衝突：您在該時段已有其他活動或比賽。是否繼續出席？')) {
         setIgnoreConflict(true);
-        if (event.fee > 0) {
+        if (event.fee > 0 && !isAdmin) {
           setPaymentDialogOpen(true);
         } else {
           setIsProcessing(true);
@@ -103,7 +103,7 @@ export default function EventDetail() {
     }
     
     setIgnoreConflict(false);
-    if (event.fee > 0) {
+    if (event.fee > 0 && !isAdmin) {
       setPaymentDialogOpen(true);
     } else {
       setIsProcessing(true);
@@ -284,7 +284,7 @@ export default function EventDetail() {
                     </Button>
                   ) : (
                     <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg" onClick={handleAttendClick}>
-                      出席 (${event.fee})
+                      出席 {isAdmin ? '(管理員免費)' : `($${event.fee})`}
                     </Button>
                   )}
                   {!isAttending && !isWaitlist && (

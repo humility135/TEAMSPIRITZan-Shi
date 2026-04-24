@@ -98,7 +98,7 @@ export default function Discover() {
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
             const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '搵手填地址') : '搵手填地址');
+            const districtLabel = venue?.district ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = match.attendees.includes(currentUser.id);
