@@ -26,6 +26,12 @@ function formatRemaining(ms: number) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+const surfaceMapping: Record<string, string> = {
+  hard: '硬地',
+  turf: '仿真草',
+  grass: '真草'
+};
+
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
   const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot } = useAppStore();
@@ -136,7 +142,7 @@ export default function EventDetail() {
             {event.surface && (
               <div className="flex items-center gap-3">
                 <Layers className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-lg text-white">{event.surface}</span>
+                <span className="text-lg text-white">{surfaceMapping[event.surface.toLowerCase()] || event.surface}</span>
               </div>
             )}
 

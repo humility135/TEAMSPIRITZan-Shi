@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MapPin, Users, Check, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
+import { MapPin, Users, Check, AlertTriangle, Info } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { REFUND_POLICY_OPTIONS, RefundPolicyKind, SurfaceType } from '@/lib/types';
+import { RefundPolicyKind, SurfaceType } from '@/lib/types';
 
 const hostSchema = z.object({
   venueAddress: z.string().min(3, '請輸入場地地址'),
@@ -25,8 +25,6 @@ const hostSchema = z.object({
   fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
   description: z.string().min(10, '描述太短'),
   rules: z.string().min(5, '請填寫規則'),
-  refundPolicy: z.enum(['half', 'auto']),
-  disclaimerAck: z.literal(true, { errorMap: () => ({ message: '請先確認免責聲明' }) }),
 }).refine(d => d.endTime > d.startTime, { message: '完結時間要喺開始之後', path: ['endTime'] });
 
 type HostFormValues = z.infer<typeof hostSchema>;
@@ -48,8 +46,6 @@ export default function HostMatch() {
       fee: '',
       description: '',
       rules: '',
-      refundPolicy: 'half',
-      disclaimerAck: false as unknown as true,
     }
   });
 
@@ -66,7 +62,7 @@ export default function HostMatch() {
       maxPlayers: values.maxPlayers === '' ? null : Number(values.maxPlayers),
       description: values.description,
       rules: values.rules,
-      refundPolicy: values.refundPolicy as RefundPolicyKind,
+      refundPolicy: 'half',
       waitlistIds: [],
       slotOffers: [],
     });
@@ -241,63 +237,7 @@ export default function HostMatch() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="refundPolicy"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>退款政策</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {REFUND_POLICY_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label} · {opt.short}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="text-[11px]">
-                      {REFUND_POLICY_OPTIONS.find(o => o.value === field.value)?.description}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </section>
-
-            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-4 rounded-xl space-y-3">
-              <div className="flex items-start gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-2 text-sm leading-relaxed">
-                  <div className="font-bold text-amber-200">免責聲明</div>
-                  <p>
-                    TEAMSPIRIT 只提供撮合及代收款服務，並非比賽嘅主辦方。場地安全、保險、人身意外等責任由搞手同參加者自行承擔。
-                  </p>
-                  <p>
-                    退款依足你揀嘅政策執行。已退款項由平台代收嘅金額直接退回參加者，<span className="font-bold">並唔會由你倒貼</span>；
-                    不過如果活動取消，你已支付嘅場租等費用要自己處理。
-                  </p>
-                </div>
-              </div>
-              <FormField
-                control={form.control}
-                name="disclaimerAck"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 pt-1">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={!!field.value}
-                        onChange={e => field.onChange(e.target.checked)}
-                        className="w-4 h-4 accent-primary"
-                      />
-                    </FormControl>
-                    <FormLabel className="text-sm text-amber-100 cursor-pointer">我已閱讀並同意以上條款</FormLabel>
-                    <FormMessage className="ml-2 text-xs" />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <div className="bg-primary/10 p-4 rounded-xl flex items-start gap-4">
               <div className="bg-primary text-primary-foreground p-2 rounded-full mt-1">
