@@ -106,7 +106,10 @@ export default function EventDetail() {
 
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="font-bold text-white text-base">{event.attendingIds.length}</span>{hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">人（無上限）</span>}
+              {!(event.attendingIds.length === 0 && !hasCap) && (
+                <span className="font-bold text-white text-base">{event.attendingIds.length}</span>
+              )}
+              {hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">人（無上限）</span>}
               {hasCap && <span className="text-xs">人已報名</span>}
             </span>
           </div>
