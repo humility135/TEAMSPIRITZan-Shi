@@ -60,20 +60,20 @@ export default function Home() {
               告別 WhatsApp 群組的混亂。雙階段搶位候補、強制先付後佔位、賽後數據追蹤，為香港業餘球隊打造的專業級管理平台。
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-              <Link href="/login" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full text-lg h-14 px-8 font-bold tracking-wide uppercase group">
+              <Button asChild size="lg" className="w-full sm:w-auto text-lg h-14 px-8 font-bold tracking-wide uppercase group">
+                <Link href="/discover">
                   立即體驗
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-              <Link href="#pricing" className="w-full sm:w-auto" onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
-              }}>
-                <Button variant="outline" size="lg" className="w-full text-lg h-14 px-8 font-bold tracking-wide uppercase">
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto text-lg h-14 px-8 font-bold tracking-wide uppercase">
+                <Link href="#pricing" onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                }}>
                   了解收費
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </motion.div>
         </div>
@@ -95,11 +95,11 @@ export default function Home() {
                 <li className="flex items-center gap-3"><Check className="text-primary w-5 h-5" /> <span className="font-bold">平台代管報名費防走數</span></li>
               </ul>
               <div className="pt-4">
-                <Link href="/discover">
-                  <Button size="lg" className="font-bold tracking-wide uppercase group">
+                <Button asChild size="lg" className="font-bold tracking-wide uppercase group">
+                  <Link href="/discover">
                     <Compass className="w-5 h-5 mr-2" /> 探索附近場地
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
             <div className="flex-1 w-full max-w-sm">
