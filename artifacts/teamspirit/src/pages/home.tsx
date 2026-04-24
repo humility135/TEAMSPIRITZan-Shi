@@ -20,8 +20,8 @@ export default function Home() {
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Home</Link>
             <a href="#about" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">About</a>
+            <a href="#pricing" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
             <a href="#contact" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-            <Link href="/pricing" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
           </nav>
 
           {/* Auth Buttons */}
@@ -66,7 +66,10 @@ export default function Home() {
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="/pricing" className="w-full sm:w-auto">
+              <Link href="#pricing" className="w-full sm:w-auto" onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+              }}>
                 <Button variant="outline" size="lg" className="w-full text-lg h-14 px-8 font-bold tracking-wide uppercase">
                   了解收費
                 </Button>
@@ -147,7 +150,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* About Me */}
+      {/* About Us */}
       <section id="about" className="py-24 px-4 border-t border-border">
         <div className="container mx-auto max-w-4xl text-center space-y-6">
           <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">About Us</h2>
@@ -160,8 +163,65 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing Summary */}
+      <section id="pricing" className="py-24 px-4 bg-card/30 border-t border-border">
+        <div className="container mx-auto max-w-6xl space-y-12">
+          <div className="text-center space-y-4">
+            <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">Pricing</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              簡單透明嘅收費。永久免費核心功能，或者升級解鎖進階體驗。
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Plan */}
+            <Card className="relative overflow-hidden border-border bg-card/50 backdrop-blur p-8 flex flex-col">
+              <div className="space-y-2 mb-6">
+                <Badge variant="outline" className="uppercase tracking-widest text-xs">Free Forever</Badge>
+                <h3 className="text-2xl font-display font-bold uppercase tracking-wider">免費版</h3>
+                <div className="text-4xl font-display font-bold">$0<span className="text-sm text-muted-foreground font-sans font-normal">/月</span></div>
+              </div>
+              <div className="space-y-3 flex-1 mb-8">
+                <PricingFeature text="無限建立 / 加入球隊" />
+                <PricingFeature text="無限發佈活動 (免費或收費)" />
+                <PricingFeature text="雙階段搶位候補機制" />
+                <PricingFeature text="賽後數據 (進球、助攻、紅黃牌)" />
+                <PricingFeature text="4% 平台手續費 (球員側透明顯示)" />
+              </div>
+              <Link href="/login" className="w-full block">
+                <Button variant="outline" className="w-full font-bold tracking-widest uppercase h-12">
+                  立即開始
+                </Button>
+              </Link>
+            </Card>
+
+            {/* Pro Plan */}
+            <Card className="relative overflow-hidden border-primary bg-gradient-to-br from-primary/10 via-card/50 to-card/50 backdrop-blur p-8 flex flex-col">
+              <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
+              <div className="space-y-2 mb-6">
+                <Badge variant="outline" className="uppercase tracking-widest text-xs border-primary/40 text-primary">Pro</Badge>
+                <h3 className="text-2xl font-display font-bold uppercase tracking-wider">Pro 球隊</h3>
+                <div className="text-4xl font-display font-bold text-primary">$48<span className="text-sm text-muted-foreground font-sans font-normal">/月</span></div>
+              </div>
+              <div className="space-y-3 flex-1 mb-8">
+                <PricingFeature text="包含所有免費版功能" pro />
+                <PricingFeature text="交易手續費半價 (4% → 2%)" pro />
+                <PricingFeature text="客製化球隊 Logo + 專屬主題色" pro />
+                <PricingFeature text="移除所有分享圖片水印" pro />
+                <PricingFeature text="進階雷達圖 + 財務報表 Export" pro />
+              </div>
+              <Link href="/pricing" className="w-full block">
+                <Button className="w-full font-bold tracking-widest uppercase h-12">
+                  了解詳情
+                </Button>
+              </Link>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Contact Us */}
-      <section id="contact" className="py-24 px-4 bg-card/30">
+      <section id="contact" className="py-24 px-4 border-t border-border">
         <div className="container mx-auto max-w-4xl text-center space-y-6">
           <h2 className="text-4xl md:text-5xl font-display font-bold uppercase">Contact Us</h2>
           <p className="text-xl text-muted-foreground max-w-xl mx-auto">
@@ -214,4 +274,15 @@ function FeatureCard({ icon: Icon, title, desc }: any) {
 
 function Badge({ children, className, variant }: any) {
   return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>{children}</span>
+}
+
+function PricingFeature({ text, pro }: { text: string, pro?: boolean }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className={`mt-0.5 p-0.5 rounded-full ${pro ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white'}`}>
+        <Check className="w-3 h-3" />
+      </div>
+      <span className={pro ? 'text-foreground font-medium' : 'text-muted-foreground'}>{text}</span>
+    </div>
+  );
 }
