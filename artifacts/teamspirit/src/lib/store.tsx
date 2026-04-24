@@ -98,10 +98,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 401 → redirect to /login
   useEffect(() => {
+    if (loc === '/pricing') return; // Allow public access to pricing page
     if (meQ.isError && meQ.error instanceof ApiError && (meQ.error as ApiError).status === 401) {
       setLoc('/login');
     }
-  }, [meQ.isError, meQ.error, setLoc]);
+  }, [meQ.isError, meQ.error, setLoc, loc]);
 
   // Compose state
   const state: AppState | null = useMemo(() => {
@@ -308,13 +309,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   if (meQ.isLoading || (meQ.data && !state)) {
     return <div className="min-h-screen flex items-center justify-center text-zinc-400">載入中…</div>;
   }
-  if (!state) {
+  if (!state && loc !== '/pricing') {
     // 401 effect above will navigate to /login
     return <div className="min-h-screen flex items-center justify-center text-zinc-400">前往登入…</div>;
   }
 
+  // Provide mock context for public routes when not logged in
+  const mockContextForPublic: AppContextType | undefined = !state ? {
+    currentUser: { id: '', email: '', name: '', avatarUrl: '', tokensBalance: 0, subscription: 'free', seasonStatsByTeam: {}, role: {} },
+    users: [], teams: [], events: [], venues: [], notifications: [], publicMatches: [], hostProfiles: [], matchComments: [], isProMode: false,
+    toggleProMode: () => {}, updateEventRSVP: () => {}, acceptEventSlot: async () => ({ needPayment: false }),
+    payEventSlot: async () => ({ ok: false }), declineEventSlot: () => {}, acceptMatchSlot: async () => ({ needPayment: false }),
+    payMatchSlot: async () => ({ ok: false }), declineMatchSlot: () => {}, updateMatchStats: () => {}, markNotificationRead: () => {},
+    joinPublicMatch: () => {}, leavePublicMatch: () => {}, createPublicMatch: async () => {}, cancelPublicMatch: () => {},
+    addMatchComment: () => {}, updateCurrentUser: () => {}, updateTeam: () => {}, addTeam: async () => ({ id: '', name: '', district: '', level: 1, adminIds: [], createdAt: '' }),
+    leaveTeam: () => {}, removeMember: () => {}, setMemberRole: () => {}, createEvent: async () => ({} as any), getRole: () => undefined, logout: async () => {},
+  } : undefined;
+
   return (
-    <AppContext.Provider value={{
+    <AppContext.Provider value={state ? {
       ...state,
       toggleProMode,
       updateEventRSVP,
@@ -340,7 +353,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createEvent,
       getRole,
       logout,
-    }}>
+    } : mockContextForPublic!}>
       {children}
     </AppContext.Provider>
   );
