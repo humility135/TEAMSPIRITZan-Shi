@@ -205,7 +205,7 @@ export default function EventDetail() {
                       加入候補{event.fee > 0 ? '（$0 留位）' : ''}
                     </Button>
                   ) : (
-                    <Button size="lg" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg animate-pulse hover:animate-none bg-primary text-primary-foreground">
+                    <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 text-lg">
                       出席{event.fee > 0 ? ` ($${event.fee})` : ''}
                     </Button>
                   )}
