@@ -6,7 +6,7 @@ import {
   Role, SeasonStats, EMPTY_SEASON_STATS,
 } from './types';
 import { api, ApiError } from './api';
-import { toast } from 'sonner';
+import { toast } from '../hooks/use-toast';
 
 export function getTeamStats(user: User, teamId: string): SeasonStats {
   return user.seasonStatsByTeam?.[teamId] ?? EMPTY_SEASON_STATS;
@@ -183,10 +183,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       inv(['events', 'notifications']);
     } catch (e: any) {
       if (e instanceof ApiError) {
-        toast.error(e.body?.error ?? `操作失敗（${e.status}）`);
+        toast({ title: e.body?.error ?? `操作失敗（${e.status}）`, variant: 'destructive' });
         return;
       }
-      toast.error(e?.message ?? '操作失敗');
+      toast({ title: e?.message ?? '操作失敗', variant: 'destructive' });
     }
   }, []);
 
@@ -248,10 +248,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       inv(['publicMatches', 'notifications']);
     } catch (e: any) {
       if (e instanceof ApiError) {
-        toast.error(e.body?.error ?? `操作失敗（${e.status}）`);
+        toast({ title: e.body?.error ?? `操作失敗（${e.status}）`, variant: 'destructive' });
         return;
       }
-      toast.error(e?.message ?? '操作失敗');
+      toast({ title: e?.message ?? '操作失敗', variant: 'destructive' });
     }
   }, []);
 
