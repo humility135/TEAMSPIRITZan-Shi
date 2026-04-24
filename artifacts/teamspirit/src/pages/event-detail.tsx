@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRoute, Link } from 'wouter';
-import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, ShieldAlert } from 'lucide-react';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, ShieldAlert, Layers } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -106,9 +106,7 @@ export default function EventDetail() {
 
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              {!(event.attendingIds.length === 0 && !hasCap) && (
-                <span className="font-bold text-white text-base">{event.attendingIds.length}</span>
-              )}
+              <span className="font-bold text-white text-base">{event.attendingIds.length}</span>
               {hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">人（無上限）</span>}
               {hasCap && <span className="text-xs">人已報名</span>}
             </span>
@@ -134,6 +132,14 @@ export default function EventDetail() {
                 </Button>
               )}
             </div>
+            
+            {event.surface && (
+              <div className="flex items-center gap-3">
+                <Layers className="w-5 h-5 text-primary shrink-0" />
+                <span className="text-lg text-white">{event.surface}</span>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold shrink-0">$</div>
               <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee} / 人` : '免費入場'}</span>
