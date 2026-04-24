@@ -150,6 +150,14 @@ export interface HostProfile {
   reviews: HostReview[];
 }
 
+export interface TeamMessage {
+  id: string;
+  teamId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface MatchComment {
   id: string;
   matchId: string;

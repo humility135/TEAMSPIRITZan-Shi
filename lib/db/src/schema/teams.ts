@@ -22,3 +22,17 @@ export const teamMembersTable = sqliteTable("team_members", {
 
 export type Team = typeof teamsTable.$inferSelect;
 export type TeamMember = typeof teamMembersTable.$inferSelect;
+
+export const teamMessagesTable = sqliteTable("team_messages", {
+  id: text("id").primaryKey(),
+  teamId: text("team_id")
+    .notNull()
+    .references(() => teamsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type TeamMessage = typeof teamMessagesTable.$inferSelect;

@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
-import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown } from 'lucide-react';
+import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown, MessageSquare, Send } from 'lucide-react';
 import { useAppStore, getTeamStats } from '@/lib/store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import type { Role, SurfaceType } from '@/lib/types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { Role, SurfaceType, TeamMessage } from '@/lib/types';
 import { ShieldAlert } from 'lucide-react';
 
 const ACCENT_COLORS = ['#84cc16', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#10b981'];
@@ -320,9 +323,19 @@ export default function TeamDetail() {
         </div>
       </div>
 
-      {/* Team Events Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Content Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px] mx-auto md:mx-0 mb-8">
+          <TabsTrigger value="overview" className="font-bold tracking-wider uppercase text-xs">球隊概覽</TabsTrigger>
+          <TabsTrigger value="chat" className="font-bold tracking-wider uppercase text-xs flex items-center gap-2">
+            <MessageSquare className="w-3.5 h-3.5" /> 聊天室
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-8 mt-0">
+          {/* Team Events Section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
           <h2 className="text-2xl font-display font-bold uppercase tracking-wide flex items-center gap-2">
             <Calendar className="w-6 h-6 text-primary" /> 球隊活動
           </h2>
@@ -510,7 +523,103 @@ export default function TeamDetail() {
           </Card>
         </div>
       </div>
+      </TabsContent>
+
+      <TabsContent value="chat" className="mt-0">
+        {isMember ? (
+          <TeamChat teamId={team.id} currentUser={currentUser} users={users} />
+        ) : (
+          <Card className="p-12 text-center border-dashed bg-card/30">
+            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+            <p className="text-muted-foreground">加入球隊後即可參與聊天</p>
+          </Card>
+        )}
+      </TabsContent>
+    </Tabs>
     </div>
+  );
+}
+
+function TeamChat({ teamId, currentUser, users }: { teamId: string, currentUser: any, users: any[] }) {
+  const [content, setContent] = useState('');
+  const qc = useQueryClient();
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: messages = [] } = useQuery<TeamMessage[]>({ 
+    queryKey: ['teamMessages', teamId], 
+    queryFn: () => api(`/teams/${teamId}/messages`), 
+    refetchInterval: 3000,
+  });
+
+  const sendMut = useMutation({
+    mutationFn: (text: string) => api(`/teams/${teamId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content: text })
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['teamMessages', teamId] });
+      setContent('');
+    }
+  });
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim() || sendMut.isPending) return;
+    sendMut.mutate(content.trim());
+  };
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  return (
+    <Card className="flex flex-col h-[600px] bg-card/50 backdrop-blur border-border overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        {messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+            <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
+            <p className="text-sm">暫時未有訊息，打個招呼啦！</p>
+          </div>
+        ) : (
+          messages.map(msg => {
+            const isMe = msg.userId === currentUser.id;
+            const user = users.find(u => u.id === msg.userId);
+            return (
+              <div key={msg.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                <Avatar className="w-10 h-10 shrink-0 ring-2 ring-background">
+                  <AvatarImage src={user?.avatarUrl} />
+                  <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%] md:max-w-[70%]`}>
+                  <span className="text-xs text-muted-foreground mb-1.5 px-1 font-bold">{user?.name || 'Unknown'}</span>
+                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-white/10 text-white rounded-tl-sm'}`}>
+                    {msg.content}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                    {new Date(msg.createdAt).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} className="h-1" />
+      </div>
+      <div className="p-4 border-t border-border bg-black/20">
+        <form onSubmit={handleSend} className="flex gap-3 max-w-4xl mx-auto">
+          <Input 
+            value={content} 
+            onChange={e => setContent(e.target.value)} 
+            placeholder="輸入訊息..." 
+            className="flex-1 bg-background/50 focus-visible:bg-background border-border h-12"
+            disabled={sendMut.isPending}
+          />
+          <Button type="submit" disabled={!content.trim() || sendMut.isPending} size="icon" className="h-12 w-12 shrink-0">
+            <Send className="w-5 h-5" />
+          </Button>
+        </form>
+      </div>
+    </Card>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { db, teamsTable, teamMembersTable } from "@workspace/db";
+import { db, teamsTable, teamMembersTable, teamMessagesTable } from "@workspace/db";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 
@@ -110,6 +110,55 @@ router.patch("/teams/:teamId/members/:userId", requireAuth, async (req, res): Pr
     .where(and(eq(teamMembersTable.teamId, teamId), eq(teamMembersTable.userId, userId)))
     .returning();
   res.json(updated ?? { ok: true });
+});
+
+// ==========================================
+// Team Messages Endpoints
+// ==========================================
+
+router.get("/teams/:teamId/messages", requireAuth, async (req, res): Promise<void> => {
+  const teamId = String(req.params.teamId);
+  const me = (req as AuthedRequest).user;
+  
+  if (!(await requireTeamRole(teamId, me.id, ["Owner", "Admin", "Member"]))) {
+    res.status(403).json({ error: "Forbidden" }); 
+    return;
+  }
+
+  const messages = await db.select().from(teamMessagesTable)
+    .where(eq(teamMessagesTable.teamId, teamId));
+    
+  res.json(messages);
+});
+
+const CreateMessageBody = z.object({
+  content: z.string().min(1),
+});
+
+router.post("/teams/:teamId/messages", requireAuth, async (req, res): Promise<void> => {
+  const parsed = CreateMessageBody.safeParse(req.body);
+  if (!parsed.success) { 
+    res.status(400).json({ error: parsed.error.message }); 
+    return; 
+  }
+  
+  const teamId = String(req.params.teamId);
+  const me = (req as AuthedRequest).user;
+
+  if (!(await requireTeamRole(teamId, me.id, ["Owner", "Admin", "Member"]))) {
+    res.status(403).json({ error: "Forbidden" }); 
+    return;
+  }
+
+  const id = newId("msg");
+  const [newMessage] = await db.insert(teamMessagesTable).values({
+    id,
+    teamId,
+    userId: me.id,
+    content: parsed.data.content,
+  }).returning();
+
+  res.status(201).json(newMessage);
 });
 
 export default router;
