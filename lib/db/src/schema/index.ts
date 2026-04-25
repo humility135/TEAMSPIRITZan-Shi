@@ -1,5 +1,4 @@
 export * from "./users";
-export * from "./otp";
 export * from "./teams";
 export * from "./venues";
 export * from "./events";

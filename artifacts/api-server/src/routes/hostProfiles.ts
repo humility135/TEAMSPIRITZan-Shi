@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, hostProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth, type AuthedRequest } from "../middleware/auth";
+import { requireAuth, type AuthedRequest } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -11,7 +11,7 @@ router.get("/host-profiles", async (_req, res): Promise<void> => {
 });
 
 router.post("/host-profiles/:userId/rate", requireAuth, async (req, res): Promise<void> => {
-  const { userId } = req.params;
+  const userId = req.params.userId as string;
   const { rating, comment } = req.body;
   const me = (req as AuthedRequest).user;
 
@@ -32,7 +32,7 @@ router.post("/host-profiles/:userId/rate", requireAuth, async (req, res): Promis
       return;
     }
 
-    const existingIndex = profile.reviews.findIndex(r => r.reviewerId === me.id);
+    const existingIndex = profile.reviews.findIndex((r: any) => r.reviewerId === me.id);
     const newReview = {
       reviewerId: me.id,
       rating,
@@ -47,7 +47,7 @@ router.post("/host-profiles/:userId/rate", requireAuth, async (req, res): Promis
       updatedReviews.push(newReview);
     }
     
-    const totalRating = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+    const totalRating = updatedReviews.reduce((sum: number, r: any) => sum + r.rating, 0);
     const newAverageRating = totalRating / updatedReviews.length;
 
     const [updated] = await db
