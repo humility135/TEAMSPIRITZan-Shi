@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Calendar, Users, Filter, Star, Plus } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,7 @@ export default function Discover() {
     return true;
   }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
-  const uniqueDistricts = Array.from(new Set(venues.map(v => v.district)));
+  const uniqueDistricts = Array.from(new Set(venues.map(v => extractDistrict(v.district) || v.district).filter(Boolean)));
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -93,8 +94,9 @@ export default function Discover() {
         <div className="grid md:grid-cols-2 gap-6">
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+            const venueDistrict = venue?.district ? (extractDistrict(venue.district) || venue.district) : undefined;
             const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? '搵手填地址';
+            const districtLabel = venueDistrict ?? (match.venueAddress ? (extractDistrict(match.venueAddress) || '球場地址') : '球場地址');
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = match.attendees.includes(currentUser.id);

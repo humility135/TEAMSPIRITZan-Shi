@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert, Zap, Hourglass } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { REFUND_POLICY_OPTIONS } from '@/lib/types';
+import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +49,7 @@ export default function PublicMatchDetail() {
 
   const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
   const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-  const districtLabel = venue?.district ?? '搵手填地址';
+  const districtLabel = extractDistrict(venue?.district || match.venueAddress || '') || venue?.district || '球場地址';
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.venueAddress ?? venue?.name ?? '')}`;
   const host = users.find(u => u.id === match.hostId);
   const hostProfile = hostProfiles.find(p => p.userId === match.hostId);

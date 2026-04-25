@@ -67,6 +67,7 @@ interface AppContextType extends AppState {
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
   createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
   getRole: (teamId: string) => Role | undefined;
+  rateHost: (hostId: string, rating: number, comment?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -305,6 +306,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return state?.currentUser.role[teamId];
   }, [state]);
 
+  const rateHost = useCallback(async (hostId: string, rating: number, comment?: string) => {
+    await api(`/host-profiles/${hostId}/rate`, { method: 'POST', body: JSON.stringify({ rating, comment }) });
+    inv(['hostProfiles']);
+  }, []);
+
   if (meQ.isLoading || (meQ.data && !state)) {
     return <div className="min-h-screen flex items-center justify-center text-zinc-400">載入中…</div>;
   }
@@ -339,6 +345,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMemberRole,
       createEvent,
       getRole,
+      rateHost,
       logout,
     }}>
       {children}

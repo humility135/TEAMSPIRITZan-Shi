@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CircleCheck, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter, Star } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { extractDistrict } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -396,7 +399,7 @@ function TeamEventRow({ event }: { event: any }) {
           <div className="p-5 flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-white/20"><Shield className="w-3 h-3 mr-1"/>{team?.name}</Badge>
-              {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已確認</Badge>}
+              {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CircleCheck className="w-3 h-3 mr-1"/>已確認</Badge>}
               {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
               {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
               {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
@@ -419,45 +422,133 @@ function TeamEventRow({ event }: { event: any }) {
 }
 
 function PublicMatchRow({ match }: { match: any }) {
-  const { venues, currentUser } = useAppStore();
+  const { venues, currentUser, hostProfiles, rateHost } = useAppStore();
+  const [isRateOpen, setIsRateOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const venue = match.venueId ? venues.find((v: any) => v.id === match.venueId) : undefined;
   const venueLabel = venue?.name ?? match.venueAddress ?? '—';
+  const districtLabel = extractDistrict(venue?.district || match.venueAddress || '') || venue?.district || '球場地址';
   const isHost = match.hostId === currentUser.id;
+  const isPast = new Date(match.datetime).getTime() < Date.now();
+  const isCancelled = match.status === 'cancelled';
+
+  const hostProfile = hostProfiles?.find((h: any) => h.userId === match.hostId);
+  const existingReview = hostProfile?.reviews?.find((r: any) => r.reviewerId === currentUser.id);
+
+  const handleRateSubmit = async () => {
+    setIsSubmitting(true);
+    await rateHost(match.hostId, rating, comment);
+    setIsSubmitting(false);
+    setIsRateOpen(false);
+  };
 
   return (
-    <Link href={`/discover/${match.id}`}>
-      <Card className="p-0 overflow-hidden border-primary/20 hover:border-primary/60 transition-all bg-primary/5 cursor-pointer group">
-        <div className="flex flex-col sm:flex-row">
-          <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-primary/20 bg-primary/10 flex flex-col justify-center items-center text-center">
-            <div className="text-xs text-primary font-bold tracking-wider uppercase">
-              {new Date(match.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+    <>
+      <Link href={`/discover/${match.id}`}>
+        <Card className="p-0 overflow-hidden border-primary/20 hover:border-primary/60 transition-all bg-primary/5 cursor-pointer group">
+          <div className="flex flex-col sm:flex-row">
+            <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-primary/20 bg-primary/10 flex flex-col justify-center items-center text-center">
+              <div className="text-xs text-primary font-bold tracking-wider uppercase">
+                {new Date(match.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-2xl font-display font-bold mt-1">
+                {new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              </div>
             </div>
-            <div className="text-2xl font-display font-bold mt-1">
-              {new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            <div className="p-5 flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <Badge className="bg-primary/20 text-primary border-0 text-[10px] tracking-widest uppercase"><Compass className="w-3 h-3 mr-1"/>公開場</Badge>
+                {isHost ? (
+                  <Badge className="bg-primary text-primary-foreground border-0 text-[10px] tracking-widest uppercase">我主辦</Badge>
+                ) : (
+                  <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CircleCheck className="w-3 h-3 mr-1"/>已報名</Badge>
+                )}
+                {isCancelled && <Badge variant="destructive" className="text-[10px] tracking-widest uppercase">已取消</Badge>}
+              </div>
+              <h3 className="font-bold text-lg leading-tight truncate">{venueLabel}</h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {districtLabel}</span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {match.attendees.length}{match.maxPlayers != null ? `/${match.maxPlayers}` : ''}</span>
+                <span>${match.fee}/人</span>
+              </div>
             </div>
-          </div>
-          <div className="p-5 flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <Badge className="bg-primary/20 text-primary border-0 text-[10px] tracking-widest uppercase"><Compass className="w-3 h-3 mr-1"/>公開場</Badge>
-              {isHost ? (
-                <Badge className="bg-primary text-primary-foreground border-0 text-[10px] tracking-widest uppercase">我主辦</Badge>
-              ) : (
-                <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已報名</Badge>
+            <div className="p-5 flex flex-col sm:flex-row items-center justify-end gap-3 border-t sm:border-t-0 sm:border-l border-primary/20 bg-black/20">
+              {!isHost && isPast && !isCancelled && (
+                <Button 
+                  size="sm"
+                  variant={existingReview ? "outline" : "default"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (existingReview) {
+                      setRating(existingReview.rating);
+                      setComment(existingReview.comment || '');
+                    } else {
+                      setRating(5);
+                      setComment('');
+                    }
+                    setIsRateOpen(true);
+                  }}
+                  className="z-10 whitespace-nowrap"
+                >
+                  {existingReview ? '已評分' : '評分主辦'}
+                </Button>
               )}
-              {match.status === 'cancelled' && <Badge variant="destructive" className="text-[10px] tracking-widest uppercase">已取消</Badge>}
-            </div>
-            <h3 className="font-bold text-lg leading-tight truncate">{venueLabel}</h3>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venue?.district ?? '搵手填地址'}</span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {match.attendees.length}{match.maxPlayers != null ? `/${match.maxPlayers}` : ''}</span>
-              <span>${match.fee}/人</span>
+              <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
-          <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-primary/20 bg-black/20">
-            <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+        </Card>
+      </Link>
+
+      <Dialog open={isRateOpen} onOpenChange={setIsRateOpen}>
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" /> 為主辦人評分
+            </DialogTitle>
+            <DialogDescription>您的評分將幫助其他球友了解主辦人的舉辦質素。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground">評分 (1-5 星)</div>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    className="focus:outline-none"
+                  >
+                    <Star
+                      className={`w-8 h-8 transition-colors ${
+                        rating >= star ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground/30'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground">留言 (選填)</div>
+              <Textarea 
+                placeholder="分享您的活動體驗..." 
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="resize-none h-24"
+              />
+            </div>
           </div>
-        </div>
-      </Card>
-    </Link>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsRateOpen(false)}>取消</Button>
+            <Button onClick={handleRateSubmit} disabled={!rating || isSubmitting}>
+              {isSubmitting ? '提交中...' : '提交評分'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
