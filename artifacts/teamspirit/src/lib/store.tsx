@@ -58,6 +58,7 @@ interface AppContextType extends AppState {
   leavePublicMatch: (matchId: string) => void;
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => Promise<PublicMatch | void>;
   cancelPublicMatch: (matchId: string) => void;
+  deletePublicMatch: (matchId: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
   updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => void;
@@ -126,11 +127,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const hydrateMatch = (m: any): PublicMatch => ({
       ...m,
-      datetime: typeof m.datetime === 'string' ? m.datetime : new Date(m.datetime).toISOString(),
-      endDatetime: m.endDatetime ? (typeof m.endDatetime === 'string' ? m.endDatetime : new Date(m.endDatetime).toISOString()) : undefined,
+      datetime: m.datetime,
+      endDatetime: m.endDatetime,
       attendees: m.attendees ?? [],
       waitlistIds: m.waitlistIds ?? [],
       slotOffers: m.slotOffers ?? [],
+      playerStats: m.playerStats ?? [],
     });
     const hydrateNotif = (n: any): Notification => ({
       ...n,
@@ -253,6 +255,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['publicMatches']);
   }, []);
 
+  const deletePublicMatch = useCallback(async (matchId: string) => {
+    await api(`/public-matches/${matchId}`, { method: 'DELETE' });
+    inv(['publicMatches']);
+  }, []);
+
   const addMatchComment = useCallback(async (matchId: string, text: string) => {
     await api(`/public-matches/${matchId}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
     inv(['matchComments']);
@@ -330,6 +337,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       leavePublicMatch,
       createPublicMatch,
       cancelPublicMatch,
+      deletePublicMatch,
       addMatchComment,
       updateCurrentUser,
       updateTeam,

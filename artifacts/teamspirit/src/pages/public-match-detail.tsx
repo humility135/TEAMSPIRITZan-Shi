@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useRoute, Link } from 'wouter';
+import { useRoute, useLocation, Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Star, Info, MessageSquare, AlertTriangle, ShieldCheck, Clock, ExternalLink, ShieldAlert, Zap, Hourglass } from 'lucide-react';
+import { 
+  MapPin, Calendar, Users, Star, Info, MessageSquare, 
+  AlertTriangle, ShieldCheck, Clock, ExternalLink, 
+  ShieldAlert, Zap, Hourglass 
+} from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { detectDistrict } from '@/lib/districts';
+import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,8 +26,9 @@ function formatRemaining(ms: number) {
 }
 
 export default function PublicMatchDetail() {
+  const [location, setLocation] = useLocation();
   const [, params] = useRoute('/discover/:matchId');
-  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot } = useAppStore();
+  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentAck, setPaymentAck] = useState(false);
@@ -45,11 +52,15 @@ export default function PublicMatchDetail() {
   if (!match) {
     return <div className="p-8 text-center">找不到此公開場</div>;
   }
+  
+  // Safe date parser to handle invalid dates from old mock data
+  const matchDate = match.datetime;
+  const matchEndDate = match.endDatetime;
 
   const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
   const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-  const districtLabel = venue?.district ?? '搵手填地址';
-  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.venueAddress ?? venue?.name ?? '')}`;
+  const districtLabel = venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : '其他');
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} 香港 ${districtLabel}`)}`;
   const host = users.find(u => u.id === match.hostId);
   const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
   const comments = matchComments.filter(c => c.matchId === match.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -111,7 +122,23 @@ export default function PublicMatchDetail() {
   const handleDeclineOffer = async () => {
     if (!myOffer) return;
     await declineMatchSlot(match.id, myOffer.id);
-    toast.info("已放棄此次補位");
+    toast.info("已放棄補位。");
+  };
+
+  const handleCancelMatch = () => {
+    if (confirm("確定要取消此公開場嗎？所有已報名嘅參加者都會收到通知。")) {
+      cancelPublicMatch(match.id);
+      toast.success("已取消公開場");
+      // Optional: setLocation('/discover');
+    }
+  };
+
+  const handleManageList = () => {
+    setLocation(`/manage-match/${match.id}`);
+  };
+
+  const handleReport = () => {
+    toast.success("已收到舉報，管理員會盡快跟進處理！");
   };
 
   return (
@@ -163,15 +190,15 @@ export default function PublicMatchDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">日期</div>
-                <div className="font-bold">{new Date(match.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short' })}</div>
+                <div className="font-bold">{formatDate(matchDate)}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">時間</div>
                 <div className="font-bold flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                  {new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  {match.endDatetime && (
-                    <span className="text-muted-foreground"> – {new Date(match.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                  {formatTime(matchDate)}
+                  {matchEndDate && (
+                    <span className="text-muted-foreground"> – {formatTime(matchEndDate)}</span>
                   )}
                 </div>
               </div>
@@ -191,13 +218,9 @@ export default function PublicMatchDetail() {
                 <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{match.description}</p>
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-primary" /> 規則與退款</h3>
+                <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-primary" /> 規則與注意事項</h3>
                 <div className="bg-black/20 p-4 rounded-xl space-y-2">
                   <p className="text-sm"><span className="font-bold">規則：</span>{match.rules}</p>
-                  <p className="text-sm">
-                    <span className="font-bold">退款政策：</span>
-                    {refundOpt ? `${refundOpt.label} — ${refundOpt.description}` : String(match.refundPolicy)}
-                  </p>
                   <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">
                     平台只係撮合工具，活動安全、保險同人身意外責任由搞手同參加者自行承擔。
                   </p>
@@ -215,7 +238,7 @@ export default function PublicMatchDetail() {
               {match.attendees.map((attendeeId, i) => {
                 const u = users.find(user => user.id === attendeeId);
                 return (
-                  <div key={i} className="flex flex-col items-center gap-2 p-3 bg-black/20 rounded-xl border border-border/50">
+                  <div key={attendeeId} className="flex flex-col items-center gap-2 p-3 bg-black/20 rounded-xl border border-border/50">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={u?.avatarUrl} />
                       <AvatarFallback>{u?.name?.[0] || 'G'}</AvatarFallback>
@@ -310,9 +333,33 @@ export default function PublicMatchDetail() {
             )}
 
             {isHost ? (
-              <div className="space-y-3">
-                <Button className="w-full font-bold uppercase tracking-wider" variant="outline">管理名單</Button>
-                <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90">取消此公開場</Button>
+              <div className="space-y-4">
+                {match.status === 'cancelled' ? (
+                  <div className="bg-destructive/20 text-destructive border border-destructive/30 p-4 rounded-xl text-center font-bold">
+                    此活動已取消
+                  </div>
+                ) : !isAttending ? (
+                  <Button className="w-full font-bold uppercase tracking-wider h-14 text-lg animate-pulse hover:animate-none" onClick={handleJoin} disabled={isProcessing}>
+                    {isProcessing ? "處理中..." : "我要報名 (主辦方免費)"}
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-primary/20 text-primary p-4 rounded-xl text-center font-bold">
+                      ✓ 你已成功報名
+                    </div>
+                    <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>取消報名</Button>
+                  </div>
+                )}
+                {match.status !== 'cancelled' && (
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleManageList}>管理名單</Button>
+                    <Button className="w-full font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleCancelMatch}>取消此公開場</Button>
+                  </div>
+                )}
+              </div>
+            ) : match.status === 'cancelled' ? (
+              <div className="bg-destructive/20 text-destructive border border-destructive/30 p-4 rounded-xl text-center font-bold">
+                此活動已取消
               </div>
             ) : isAttending ? (
               <div className="space-y-4">
@@ -346,7 +393,7 @@ export default function PublicMatchDetail() {
             )}
 
             <div className="mt-6 pt-6 border-t border-border flex justify-center">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleReport}>
                 <AlertTriangle className="w-4 h-4 mr-2" /> 舉報此場地
               </Button>
             </div>

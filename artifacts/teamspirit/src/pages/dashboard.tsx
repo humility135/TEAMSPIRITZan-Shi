@@ -1,20 +1,27 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus, X } from 'lucide-react';
 import { useAppStore, getAggregatedStats } from '@/lib/store';
+import { safeDate, formatTime } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
-  const { currentUser, teams, events, venues, publicMatches } = useAppStore();
+  const { currentUser, teams, events, venues, publicMatches, deletePublicMatch } = useAppStore();
   const aggStats = getAggregatedStats(currentUser);
 
   const upcomingEvents = events.filter(e => e.status === 'scheduled');
   
   const nearbyMatches = publicMatches
     .filter(m => m.status === 'open')
+    .filter(m => {
+      // Filter out past matches
+      const matchDateStr = safeDate(m.datetime).toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+      return matchDateStr >= todayStr;
+    })
     .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
     .slice(0, 2);
 
@@ -92,17 +99,42 @@ export default function Dashboard() {
                   const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
                   const label = venue?.name ?? m.venueAddress ?? '—';
                   return (
-                    <Link key={m.id} href={`/discover/${m.id}`}>
-                      <Card className="p-4 border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-colors h-full">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="font-bold truncate">{label}</span>
-                          <Badge className="bg-primary text-primary-foreground">{m.attendees.length}{m.maxPlayers != null ? `/${m.maxPlayers}` : ''}</Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(m.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
-                        </div>
-                      </Card>
-                    </Link>
+                    <div key={m.id} className="relative h-full group/card">
+                      <Link href={`/discover/${m.id}`}>
+                        <Card className="p-4 border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-colors h-full relative overflow-hidden">
+                          {m.status === 'cancelled' && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                              <Badge variant="destructive" className="uppercase tracking-widest font-bold rotate-[-12deg] scale-110">已取消</Badge>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-start mb-2">
+                            <span className={`font-bold truncate ${m.status === 'cancelled' ? 'line-through text-muted-foreground' : ''}`}>{label}</span>
+                            <Badge className="bg-primary text-primary-foreground">{m.attendees.length}{m.maxPlayers != null ? `/${m.maxPlayers}` : ''}</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {safeDate(m.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} {formatTime(m.datetime)}
+                            {m.endDatetime && (
+                              <span> – {formatTime(m.endDatetime)}</span>
+                            )}
+                          </div>
+                        </Card>
+                      </Link>
+                      {m.status === 'cancelled' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 opacity-0 group-hover/card:opacity-100 transition-opacity z-20 shadow-md"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deletePublicMatch(m.id);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -134,7 +166,13 @@ export default function Dashboard() {
                         <h3 className="font-bold text-lg leading-tight mb-2 truncate">{label}</h3>
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {district || '搵手填地址'}</div>
-                          <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> {new Date(match.datetime).toLocaleString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            {safeDate(match.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} {formatTime(match.datetime)}
+                            {match.endDatetime && (
+                              <span> – {formatTime(match.endDatetime)}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-center text-xs font-bold text-primary group-hover:text-white transition-colors">
                           <span>{match.attendees.length}{match.maxPlayers != null ? ` / ${match.maxPlayers}` : ''} 人已報</span>
@@ -145,11 +183,12 @@ export default function Dashboard() {
                   </motion.div>
                 );
               })}
+
               {nearbyMatches.length === 0 && (
-                 <Card className="p-8 col-span-2 text-center border-dashed border-border bg-card/30">
-                   <p className="text-muted-foreground mb-4">附近暫時未有公開場</p>
-                   <Link href="/discover/host"><Button variant="outline">成為第一個 Host</Button></Link>
-                 </Card>
+                <Card className="p-8 col-span-2 text-center border-dashed border-border bg-card/30">
+                  <p className="text-muted-foreground mb-4">附近暫時未有公開場</p>
+                  <Link href="/discover/host"><Button variant="outline">成為第一個 Host</Button></Link>
+                </Card>
               )}
             </div>
           </div>
@@ -180,10 +219,10 @@ export default function Dashboard() {
                         <div className="flex flex-col sm:flex-row">
                           <div className="p-6 sm:w-1/3 border-b sm:border-b-0 sm:border-r border-border bg-black/20 flex flex-col justify-center">
                             <div className="text-sm text-primary font-bold tracking-wider uppercase mb-2">
-                              {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              {safeDate(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })}
                             </div>
                             <div className="text-3xl font-display font-bold">
-                              {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                              {formatTime(event.datetime)}
                             </div>
                           </div>
                           <div className="p-6 flex-1 flex flex-col justify-center">

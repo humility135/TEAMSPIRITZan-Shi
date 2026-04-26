@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Shield, Zap, Target, ArrowRight, Check, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function Home() {
   return (
@@ -18,7 +19,8 @@ export default function Home() {
 
           {/* Centre Nav */}
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#about" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">About Me</a>
+            <a href="#about" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">About Us</a>
+            <a href="#pricing" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
             <a href="#contact" className="text-sm font-bold tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors">Contact Us</a>
           </nav>
 
@@ -64,11 +66,11 @@ export default function Home() {
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="/pricing" className="w-full sm:w-auto">
+              <a href="#pricing" className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full text-lg h-14 px-8 font-bold tracking-wide uppercase">
                   了解收費
                 </Button>
-              </Link>
+              </a>
             </div>
           </motion.div>
         </div>
@@ -158,6 +160,73 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing Section (Preview) */}
+      <section id="pricing" className="py-24 px-4 bg-card/30 border-t border-border">
+        <div className="container mx-auto max-w-6xl space-y-16">
+          <div className="text-center space-y-4">
+            <h2 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">
+              永久免費。<br/><span className="text-primary">用得越多，慳得越多。</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              冇隱藏費用。建隊、開活動、賽後數據 — 全部免費。
+              只有用平台代收場費先抽 4% service fee。
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            <Card className="relative overflow-hidden border-border bg-card/50 backdrop-blur p-10 flex flex-col">
+              <div className="space-y-2 mb-6">
+                <Badge variant="outline" className="uppercase tracking-widest text-xs">Free Forever</Badge>
+                <h3 className="text-3xl font-display font-bold uppercase tracking-wider">免費版</h3>
+                <div className="text-5xl font-display font-bold">$0<span className="text-lg text-muted-foreground font-sans font-normal">/月</span></div>
+                <p className="text-sm text-muted-foreground">所有核心功能，永久免費</p>
+              </div>
+
+              <div className="space-y-3 flex-1 mb-8">
+                <Feature text="無限建立 / 加入球隊"/>
+                <Feature text="無限活動 (免費或收費)"/>
+                <Feature text="RSVP / 候補 / 雙階段搶位"/>
+                <Feature text="賽後數據 (進球、助攻、紅黃牌)"/>
+                <Feature text="場地資料庫 + 一鍵導航"/>
+              </div>
+
+              <Link href="/login" className="w-full mt-auto">
+                <Button variant="outline" className="w-full font-bold tracking-widest uppercase">
+                  免費開始使用
+                </Button>
+              </Link>
+            </Card>
+
+            <Card className="relative overflow-hidden border-primary bg-gradient-to-br from-primary/10 via-card/50 to-card/50 backdrop-blur p-10 flex flex-col">
+              <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
+              <div className="absolute top-6 right-6">
+                <Badge className="bg-primary text-primary-foreground uppercase tracking-widest text-xs">為認真嘅你</Badge>
+              </div>
+              <div className="space-y-2 mb-6">
+                <Badge variant="outline" className="uppercase tracking-widest text-xs border-primary/40 text-primary">Pro</Badge>
+                <h3 className="text-3xl font-display font-bold uppercase tracking-wider">Pro 球隊</h3>
+                <div className="text-5xl font-display font-bold text-primary">$48<span className="text-lg text-muted-foreground font-sans font-normal">/月</span></div>
+                <p className="text-sm text-muted-foreground">解鎖賺更多 / 慳更多嘅工具</p>
+              </div>
+
+              <div className="space-y-3 flex-1 mb-8">
+                <Feature text="所有免費版功能" pro/>
+                <Feature text="客製 Logo + 主題色 + 移除水印" pro highlight/>
+                <Feature text="進階雷達圖 + 數據 dashboard" pro/>
+                <Feature text="Transaction fee 半價 (4% → 2%)" pro highlight/>
+                <Feature text="球隊財務報表 export (PDF / Excel)" pro/>
+              </div>
+
+              <Link href="/pricing" className="w-full mt-auto">
+                <Button className="w-full font-bold tracking-widest uppercase">
+                  查看完整收費方案
+                </Button>
+              </Link>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Contact Us */}
       <section id="contact" className="py-24 px-4 bg-card/30">
         <div className="container mx-auto max-w-4xl text-center space-y-6">
@@ -210,6 +279,11 @@ function FeatureCard({ icon: Icon, title, desc }: any) {
   );
 }
 
-function Badge({ children, className, variant }: any) {
-  return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>{children}</span>
+function Feature({ text, pro, highlight }: { text: string; pro?: boolean; highlight?: boolean }) {
+  return (
+    <div className="flex items-start gap-3 text-sm">
+      <Check className={`w-5 h-5 shrink-0 mt-0.5 ${pro ? 'text-primary' : 'text-foreground/70'}`} />
+      <span className={highlight ? 'text-white font-bold' : 'text-foreground/80'}>{text}</span>
+    </div>
+  );
 }

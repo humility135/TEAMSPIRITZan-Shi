@@ -59,7 +59,7 @@ router.post("/public-matches", requireAuth, async (req, res): Promise<void> => {
     description: parsed.data.description ?? "", rules: parsed.data.rules ?? "",
     refundPolicy: parsed.data.refundPolicy,
     status: "open",
-    attendees: [me.id], waitlistIds: [], slotOffers: [],
+    attendees: [], waitlistIds: [], slotOffers: [], // Host is NOT automatically added as an attendee
   }).returning();
   res.status(201).json(row);
 });
@@ -73,6 +73,10 @@ router.post("/public-matches/:id/join", requireAuth, async (req, res): Promise<v
   const cap = m.maxPlayers;
   const hasRoom = cap == null || m.attendees.length < cap;
   let updated;
+  
+  // If the user joining is the host, they shouldn't need to pay, but we'll add them directly if there's room
+  // The actual payment bypassing logic for hosts usually sits in the client/frontend flow,
+  // but if the host calls join, we let them join directly.
   if (hasRoom) {
     const attendees = [...m.attendees, me.id];
     const status = cap != null && attendees.length >= cap ? "full" : m.status;
@@ -112,7 +116,7 @@ router.post("/public-matches/:id/leave", requireAuth, async (req, res): Promise<
         if (cap != null && attendees.length >= cap) status = "full";
         notifs.push({ userId: promoted, message: "你已自動補上公開場（免費活動）" });
       } else {
-        const hLeft = hoursUntil(m.datetime as unknown as Date);
+        const hLeft = hoursUntil(new Date(m.datetime as unknown as string));
         const offer = makeSlotOffer(freeWl, hLeft);
         if (offer) {
           slotOffers.push(offer);
@@ -139,6 +143,22 @@ router.post("/public-matches/:id/cancel", requireAuth, async (req, res): Promise
   if (m.hostId !== me.id) { res.status(403).json({ error: "Forbidden" }); return; }
   const [updated] = await db.update(publicMatchesTable).set({ status: "cancelled" }).where(eq(publicMatchesTable.id, id)).returning();
   res.json(updated);
+});
+
+router.delete("/public-matches/:id", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
+  if (!m) { res.status(404).json({ error: "Not found" }); return; }
+  // Allow host to delete, OR allow any admin (if you had admin logic, otherwise just host)
+  if (m.hostId !== me.id) { res.status(403).json({ error: "Forbidden" }); return; }
+  
+  // First delete any associated comments or slot offers to avoid foreign key constraints
+  await db.delete(matchCommentsTable).where(eq(matchCommentsTable.matchId, id));
+  
+  // Then delete the match itself
+  await db.delete(publicMatchesTable).where(eq(publicMatchesTable.id, id));
+  res.json({ ok: true });
 });
 
 router.post("/public-matches/:id/slot-offers/:offerId/accept", requireAuth, async (req, res): Promise<void> => {

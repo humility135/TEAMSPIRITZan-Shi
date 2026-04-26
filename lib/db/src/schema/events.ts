@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 export type SlotOffer = {
   id: string;
@@ -15,12 +15,12 @@ export type PlayerStat = {
 
 export type FinalScore = { home: number; away: number };
 
-export const eventsTable = pgTable("events", {
+export const eventsTable = sqliteTable("events", {
   id: text("id").primaryKey(),
   teamId: text("team_id").notNull(),
   title: text("title").notNull(),
-  datetime: timestamp("datetime", { withTimezone: true }).notNull(),
-  endDatetime: timestamp("end_datetime", { withTimezone: true }),
+  datetime: text("datetime").notNull(),
+  endDatetime: text("end_datetime"),
   venueAddress: text("venue_address"),
   surface: text("surface"),
   skillLevel: integer("skill_level"),
@@ -29,13 +29,13 @@ export const eventsTable = pgTable("events", {
   description: text("description"),
   rules: text("rules"),
   status: text("status").notNull().default("scheduled"),
-  attendingIds: text("attending_ids").array().notNull().default([]),
-  declinedIds: text("declined_ids").array().notNull().default([]),
-  waitlistIds: text("waitlist_ids").array().notNull().default([]),
-  slotOffers: jsonb("slot_offers").$type<SlotOffer[]>().notNull().default([]),
-  finalScore: jsonb("final_score").$type<FinalScore | null>(),
-  playerStats: jsonb("player_stats").$type<PlayerStat[]>().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  attendingIds: text("attending_ids", { mode: 'json' }).$type<string[]>().notNull().default([]),
+  declinedIds: text("declined_ids", { mode: 'json' }).$type<string[]>().notNull().default([]),
+  waitlistIds: text("waitlist_ids", { mode: 'json' }).$type<string[]>().notNull().default([]),
+  slotOffers: text("slot_offers", { mode: 'json' }).$type<SlotOffer[]>().notNull().default([]),
+  finalScore: text("final_score", { mode: 'json' }).$type<FinalScore | null>(),
+  playerStats: text("player_stats", { mode: 'json' }).$type<PlayerStat[]>().notNull().default([]),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 export type EventRow = typeof eventsTable.$inferSelect;

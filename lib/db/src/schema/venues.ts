@@ -1,8 +1,8 @@
-import { pgTable, text, real, jsonb } from "drizzle-orm/pg-core";
+import { sqliteTable, text, real } from "drizzle-orm/sqlite-core";
 
 export type Weather = { temp: number; condition: string; lightningWarning: boolean };
 
-export const venuesTable = pgTable("venues", {
+export const venuesTable = sqliteTable("venues", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   district: text("district").notNull(),
@@ -10,7 +10,7 @@ export const venuesTable = pgTable("venues", {
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
   surface: text("surface").notNull(),
-  weather: jsonb("weather").$type<Weather>().notNull(),
+  weather: text("weather", { mode: 'json' }).$type<Weather>().notNull(),
 });
 
 export type Venue = typeof venuesTable.$inferSelect;

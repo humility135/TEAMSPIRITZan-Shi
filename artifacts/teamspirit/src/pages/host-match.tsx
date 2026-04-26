@@ -16,18 +16,21 @@ import { REFUND_POLICY_OPTIONS, RefundPolicyKind, SurfaceType } from '@/lib/type
 
 const hostSchema = z.object({
   venueAddress: z.string().min(3, '請輸入場地地址'),
-  date: z.string().min(1, '請揀日期'),
+  date: z.string().min(1, '請揀日期').refine(d => {
+    const today = new Date();
+    // 轉換成香港時區嘅 YYYY-MM-DD
+    const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+    return d >= hkDateStr;
+  }, '唔可以揀過去嘅日期'),
   startTime: z.string().min(1, '請揀開始時間'),
   endTime: z.string().min(1, '請揀完結時間'),
   surface: z.enum(['hard', 'turf', 'grass']),
   skillLevel: z.coerce.number().min(1).max(5),
   maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), '請輸入大過 0 嘅整數'),
   fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
-  description: z.string().min(10, '描述太短'),
-  rules: z.string().min(5, '請填寫規則'),
-  refundPolicy: z.enum(['half', 'auto']),
-  disclaimerAck: z.literal(true, { errorMap: () => ({ message: '請先確認免責聲明' }) }),
-}).refine(d => d.endTime > d.startTime, { message: '完結時間要喺開始之後', path: ['endTime'] });
+  description: z.string(),
+  rules: z.string(),
+}); // Removed strict endTime > startTime check to allow overnight matches
 
 type HostFormValues = z.infer<typeof hostSchema>;
 
@@ -48,30 +51,50 @@ export default function HostMatch() {
       fee: '',
       description: '',
       rules: '',
-      refundPolicy: 'half',
-      disclaimerAck: false as unknown as true,
     }
   });
 
   const onSubmit = (values: HostFormValues) => {
-    const datetime = new Date(`${values.date}T${values.startTime}`).toISOString();
-    const endDatetime = new Date(`${values.date}T${values.endTime}`).toISOString();
-    createPublicMatch({
-      venueAddress: values.venueAddress.trim(),
-      datetime,
-      endDatetime,
-      fee: values.fee === '' ? 0 : Number(values.fee),
-      surface: values.surface as SurfaceType,
-      skillLevel: values.skillLevel,
-      maxPlayers: values.maxPlayers === '' ? null : Number(values.maxPlayers),
-      description: values.description,
-      rules: values.rules,
-      refundPolicy: values.refundPolicy as RefundPolicyKind,
-      waitlistIds: [],
-      slotOffers: [],
-    });
-    toast.success('公開場已成功發佈！');
-    setLocation('/discover');
+    // Make sure we have valid date and time strings before combining them
+    if (!values.date || !values.startTime || !values.endTime) {
+      toast.error('請確保日期同時間都填好晒');
+      return;
+    }
+    
+    try {
+      // Create a full ISO string by extracting local parts and appending HK timezone
+      // E.g. "2025-04-26T20:00:00+08:00"
+      const startDateTimeStr = `${values.date}T${values.startTime}:00+08:00`;
+      const endDateTimeStr = `${values.date}T${values.endTime}:00+08:00`;
+      
+      const startDateTime = new Date(startDateTimeStr);
+      const endDateTime = new Date(endDateTimeStr);
+      
+      // Handle overnight matches (e.g. 23:00 to 01:00)
+      if (endDateTime <= startDateTime) {
+        endDateTime.setDate(endDateTime.getDate() + 1);
+      }
+      
+      createPublicMatch({
+        venueAddress: values.venueAddress.trim(),
+        datetime: startDateTime.toISOString(),
+        endDatetime: endDateTime.toISOString(),
+        fee: values.fee === '' ? 0 : Number(values.fee),
+        surface: values.surface as SurfaceType,
+        skillLevel: values.skillLevel,
+        maxPlayers: values.maxPlayers === '' ? null : Number(values.maxPlayers),
+        description: values.description,
+        rules: values.rules,
+        refundPolicy: 'half', // Default to half if needed by backend, though removed from UI
+        waitlistIds: [],
+        slotOffers: [],
+      });
+      toast.success('公開場已成功發佈！');
+      setLocation('/discover');
+    } catch (e) {
+      console.error("Date parsing error:", e);
+      toast.error('日期或時間格式有誤');
+    }
   };
 
   return (
@@ -124,19 +147,18 @@ export default function HostMatch() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>日期</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-3 gap-6">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>日期</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="startTime"
@@ -241,63 +263,7 @@ export default function HostMatch() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="refundPolicy"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>退款政策</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {REFUND_POLICY_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label} · {opt.short}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="text-[11px]">
-                      {REFUND_POLICY_OPTIONS.find(o => o.value === field.value)?.description}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </section>
-
-            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-4 rounded-xl space-y-3">
-              <div className="flex items-start gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-2 text-sm leading-relaxed">
-                  <div className="font-bold text-amber-200">免責聲明</div>
-                  <p>
-                    TEAMSPIRIT 只提供撮合及代收款服務，並非比賽嘅主辦方。場地安全、保險、人身意外等責任由搞手同參加者自行承擔。
-                  </p>
-                  <p>
-                    退款依足你揀嘅政策執行。已退款項由平台代收嘅金額直接退回參加者，<span className="font-bold">並唔會由你倒貼</span>；
-                    不過如果活動取消，你已支付嘅場租等費用要自己處理。
-                  </p>
-                </div>
-              </div>
-              <FormField
-                control={form.control}
-                name="disclaimerAck"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 pt-1">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={!!field.value}
-                        onChange={e => field.onChange(e.target.checked)}
-                        className="w-4 h-4 accent-primary"
-                      />
-                    </FormControl>
-                    <FormLabel className="text-sm text-amber-100 cursor-pointer">我已閱讀並同意以上條款</FormLabel>
-                    <FormMessage className="ml-2 text-xs" />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <div className="bg-primary/10 p-4 rounded-xl flex items-start gap-4">
               <div className="bg-primary text-primary-foreground p-2 rounded-full mt-1">

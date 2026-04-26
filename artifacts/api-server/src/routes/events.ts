@@ -88,7 +88,7 @@ router.put("/events/:id/rsvp", requireAuth, async (req, res): Promise<void> => {
     const tied = tiedUpSet(slotOffers);
     const freeWl = waitlistIds.filter((x) => !tied.has(x));
     if (freeWl.length > 0) {
-      const hLeft = hoursUntil(e.datetime as unknown as Date);
+      const hLeft = hoursUntil(new Date(e.datetime as unknown as string));
       if (e.fee === 0) {
         const promoted = freeWl[0];
         waitlistIds = waitlistIds.filter((x) => x !== promoted);

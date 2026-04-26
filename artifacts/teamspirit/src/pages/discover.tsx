@@ -8,9 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { hkDistricts, detectDistrict } from '@/lib/districts';
+import { useLocation } from 'wouter';
+import { safeDate, formatTime } from '@/lib/utils';
 
 export default function Discover() {
-  const { publicMatches, venues, users, hostProfiles, currentUser } = useAppStore();
+  const [, setLocation] = useLocation();
+  const { publicMatches, users, venues, currentUser, hostProfiles } = useAppStore();
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
 
@@ -18,13 +22,21 @@ export default function Discover() {
 
   const filteredMatches = activeMatches.filter(m => {
     const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
-    const district = venue?.district ?? (m.venueAddress ? '其他' : undefined);
-    if (districtFilter !== 'all' && district !== districtFilter) return false;
+    const rawDistrict = venue?.district ?? (m.venueAddress ? detectDistrict(m.venueAddress) : '其他');
+    
+    // Check if the match matches the selected district
+    if (districtFilter !== 'all' && rawDistrict !== districtFilter) return false;
     if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
+    
+    // Filter out matches that are in the past
+    const matchDateStr = safeDate(m.datetime).toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+    if (matchDateStr < todayStr) return false;
+
     return true;
   }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
-  const uniqueDistricts = Array.from(new Set(venues.map(v => v.district)));
+  // Use hkDistricts from lib
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -52,9 +64,10 @@ export default function Discover() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">所有地區</SelectItem>
-                {uniqueDistricts.map(d => (
+                {hkDistricts.map(d => (
                   <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
+                <SelectItem value="其他">其他</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -94,13 +107,16 @@ export default function Discover() {
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
             const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? '搵手填地址';
+            const districtLabel = venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : '其他');
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
-            const isAttending = match.attendees.includes(currentUser.id);
+            const isAttending = currentUser ? match.attendees.includes(currentUser.id) : false;
             const cap = match.maxPlayers;
             const isFull = cap != null && match.attendees.length >= cap;
-            const fillPercentage = cap != null ? (match.attendees.length / cap) * 100 : 0;
+            const fillPercentage = cap != null && cap > 0 ? (match.attendees.length / cap) * 100 : 0;
+            
+            // Safe date parser to handle invalid dates
+            const matchDate = safeDate(match.datetime);
 
             return (
               <motion.div
@@ -109,22 +125,24 @@ export default function Discover() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Link href={`/discover/${match.id}`}>
-                  <Card className={`overflow-hidden border-border hover:border-primary/50 transition-all cursor-pointer bg-card/50 backdrop-blur relative ${isAttending ? 'ring-2 ring-primary' : ''}`}>
-                    {isAttending && (
-                      <div className="absolute top-4 right-4 z-10">
-                        <Badge className="bg-primary text-primary-foreground font-bold uppercase">已報名</Badge>
-                      </div>
-                    )}
-                    <div className="p-6 pb-0 flex gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shrink-0">
-                        <span className="text-sm font-bold text-primary leading-none uppercase">
-                          {new Date(match.datetime).toLocaleDateString('zh-HK', { month: 'short' })}
-                        </span>
-                        <span className="text-2xl font-display font-bold text-primary leading-tight">
-                          {new Date(match.datetime).getDate()}
-                        </span>
-                      </div>
+                <Card 
+                  onClick={() => setLocation(`/discover/${match.id}`)}
+                  className={`overflow-hidden border-border hover:border-primary/50 transition-all cursor-pointer bg-card/50 backdrop-blur relative ${isAttending ? 'ring-2 ring-primary' : ''}`}
+                >
+                  {isAttending && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <Badge className="bg-primary text-primary-foreground font-bold uppercase">已報名</Badge>
+                    </div>
+                  )}
+                  <div className="p-6 pb-0 flex gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shrink-0">
+                      <span className="text-sm font-bold text-primary leading-none uppercase">
+                        {matchDate.toLocaleDateString('zh-HK', { month: 'short', timeZone: 'Asia/Hong_Kong' })}
+                      </span>
+                      <span className="text-2xl font-display font-bold text-primary leading-tight">
+                        {matchDate.toLocaleDateString('zh-HK', { day: 'numeric', timeZone: 'Asia/Hong_Kong' })}
+                      </span>
+                    </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="outline" className="text-[10px] tracking-wider uppercase border-primary/30 text-primary bg-primary/5">
@@ -136,7 +154,18 @@ export default function Discover() {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-bold text-lg leading-tight line-clamp-1">{venueLabel}</h3>
+                        <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} 香港 ${districtLabel}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()} // 避免觸發 Link 跳轉到 match detail
+                            className="hover:underline flex items-center gap-1"
+                            title="在 Google Maps 中開啟"
+                          >
+                            {venueLabel}
+                          </a>
+                        </h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <MapPin className="w-3 h-3" /> {districtLabel}
                         </p>
@@ -170,15 +199,23 @@ export default function Discover() {
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(match.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" /> 
+                          {matchDate.toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} 
+                          <span className="ml-1">
+                            {formatTime(match.datetime)}
+                            {match.endDatetime && (
+                              <span> – {formatTime(match.endDatetime)}</span>
+                            )}
+                          </span>
+                        </span>
                         <span>•</span>
                         <span>{match.surface === 'hard' ? '硬地' : match.surface === 'turf' ? '仿真草' : '草地'}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1">水平: {match.skillLevel}★</span>
                       </div>
                     </div>
-                  </Card>
-                </Link>
+                </Card>
               </motion.div>
             );
           })}

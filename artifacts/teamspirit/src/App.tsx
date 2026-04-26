@@ -1,6 +1,7 @@
 import React from 'react';
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -18,6 +19,7 @@ import Teams from "@/pages/teams";
 import Events from "@/pages/events";
 import PublicMatchDetail from "@/pages/public-match-detail";
 import HostMatch from "@/pages/host-match";
+import ManageMatch from "@/pages/manage-match";
 import Terms from "@/pages/terms";
 import Login from "@/pages/login";
 
@@ -43,6 +45,7 @@ function AppRoutes() {
           <Route path="/discover" component={Discover} />
           <Route path="/discover/host" component={HostMatch} />
           <Route path="/discover/:matchId" component={PublicMatchDetail} />
+          <Route path="/manage-match/:matchId" component={ManageMatch} />
           <Route path="/teams" component={Teams} />
           <Route path="/teams/:teamId" component={TeamDetail} />
           <Route path="/events" component={Events} />
@@ -62,15 +65,20 @@ function App() {
     document.documentElement.classList.add('dark');
   }, []);
 
+  // Use an environment variable or fallback for development
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRoutes />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppRoutes />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   );
 }
 
