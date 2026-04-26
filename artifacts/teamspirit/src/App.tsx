@@ -16,6 +16,7 @@ import Pricing from "@/pages/pricing";
 import Profile from "@/pages/profile";
 import Discover from "@/pages/discover";
 import Teams from "@/pages/teams";
+import TeamHostEvent from "@/pages/team-host-event";
 import Events from "@/pages/events";
 import PublicMatchDetail from "@/pages/public-match-detail";
 import HostMatch from "@/pages/host-match";
@@ -47,6 +48,7 @@ function AppRoutes() {
           <Route path="/discover/:matchId" component={PublicMatchDetail} />
           <Route path="/manage-match/:matchId" component={ManageMatch} />
           <Route path="/teams" component={Teams} />
+          <Route path="/teams/:teamId/host" component={TeamHostEvent} />
           <Route path="/teams/:teamId" component={TeamDetail} />
           <Route path="/events" component={Events} />
           <Route path="/events/:eventId" component={EventDetail} />

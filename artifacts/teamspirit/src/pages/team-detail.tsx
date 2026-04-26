@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown } from 'lucide-react';
 import { useAppStore, getTeamStats } from '@/lib/store';
+import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ const ACCENT_COLORS = ['#84cc16', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#
 export default function TeamDetail() {
   const [, params] = useRoute('/teams/:teamId');
   const [, navigate] = useLocation();
-  const { teams, users, events, venues, currentUser, updateTeam, leaveTeam, removeMember, setMemberRole, createEvent } = useAppStore();
+  const { teams, users, events, venues, currentUser, updateTeam, leaveTeam, deleteTeam, removeMember, setMemberRole, createEvent } = useAppStore();
   const { toast } = useToast();
 
   const team = teams.find(t => t.id === params?.teamId);
@@ -60,8 +61,8 @@ export default function TeamDetail() {
   const canManage = isOwner || isAdmin;
 
   const teamEvents = events.filter(e => e.teamId === team.id);
-  const upcomingEvents = teamEvents.filter(e => e.status === 'scheduled');
-  const pastEvents = teamEvents.filter(e => e.status === 'finished');
+  const upcomingEvents = teamEvents.filter(e => e.status === 'scheduled').sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime());
+  const pastEvents = teamEvents.filter(e => e.status === 'finished' || e.status === 'cancelled').sort((a, b) => safeDate(b.datetime).getTime() - safeDate(a.datetime).getTime());
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,21 +87,52 @@ export default function TeamDetail() {
     toast({ title: '球隊資料已更新' });
   };
 
-  const handleLeave = () => {
-    leaveTeam(team.id);
-    setLeaveOpen(false);
-    toast({ title: '已退出球隊', description: team.name });
-    navigate('/teams');
+  const handleLeave = async () => {
+    try {
+      const res = await leaveTeam(team.id);
+      if (res && res.error) {
+        toast({ title: '無法退出', description: res.error, variant: 'destructive' });
+        setLeaveOpen(false);
+        return;
+      }
+      setLeaveOpen(false);
+      toast({ title: res && res.deleted ? '球隊已解散' : '已退出球隊', description: team.name });
+      navigate('/teams');
+    } catch (e: any) {
+      // Fallback for network or unexpected 500 errors
+      const errorMsg = e?.body?.error || e.message || '發生未知錯誤，請重試。';
+      toast({ title: '退出失敗', description: errorMsg, variant: 'destructive' });
+      setLeaveOpen(false);
+    }
   };
 
-  const handleKick = (userId: string, userName: string) => {
-    removeMember(team.id, userId);
-    toast({ title: '已移除成員', description: userName });
+  const handleDeleteTeam = async () => {
+    try {
+      await deleteTeam(team.id);
+      setLeaveOpen(false);
+      toast({ title: '球隊已解散', description: team.name });
+      navigate('/teams');
+    } catch (e: any) {
+      toast({ title: '解散失敗', description: e.message || '無法解散球隊', variant: 'destructive' });
+    }
   };
 
-  const handleRoleChange = (userId: string, newRole: Role) => {
-    setMemberRole(team.id, userId, newRole);
-    toast({ title: '角色已更新' });
+  const handleKick = async (userId: string, userName: string) => {
+    try {
+      await removeMember(team.id, userId);
+      toast({ title: '已移除成員', description: userName });
+    } catch (e: any) {
+      toast({ title: '移除失敗', description: e.message || '發生錯誤', variant: 'destructive' });
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: Role) => {
+    try {
+      await setMemberRole(team.id, userId, newRole);
+      toast({ title: '角色已更新' });
+    } catch (e: any) {
+      toast({ title: '更新失敗', description: e.message || '發生錯誤', variant: 'destructive' });
+    }
   };
 
   const handleCopyInvite = () => {
@@ -112,7 +144,11 @@ export default function TeamDetail() {
   const handleCreateEvent = () => {
     if (!evTitle.trim()) { toast({ title: '請輸入活動名稱', variant: 'destructive' }); return; }
     if (!evDate || !evStart || !evEnd) { toast({ title: '請填妥日期、開始同完結時間', variant: 'destructive' }); return; }
-    if (evEnd <= evStart) { toast({ title: '完結時間要喺開始之後', variant: 'destructive' }); return; }
+    
+    // Check if the date is in the past
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+    if (evDate < todayStr) { toast({ title: '唔可以揀過去嘅日期', variant: 'destructive' }); return; }
+
     if (!evAddress.trim()) { toast({ title: '請輸入場地地址', variant: 'destructive' }); return; }
     if (evCap.trim() !== '' && (!Number.isInteger(Number(evCap)) || Number(evCap) <= 0)) {
       toast({ title: '人數上限要係大過 0 嘅整數', variant: 'destructive' }); return;
@@ -123,13 +159,24 @@ export default function TeamDetail() {
     if (evDesc.trim().length < 10) { toast({ title: '活動描述至少 10 個字', variant: 'destructive' }); return; }
     if (evRules.trim().length < 5) { toast({ title: '請填寫特別規則', variant: 'destructive' }); return; }
     if (!evAck) { toast({ title: '請確認免責聲明', variant: 'destructive' }); return; }
-    const datetime = new Date(`${evDate}T${evStart}`).toISOString();
-    const endDatetime = new Date(`${evDate}T${evEnd}`).toISOString();
+    
+    // Explicitly use HK timezone to prevent browser auto-conversion
+    const startDateTimeStr = `${evDate}T${evStart}:00+08:00`;
+    const startDateTime = new Date(startDateTimeStr);
+    
+    let endDateTimeStr = `${evDate}T${evEnd}:00+08:00`;
+    let endDateTime = new Date(endDateTimeStr);
+    
+    // Handle overnight events (e.g. 23:00 to 01:00)
+    if (endDateTime <= startDateTime) {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+    }
+    
     createEvent({
       teamId: team.id,
       title: evTitle.trim(),
-      datetime,
-      endDatetime,
+      datetime: startDateTime.toISOString(),
+      endDatetime: endDateTime.toISOString(),
       venueAddress: evAddress.trim(),
       surface: evSurface,
       skillLevel: evSkill,
@@ -174,6 +221,29 @@ export default function TeamDetail() {
               </div>
 
               <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+                {isMember && !canManage && (
+                  <Button variant="outline" className="gap-2 text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => setLeaveOpen(true)}>
+                    <LogOut className="w-4 h-4" /> 退出球隊
+                  </Button>
+                )}
+
+                <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{isOwner ? '確定要解散球隊？' : '確定要退出球隊？'}</DialogTitle>
+                      <DialogDescription>
+                        {isOwner ? '此操作無法復原，所有資料將被永久刪除。' : '退出後你嘅戰績仍然會保留。'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setLeaveOpen(false)}>取消</Button>
+                      <Button variant="destructive" onClick={isOwner ? handleDeleteTeam : handleLeave}>
+                        確定{isOwner ? '解散' : '退出'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 {canManage && (
                   <Dialog open={manageOpen} onOpenChange={setManageOpen}>
                     <DialogTrigger asChild>
@@ -280,30 +350,35 @@ export default function TeamDetail() {
                             })}
                           </div>
                         </div>
+                        <div className="space-y-2">
+                          <Label>危險操作</Label>
+                          <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-4">
+                            {isMember && !isOwner && (
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-bold text-destructive">退出球隊</div>
+                                  <div className="text-xs text-muted-foreground mt-1">退出後你嘅戰績仍然會保留。</div>
+                                </div>
+                                <Button variant="destructive" onClick={() => { setManageOpen(false); setLeaveOpen(true); }}>退出</Button>
+                              </div>
+                            )}
+
+                            {isOwner && (
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-bold text-destructive">解散球隊</div>
+                                  <div className="text-xs text-muted-foreground mt-1">此操作無法復原，所有資料將被永久刪除。</div>
+                                </div>
+                                <Button variant="destructive" onClick={() => { setManageOpen(false); setLeaveOpen(true); }}>解散</Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
                       <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => { setManageOpen(false); setLogoPreview(null); setName(team.name); }}>取消</Button>
                         <Button onClick={handleSave} className="font-bold tracking-wide uppercase">儲存</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-
-                {isMember && !isOwner && (
-                  <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 bg-white/5 border-white/10 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40">
-                        <LogOut className="w-4 h-4" /> 退出球隊
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="font-display uppercase tracking-wider text-2xl">退出球隊</DialogTitle>
-                        <DialogDescription>你確定要退出 {team.name}？退出後你嘅戰績仍然會保留。</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setLeaveOpen(false)}>取消</Button>
-                        <Button variant="destructive" onClick={handleLeave}>確定退出</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -327,108 +402,9 @@ export default function TeamDetail() {
             <Calendar className="w-6 h-6 text-primary" /> 球隊活動
           </h2>
           {canManage && (
-            <Dialog open={createEventOpen} onOpenChange={(o) => { setCreateEventOpen(o); if (!o) resetEventForm(); }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="font-bold tracking-wide uppercase">
-                  <Plus className="w-4 h-4 mr-1" /> 發起活動
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="font-display uppercase tracking-wider text-2xl">發起新活動</DialogTitle>
-                  <DialogDescription>建立比賽、訓練或練波局，隊友可即時 RSVP。</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-5 py-2">
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b border-border pb-1.5">基本資料</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-title">活動名稱</Label>
-                      <Input id="ev-title" value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="例如 友誼賽 vs 紅磡聯" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-address">場地地址</Label>
-                      <Input id="ev-address" value={evAddress} onChange={e => setEvAddress(e.target.value)} placeholder="例如 黃大仙鳳舞街40號 摩士公園足球場 3號場" />
-                      <p className="text-[11px] text-muted-foreground">會用作 Google Maps 定位。</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-date">日期</Label>
-                      <Input id="ev-date" type="date" value={evDate} onChange={e => setEvDate(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="ev-start">開始時間</Label>
-                        <Input id="ev-start" type="time" value={evStart} onChange={e => setEvStart(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="ev-end">完結時間</Label>
-                        <Input id="ev-end" type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>場地類型</Label>
-                      <Select value={evSurface} onValueChange={(v) => setEvSurface(v as SurfaceType)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="hard">硬地 (Hard)</SelectItem>
-                          <SelectItem value="turf">仿真草 (Turf)</SelectItem>
-                          <SelectItem value="grass">真草 (Grass)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="ev-cap">人數上限</Label>
-                        <Input id="ev-cap" type="number" min={1} step={1} value={evCap} onChange={e => setEvCap(e.target.value)} placeholder="留空 = 不設上限" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="ev-fee">報名費 / 人</Label>
-                        <Input id="ev-fee" type="number" min={0} value={evFee} onChange={e => setEvFee(e.target.value)} placeholder="留空 = 免費" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>水平 (1-5★)</Label>
-                        <Select value={String(evSkill)} onValueChange={(v) => setEvSkill(Number(v))}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1★ 新手</SelectItem>
-                            <SelectItem value="2">2★ 業餘</SelectItem>
-                            <SelectItem value="3">3★ 常規</SelectItem>
-                            <SelectItem value="4">4★ 競技</SelectItem>
-                            <SelectItem value="5">5★ 職業</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b border-border pb-1.5">詳細資料</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-desc">活動描述</Label>
-                      <textarea id="ev-desc" value={evDesc} onChange={e => setEvDesc(e.target.value)} rows={3} placeholder="例如：聯賽第 3 輪，務求穩陣攞 3 分。" className="w-full rounded-md bg-background border border-input px-3 py-2 text-sm" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ev-rules">特別規則</Label>
-                      <textarea id="ev-rules" value={evRules} onChange={e => setEvRules(e.target.value)} rows={2} placeholder="例如：自備一淺一深波衫、守門員免費。" className="w-full rounded-md bg-background border border-input px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-
-                  <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 p-3 rounded-xl space-y-2 text-xs leading-relaxed">
-                    <div className="flex items-center gap-2 font-bold text-amber-200">
-                      <ShieldAlert className="w-4 h-4" /> 免責聲明
-                    </div>
-                    <p>TEAMSPIRIT 只提供活動編排同 RSVP 工具，並非主辦方。場地安全、保險、人身意外責任由搞手同隊員自行承擔。</p>
-                    <p>球隊內部活動嘅收費同退款由你哋自己處理（例如班費、現金、FPS）。<span className="font-bold">如果冇用平台付款方式，任何金錢糾紛同平台無關。</span></p>
-                    <label className="flex items-center gap-2 pt-1 cursor-pointer">
-                      <input type="checkbox" checked={evAck} onChange={e => setEvAck(e.target.checked)} className="w-4 h-4 accent-primary" />
-                      <span>我已閱讀並同意以上條款</span>
-                    </label>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleCreateEvent} className="w-full font-bold tracking-wide uppercase">立即發起</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" className="font-bold tracking-wide uppercase" onClick={() => navigate(`/teams/${team.id}/host`)}>
+              <Plus className="w-4 h-4 mr-1" /> 發起活動
+            </Button>
           )}
         </div>
 
@@ -528,17 +504,27 @@ function EventRow({ event, venues, past }: { event: any; venues: any[]; past?: b
   const venueLabel = venue?.name ?? event.venueAddress ?? '—';
   const hasCap = event.capacity != null;
   const isFull = hasCap && event.attendingIds.length >= event.capacity;
+  const isCancelled = event.status === 'cancelled';
+  
+  const matchDate = safeDate(event.datetime);
+  const matchEndDate = event.endDatetime ? safeDate(event.endDatetime) : undefined;
+  
   return (
     <Link href={`/events/${event.id}`}>
       <Card className={`p-4 border-border hover:border-primary/50 transition-colors cursor-pointer flex items-center gap-4 ${past ? 'bg-card/30' : 'bg-card/50'}`}>
         <div className="w-16 text-center shrink-0">
-          <div className="text-xs text-primary font-bold tracking-wider uppercase">{new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}</div>
-          <div className="text-lg font-display font-bold">{new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
-          {event.endDatetime && (
-            <div className="text-[10px] text-muted-foreground">至 {new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+          <div className="text-xs text-primary font-bold tracking-wider uppercase">{matchDate.toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', timeZone: 'Asia/Hong_Kong' })}</div>
+          <div className="text-lg font-display font-bold">{formatTime(matchDate)}</div>
+          {matchEndDate && (
+            <div className="text-[10px] text-muted-foreground">至 {formatTime(matchEndDate)}</div>
           )}
         </div>
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            {isCancelled && <Badge variant="destructive" className="text-[10px] uppercase tracking-wider font-bold h-5 px-1.5">已取消</Badge>}
+            {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase h-5 px-1.5">免費</Badge>}
+            {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase h-5 px-1.5">無上限</Badge>}
+          </div>
           <div className="font-bold truncate">{event.title}</div>
           <div className="text-xs text-muted-foreground flex items-center gap-3 mt-1 flex-wrap">
             <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate max-w-[200px]">{venueLabel}</span></span>

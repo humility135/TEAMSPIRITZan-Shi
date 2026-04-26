@@ -56,14 +56,17 @@ interface AppContextType extends AppState {
   markNotificationRead: (id: string) => void;
   joinPublicMatch: (matchId: string) => void;
   leavePublicMatch: (matchId: string) => void;
+  kickAttendee: (matchId: string, userId: string) => void;
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => Promise<PublicMatch | void>;
   cancelPublicMatch: (matchId: string) => void;
+  cancelEvent: (eventId: string) => Promise<void>;
   deletePublicMatch: (matchId: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
   updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => void;
   addTeam: (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => Promise<Team>;
-  leaveTeam: (teamId: string) => void;
+  leaveTeam: (teamId: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>;
+  deleteTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
   createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
@@ -244,6 +247,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['publicMatches', 'notifications']);
   }, []);
 
+  const kickAttendee = useCallback(async (matchId: string, userId: string) => {
+    await api(`/public-matches/${matchId}/kick/${userId}`, { method: 'POST' });
+    inv(['publicMatches']);
+  }, []);
+
   const createPublicMatch = useCallback(async (matchData: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => {
     const created = await api<PublicMatch>('/public-matches', { method: 'POST', body: JSON.stringify(matchData) });
     inv(['publicMatches']);
@@ -253,6 +261,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cancelPublicMatch = useCallback(async (matchId: string) => {
     await api(`/public-matches/${matchId}/cancel`, { method: 'POST' });
     inv(['publicMatches']);
+  }, []);
+
+  const cancelEvent = useCallback(async (eventId: string) => {
+    await api(`/events/${eventId}/cancel`, { method: 'POST' });
+    inv(['events', 'notifications']);
   }, []);
 
   const deletePublicMatch = useCallback(async (matchId: string) => {
@@ -282,8 +295,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const leaveTeam = useCallback(async (teamId: string) => {
-    await api(`/teams/${teamId}/leave`, { method: 'POST' });
-    inv(['teams', 'teamMembers']);
+    try {
+      const res = await api<{ ok: boolean; deleted?: boolean; error?: string }>(`/teams/${teamId}/leave`, { method: 'POST' });
+      inv(['teams', 'teamMembers']);
+      return res;
+    } catch (e: any) {
+      return { ok: false, error: e.message || '無法退出' };
+    }
+  }, []);
+
+  const deleteTeam = useCallback(async (teamId: string) => {
+    await api(`/teams/${teamId}`, { method: 'DELETE' });
+    inv(['teams', 'teamMembers', 'events']);
   }, []);
 
   const removeMember = useCallback(async (teamId: string, userId: string) => {
@@ -335,14 +358,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       markNotificationRead,
       joinPublicMatch,
       leavePublicMatch,
+      kickAttendee,
       createPublicMatch,
       cancelPublicMatch,
+      cancelEvent,
       deletePublicMatch,
       addMatchComment,
       updateCurrentUser,
       updateTeam,
       addTeam,
       leaveTeam,
+      deleteTeam,
       removeMember,
       setMemberRole,
       createEvent,

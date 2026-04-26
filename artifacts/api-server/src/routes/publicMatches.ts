@@ -52,8 +52,8 @@ router.post("/public-matches", requireAuth, async (req, res): Promise<void> => {
   const [row] = await db.insert(publicMatchesTable).values({
     id, hostId: me.id,
     venueAddress: parsed.data.venueAddress,
-    datetime: new Date(parsed.data.datetime),
-    endDatetime: parsed.data.endDatetime ? new Date(parsed.data.endDatetime) : undefined,
+    datetime: new Date(parsed.data.datetime).toISOString(),
+    endDatetime: parsed.data.endDatetime ? new Date(parsed.data.endDatetime).toISOString() : undefined,
     fee: parsed.data.fee, surface: parsed.data.surface,
     skillLevel: parsed.data.skillLevel, maxPlayers: parsed.data.maxPlayers,
     description: parsed.data.description ?? "", rules: parsed.data.rules ?? "",
@@ -159,6 +159,57 @@ router.delete("/public-matches/:id", requireAuth, async (req, res): Promise<void
   // Then delete the match itself
   await db.delete(publicMatchesTable).where(eq(publicMatchesTable.id, id));
   res.json({ ok: true });
+});
+
+router.post("/public-matches/:id/kick/:userId", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const targetUserId = String(req.params.userId);
+  const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
+  if (!m) { res.status(404).json({ error: "Not found" }); return; }
+  if (m.hostId !== me.id) { res.status(403).json({ error: "Forbidden: Only host can kick players" }); return; }
+
+  const attendees = m.attendees.filter((x) => x !== targetUserId);
+  const waitlistIds = m.waitlistIds.filter((x) => x !== targetUserId);
+  
+  let newOffers = m.slotOffers;
+  const cap = m.maxPlayers;
+  
+  // If the target was an attendee, and the match is now below capacity, trigger waitlist
+  const notifs: Array<{ userId: string; message: string }> = [];
+  if (m.attendees.includes(targetUserId) && cap != null && attendees.length < cap && waitlistIds.length > 0) {
+    const tied = tiedUpSet(newOffers);
+    const freeWl = waitlistIds.filter((x) => !tied.has(x));
+    if (freeWl.length > 0) {
+      if (m.fee === 0) {
+        const promoted = freeWl[0];
+        // Remove from waitlist and add to attendees
+        const pIdx = waitlistIds.indexOf(promoted);
+        if (pIdx >= 0) waitlistIds.splice(pIdx, 1);
+        attendees.push(promoted);
+        notifs.push({ userId: promoted, message: "你已自動補上公開場（免費活動）" });
+      } else {
+        const hLeft = hoursUntil(new Date(m.datetime));
+        const offer = makeSlotOffer(freeWl, hLeft);
+        if (offer) {
+          newOffers.push(offer);
+          const label = offer.mode === "race" ? "搶位中" : "輪到你";
+          for (const uid of offer.eligibleUserIds) {
+            notifs.push({ userId: uid, message: `【${label}】公開場有位空出，1 小時內接受並付款，逾時下一位補上` });
+          }
+        }
+      }
+    }
+  }
+  
+  const status = cap != null && attendees.length >= cap ? "full" : m.status === "cancelled" ? "cancelled" : "open";
+  const [updated] = await db.update(publicMatchesTable)
+    .set({ attendees, waitlistIds, slotOffers: newOffers, status })
+    .where(eq(publicMatchesTable.id, id)).returning();
+  
+  await notify(targetUserId, "你已被移出公開場名單，系統將會處理退款");
+  for (const n of notifs) await notify(n.userId, n.message);
+  res.json(updated);
 });
 
 router.post("/public-matches/:id/slot-offers/:offerId/accept", requireAuth, async (req, res): Promise<void> => {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useRoute } from 'wouter';
-import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass } from 'lucide-react';
+import { useLocation, useRoute } from 'wouter';
+import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, Settings, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,12 +29,18 @@ function formatRemaining(ms: number) {
 
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
-  const { events, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot } = useAppStore();
+  const [, setLocation] = useLocation();
+  const { events, users, teams, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
   const now = useNow(1000);
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
   if (!event) return <div>Event not found</div>;
+
+  // Check if current user is Owner or Admin of the team
+  const myRole = currentUser.role?.[event.teamId];
+  const canManage = myRole === 'Owner' || myRole === 'Admin';
 
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
@@ -79,18 +86,65 @@ export default function EventDetail() {
     toast.info('已放棄此次補位');
   };
 
+  const handleCancelEvent = async () => {
+    if (confirm("確定要取消此球隊活動嗎？所有已報名嘅參加者都會收到通知。")) {
+      try {
+        await cancelEvent(event.id);
+        toast.success("活動已取消");
+        setManageOpen(false);
+      } catch (e: any) {
+        toast.error(e.message || "取消失敗");
+      }
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       {/* Header Card */}
       <Card className="overflow-hidden border-border bg-card/50 backdrop-blur relative">
         <div className="p-8 md:p-12 space-y-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase border border-primary/20">
-              {event.status === 'finished' ? '已完場' : '即將舉行'}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase border border-primary/20">
+                {event.status === 'finished' ? '已完場' : event.status === 'cancelled' ? '已取消' : '即將舉行'}
+              </div>
+              {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase">免費</Badge>}
+              {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase">無上限</Badge>}
+              {isFull && <Badge className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/40 text-[10px] tracking-widest uppercase">已滿額</Badge>}
             </div>
-            {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase">免費</Badge>}
-            {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase">無上限</Badge>}
-            {isFull && <Badge className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/40 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+
+            {canManage && event.status === 'scheduled' && (
+              <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10">
+                    <Settings className="w-4 h-4" /> 管理活動
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">管理活動</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-destructive flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4" /> 取消活動
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">取消後所有參加者會收到通知，無法復原。</div>
+                          </div>
+                          <Button variant="destructive" onClick={handleCancelEvent}>取消</Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setManageOpen(false)}>關閉</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">{event.title}</h1>
@@ -106,8 +160,8 @@ export default function EventDetail() {
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-primary shrink-0" />
               <span className="text-lg">
-                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'short' })} · {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                {event.endDatetime && <span className="text-muted-foreground"> – {new Date(event.endDatetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>}
+                {safeDate(event.datetime).toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} · {formatTime(event.datetime)}
+                {event.endDatetime && <span className="text-muted-foreground"> – {formatTime(event.endDatetime)}</span>}
               </span>
             </div>
             <div className="flex items-start gap-3">
@@ -172,61 +226,61 @@ export default function EventDetail() {
           </div>
         )}
 
-        {/* Action Bar */}
-        {!isFinished && (
-          <div className="border-t border-border p-4 bg-black/20 space-y-3">
-            {isWaitlist && !myOffer && (
-              <div className="text-center text-sm text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
-                你已加入候補（第 {waitlistPos} 位）— 有人放飛機，系統會即時通知你
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
-                    {isAttending
-                      ? <><Check className="w-5 h-5 mr-2"/> 已出席</>
-                      : isWaitlist
-                        ? '已喺候補名單'
-                        : isFull
-                          ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
-                          : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
-                  </Button>
-                </DialogTrigger>
-                {!isAttending && !isWaitlist && (
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-display uppercase tracking-wider text-2xl">
-                        {isFull ? '加入候補' : '付款確認'}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-6 space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        {isFull
-                          ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
-                          : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
-                      </p>
-                      <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                        {isFull ? '加入候補' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                )}
-              </Dialog>
-
-              <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP(isDeclined ? 'none' : 'declined')}>
-                {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
-              </Button>
-
-              {isWaitlist && (
-                <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
-                  取消候補
-                </Button>
-              )}
+      {/* Action Bar */}
+      {!isFinished && event.status !== 'cancelled' && (
+        <div className="border-t border-border p-4 bg-black/20 space-y-3">
+          {isWaitlist && !myOffer && (
+            <div className="text-center text-sm text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+              你已加入候補（第 {waitlistPos} 位）— 有人放飛機，系統會即時通知你
             </div>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
+                  {isAttending
+                    ? <><Check className="w-5 h-5 mr-2"/> 已出席</>
+                    : isWaitlist
+                      ? '已喺候補名單'
+                      : isFull
+                        ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
+                        : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
+                </Button>
+              </DialogTrigger>
+              {!isAttending && !isWaitlist && (
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">
+                      {isFull ? '加入候補' : '付款確認'}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="py-6 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {isFull
+                        ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
+                        : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
+                    </p>
+                    <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
+                      {isFull ? '加入候補' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              )}
+            </Dialog>
+
+            <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP(isDeclined ? 'none' : 'declined')}>
+              {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
+            </Button>
+
+            {isWaitlist && (
+              <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
+                取消候補
+              </Button>
+            )}
           </div>
-        )}
-      </Card>
+        </div>
+      )}
+    </Card>
 
       {/* Pay slot dialog */}
       <Dialog open={!!payOfferId} onOpenChange={(open) => !open && setPayOfferId(null)}>
@@ -268,12 +322,13 @@ export default function EventDetail() {
             <h2 className="text-xl font-display font-bold uppercase tracking-wide mb-6">Match Stats (Admin)</h2>
             <div className="space-y-4">
               {event.attendingIds.map(id => {
+                const u = users.find(x => x.id === id);
                 const stat = event.playerStats.find(s => s.userId === id) || { goals: 0, assists: 0, yellow: 0, red: 0 };
                 return (
                   <div key={id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-center gap-3">
-                      <Avatar><AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} /></Avatar>
-                      <span className="font-bold">{id === 'u1' ? 'Ah Fai' : id === 'u2' ? 'Kit C.' : 'Ming'}</span>
+                      <Avatar><AvatarImage src={u?.avatarUrl || `https://i.pravatar.cc/150?u=${id}`} /></Avatar>
+                      <span className="font-bold">{u?.name || id}</span>
                     </div>
                     <div className="flex items-center gap-6">
                       <StatCounter label="Goals" value={stat.goals} onMinus={() => updateMatchStats(event.id, id, 'goals', -1)} onPlus={() => updateMatchStats(event.id, id, 'goals', 1)} />
@@ -293,7 +348,7 @@ export default function EventDetail() {
       )}
 
       {/* Rosters */}
-      {!isFinished && (
+      {!isFinished && event.status !== 'cancelled' && (
         <div className={`grid gap-8 ${event.waitlistIds.length > 0 ? 'md:grid-cols-2' : ''}`}>
           <div className="space-y-4">
             <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between">
@@ -304,11 +359,14 @@ export default function EventDetail() {
                 <p className="text-sm text-muted-foreground text-center py-4">仲未有人出席</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {event.attendingIds.map(id => (
-                    <Avatar key={id} className="w-12 h-12 ring-2 ring-primary">
-                      <AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} />
-                    </Avatar>
-                  ))}
+                  {event.attendingIds.map(id => {
+                    const u = users.find(x => x.id === id);
+                    return (
+                      <Avatar key={id} className="w-12 h-12 ring-2 ring-primary">
+                        <AvatarImage src={u?.avatarUrl || `https://i.pravatar.cc/150?u=${id}`} />
+                      </Avatar>
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -321,17 +379,29 @@ export default function EventDetail() {
               </h3>
               <Card className="border-border bg-card/50 backdrop-blur p-4">
                 <div className="space-y-2">
-                  {event.waitlistIds.map((id, index) => (
-                    <div key={id} className="flex items-center gap-3">
-                      <div className="w-6 text-center font-display font-bold text-muted-foreground">{index + 1}</div>
-                      <Avatar className="w-8 h-8"><AvatarImage src={`https://i.pravatar.cc/150?u=${id}`} /></Avatar>
-                      <span className="text-sm font-medium">{id === 'u1' ? 'Ah Fai' : id === 'u2' ? 'Kit C.' : 'Ming'}</span>
-                    </div>
-                  ))}
+                  {event.waitlistIds.map((id, index) => {
+                    const u = users.find(x => x.id === id);
+                    return (
+                      <div key={id} className="flex items-center gap-3">
+                        <div className="w-6 text-center font-display font-bold text-muted-foreground">{index + 1}</div>
+                        <Avatar className="w-8 h-8"><AvatarImage src={u?.avatarUrl || `https://i.pravatar.cc/150?u=${id}`} /></Avatar>
+                        <span className="text-sm font-medium">{u?.name || id}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </Card>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Admin Cancel Button at the bottom */}
+      {canManage && event.status === 'scheduled' && (
+        <div className="pt-8 flex justify-center">
+          <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30" onClick={handleCancelEvent}>
+            <AlertTriangle className="w-4 h-4 mr-2" /> 取消此活動
+          </Button>
         </div>
       )}
     </div>

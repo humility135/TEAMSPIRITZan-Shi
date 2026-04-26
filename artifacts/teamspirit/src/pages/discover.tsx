@@ -34,7 +34,7 @@ export default function Discover() {
     if (matchDateStr < todayStr) return false;
 
     return true;
-  }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+  }).sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime());
 
   // Use hkDistricts from lib
 

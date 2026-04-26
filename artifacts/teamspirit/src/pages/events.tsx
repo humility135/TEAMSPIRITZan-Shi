@@ -38,7 +38,11 @@ export default function Events() {
 
   const now = Date.now();
   const merged = allEntries
-    .filter(x => filter === 'upcoming' ? new Date(x.datetime).getTime() >= now - 86400000 : new Date(x.datetime).getTime() < now - 86400000)
+    .filter(x => {
+      const isDone = x.item.status === 'finished' || x.item.status === 'cancelled';
+      if (filter === 'upcoming') return !isDone && new Date(x.datetime).getTime() >= now - 86400000;
+      return isDone || new Date(x.datetime).getTime() < now - 86400000;
+    })
     .sort((a, b) => filter === 'upcoming'
       ? new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
       : new Date(b.datetime).getTime() - new Date(a.datetime).getTime()
@@ -86,8 +90,8 @@ export default function Events() {
       {view === 'list' ? (
         <Tabs value={filter} onValueChange={v => setFilter(v as any)}>
           <TabsList className="grid w-full grid-cols-2 max-w-sm bg-black/40 p-1 rounded-xl">
-            <TabsTrigger value="upcoming" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">即將開賽</TabsTrigger>
-            <TabsTrigger value="past" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">過往活動</TabsTrigger>
+            <TabsTrigger value="upcoming" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">即將舉行</TabsTrigger>
+            <TabsTrigger value="past" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">過往紀錄</TabsTrigger>
           </TabsList>
 
           <TabsContent value={filter} className="mt-6">

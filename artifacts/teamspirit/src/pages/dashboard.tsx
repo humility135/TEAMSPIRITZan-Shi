@@ -12,7 +12,10 @@ export default function Dashboard() {
   const { currentUser, teams, events, venues, publicMatches, deletePublicMatch } = useAppStore();
   const aggStats = getAggregatedStats(currentUser);
 
-  const upcomingEvents = events.filter(e => e.status === 'scheduled');
+  const upcomingEvents = events
+    .filter(e => e.status === 'scheduled')
+    .sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime())
+    .slice(0, 3);
   
   const nearbyMatches = publicMatches
     .filter(m => m.status === 'open')
@@ -22,10 +25,12 @@ export default function Dashboard() {
       const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
       return matchDateStr >= todayStr;
     })
-    .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+    .sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime())
     .slice(0, 2);
 
-  const myHostedMatches = publicMatches.filter(m => m.hostId === currentUser.id && m.status !== 'finished');
+  const myHostedMatches = publicMatches
+    .filter(m => m.hostId === currentUser.id && m.status !== 'finished')
+    .sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime());
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -125,10 +130,15 @@ export default function Dashboard() {
                           variant="ghost"
                           size="icon"
                           className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 opacity-0 group-hover/card:opacity-100 transition-opacity z-20 shadow-md"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            deletePublicMatch(m.id);
+                            try {
+                              await deletePublicMatch(m.id);
+                              // toast({ title: '已刪除' });
+                            } catch(err: any) {
+                              // error handling
+                            }
                           }}
                         >
                           <X className="w-4 h-4" />

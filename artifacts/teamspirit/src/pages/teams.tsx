@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { Plus, UserPlus, Users, ArrowRight, Search, Shield, MapPin, Camera, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -20,6 +20,7 @@ const HK_DISTRICTS = [
 ];
 
 export default function Teams() {
+  const [, navigate] = useLocation();
   const { teams, currentUser, addTeam } = useAppStore();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
@@ -31,13 +32,22 @@ export default function Teams() {
   const [logoPreview, setLogoPreview] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!teamName.trim()) { toast({ title: '請輸入球隊名稱', variant: 'destructive' }); return; }
     if (!district) { toast({ title: '請揀主場地區', variant: 'destructive' }); return; }
-    addTeam({ name: teamName.trim(), district, level: parseInt(level, 10), logoUrl: logoPreview || undefined });
-    setCreateOpen(false);
-    toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
-    setTeamName(''); setDistrict(''); setLevel('3'); setLogoPreview('');
+    try {
+      const newTeam = await addTeam({ name: teamName.trim(), district, level: parseInt(level, 10), logoUrl: logoPreview || undefined });
+      setCreateOpen(false);
+      toast({ title: '球隊已創立', description: `${teamName}（主場：${district}）` });
+      setTeamName(''); setDistrict(''); setLevel('3'); setLogoPreview('');
+      
+      // Auto redirect to the new team detail page
+      if (newTeam && newTeam.id) {
+        setTimeout(() => navigate(`/teams/${newTeam.id}`), 100);
+      }
+    } catch (e: any) {
+      toast({ title: '創立失敗', description: e.message || '未知錯誤', variant: 'destructive' });
+    }
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {

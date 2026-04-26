@@ -80,22 +80,35 @@ export default function PublicMatchDetail() {
 
   const handleJoin = () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      joinPublicMatch(match.id);
-      setIsProcessing(false);
-      setShowPaymentDialog(false);
-      toast.success("報名成功！");
+    setTimeout(async () => {
+      try {
+        await joinPublicMatch(match.id);
+        toast.success("報名成功！");
+      } catch (e: any) {
+        toast.error(e.message || "報名失敗");
+      } finally {
+        setIsProcessing(false);
+        setShowPaymentDialog(false);
+      }
     }, 1500);
   };
 
-  const handleJoinWaitlist = () => {
-    joinPublicMatch(match.id);
-    toast.success("已加入候補名單，有人放飛機會即時通知你");
+  const handleJoinWaitlist = async () => {
+    try {
+      await joinPublicMatch(match.id);
+      toast.success("已加入候補名單，有人放飛機會即時通知你");
+    } catch (e: any) {
+      toast.error(e.message || "加入候補失敗");
+    }
   };
 
-  const handleLeave = () => {
-    leavePublicMatch(match.id);
-    toast.info(isAttending ? "已取消報名。" : "已退出候補。");
+  const handleLeave = async () => {
+    try {
+      await leavePublicMatch(match.id);
+      toast.info(isAttending ? "已取消報名。" : "已退出候補。");
+    } catch (e: any) {
+      toast.error(e.message || "操作失敗");
+    }
   };
 
   const handleAcceptOffer = async () => {
@@ -125,11 +138,14 @@ export default function PublicMatchDetail() {
     toast.info("已放棄補位。");
   };
 
-  const handleCancelMatch = () => {
+  const handleCancelMatch = async () => {
     if (confirm("確定要取消此公開場嗎？所有已報名嘅參加者都會收到通知。")) {
-      cancelPublicMatch(match.id);
-      toast.success("已取消公開場");
-      // Optional: setLocation('/discover');
+      try {
+        await cancelPublicMatch(match.id);
+        toast.success("公開場已取消");
+      } catch (e: any) {
+        toast.error(e.message || "取消失敗");
+      }
     }
   };
 

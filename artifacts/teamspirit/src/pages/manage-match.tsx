@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function ManageMatch() {
   const [, params] = useRoute('/manage-match/:matchId');
-  const { publicMatches, users, currentUser, isProMode } = useAppStore();
+  const { publicMatches, users, currentUser, isProMode, kickAttendee } = useAppStore();
   
   const matchId = params?.matchId;
   const match = publicMatches.find(m => m.id === matchId);
@@ -29,10 +29,14 @@ export default function ManageMatch() {
   const attendees = match.attendees.map(id => users.find(u => u.id === id)).filter(Boolean);
   const waitlist = match.waitlistIds.map(id => users.find(u => u.id === id)).filter(Boolean);
 
-  const handleKick = (userId: string, name: string) => {
+  const handleKick = async (userId: string, name: string) => {
     if (window.confirm(`確定要將 ${name} 移出名單嗎？（此功能會退款給該名球員並通知候補）`)) {
-      toast.info(`已將 ${name} 移出名單，系統會自動處理退款。`);
-      // TODO: Connect to backend API for kicking a user
+      try {
+        await kickAttendee(match.id, userId);
+        toast.success(`已將 ${name} 移出名單，系統會自動處理退款。`);
+      } catch (error) {
+        toast.error(`移除失敗`);
+      }
     }
   };
 

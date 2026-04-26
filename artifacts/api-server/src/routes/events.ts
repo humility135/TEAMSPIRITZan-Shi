@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db, eventsTable, ordersTable, type EventRow, type SlotOffer, type PlayerStat } from "@workspace/db";
+import { db, eventsTable, teamMembersTable, ordersTable, type EventRow, type SlotOffer, type PlayerStat } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 import { notify, notifyMany } from "../lib/notify";
@@ -39,8 +39,8 @@ router.post("/events", requireAuth, async (req, res): Promise<void> => {
   const id = newId("e");
   const [row] = await db.insert(eventsTable).values({
     id, teamId: parsed.data.teamId, title: parsed.data.title,
-    datetime: new Date(parsed.data.datetime),
-    endDatetime: new Date(parsed.data.endDatetime),
+    datetime: new Date(parsed.data.datetime).toISOString(),
+    endDatetime: new Date(parsed.data.endDatetime).toISOString(),
     venueAddress: parsed.data.venueAddress,
     surface: parsed.data.surface, skillLevel: parsed.data.skillLevel,
     fee: parsed.data.fee, capacity: parsed.data.capacity,
@@ -220,6 +220,29 @@ router.patch("/events/:id/stats", requireAuth, async (req, res): Promise<void> =
   }
   s[parsed.data.field] = Math.max(0, s[parsed.data.field] + parsed.data.delta);
   const [updated] = await db.update(eventsTable).set({ playerStats }).where(eq(eventsTable.id, id)).returning();
+  res.json(updated);
+});
+
+router.post("/events/:id/cancel", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [e] = await db.select().from(eventsTable).where(eq(eventsTable.id, id));
+  if (!e) { res.status(404).json({ error: "Not found" }); return; }
+  
+  // Check if user is owner/admin of the team
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+    
+  if (!memberRecord || (memberRecord.role !== "Owner" && memberRecord.role !== "Admin")) {
+    res.status(403).json({ error: "Forbidden: Only team Owner or Admin can cancel events" });
+    return;
+  }
+
+  const [updated] = await db.update(eventsTable)
+    .set({ status: "cancelled" })
+    .where(eq(eventsTable.id, id)).returning();
+    
+  await notifyMany(e.attendingIds, `球隊活動已取消：${e.title}`);
   res.json(updated);
 });
 
