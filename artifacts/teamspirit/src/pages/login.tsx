@@ -74,7 +74,7 @@ export default function Login() {
             <Button
               variant="outline"
               className="w-full h-12 flex items-center justify-center gap-3 bg-white text-zinc-900 hover:bg-zinc-100 hover:text-zinc-900 border-0 transition-all duration-200"
-              onClick={handleGoogleLogin}
+              onClick={() => handleGoogleLogin()}
               disabled={loading}
               data-testid="button-google-login"
             >

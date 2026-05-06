@@ -33,6 +33,7 @@ export default function EventDetail() {
   const { events, users, teams, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
   const now = useNow(1000);
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
+  const [rsvpOpen, setRsvpOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
@@ -59,6 +60,7 @@ export default function EventDetail() {
   const remainingMs = deadlineMs != null ? deadlineMs - now : 0;
 
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
+    setRsvpOpen(false);
     updateEventRSVP(event.id, status);
     if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
   };
@@ -235,42 +237,46 @@ export default function EventDetail() {
             </div>
           )}
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="lg" variant={isAttending ? "default" : "outline"} className={`w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 ${isAttending ? 'bg-green-500 text-black hover:bg-green-400' : ''}`}>
-                  {isAttending
-                    ? <><Check className="w-5 h-5 mr-2"/> 已出席</>
-                    : isWaitlist
+            {isAttending ? (
+              <Button size="lg" variant="default" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-green-500 text-black hover:bg-green-400">
+                <Check className="w-5 h-5 mr-2"/> 已出席
+              </Button>
+            ) : (
+              <Dialog open={rsvpOpen} onOpenChange={setRsvpOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
+                    {isWaitlist
                       ? '已喺候補名單'
                       : isFull
                         ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
                         : canManage
                           ? '出席（發起人免費）'
                           : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
-                </Button>
-              </DialogTrigger>
-              {!isAttending && !isWaitlist && (
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">
-                      {isFull ? '加入候補' : canManage ? '出席確認' : '付款確認'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="py-6 space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {isFull
-                        ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
-                        : canManage
-                          ? `確認出席「${event.title}」（發起人免費）。`
-                          : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
-                    </p>
-                    <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                      {isFull ? '加入候補' : canManage ? '確認出席' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              )}
-            </Dialog>
+                  </Button>
+                </DialogTrigger>
+                {!isWaitlist && (
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-display uppercase tracking-wider text-2xl">
+                        {isFull ? '加入候補' : canManage ? '出席確認' : '付款確認'}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-6 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        {isFull
+                          ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
+                          : canManage
+                            ? `確認出席「${event.title}」（發起人免費）。`
+                            : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
+                      </p>
+                      <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
+                        {isFull ? '加入候補' : canManage ? '確認出席' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                )}
+              </Dialog>
+            )}
 
             <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP(isDeclined ? 'none' : 'declined')}>
               {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}

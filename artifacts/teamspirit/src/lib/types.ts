@@ -1,6 +1,6 @@
 export type Role = 'Owner' | 'Admin' | 'Member';
 export type SubscriptionStatus = 'free' | 'pro';
-export type EventStatus = 'scheduled' | 'live' | 'finished';
+export type EventStatus = 'scheduled' | 'live' | 'finished' | 'cancelled';
 export type RSVPStatus = 'attending' | 'declined' | 'waitlist' | 'none';
 export type SurfaceType = 'hard' | 'turf' | 'grass';
 export type RefundPolicyKind = 'half' | 'auto';
