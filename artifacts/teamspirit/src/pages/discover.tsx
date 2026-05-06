@@ -125,8 +125,16 @@ export default function Discover() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Card 
+                <Card
+                  role="link"
+                  tabIndex={0}
                   onClick={() => setLocation(`/discover/${match.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setLocation(`/discover/${match.id}`);
+                    }
+                  }}
                   className={`overflow-hidden border-border hover:border-primary/50 transition-all cursor-pointer bg-card/50 backdrop-blur relative ${isAttending ? 'ring-2 ring-primary' : ''}`}
                 >
                   {isAttending && (
@@ -155,16 +163,25 @@ export default function Discover() {
                           )}
                         </div>
                         <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} 香港 ${districtLabel}`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()} // 避免觸發 Link 跳轉到 match detail
-                            className="hover:underline flex items-center gap-1"
-                            title="在 Google Maps 中開啟"
-                          >
-                            {venueLabel}
-                          </a>
+                          <span className="flex items-center gap-2">
+                            <span className="min-w-0 truncate">{venueLabel}</span>
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:underline shrink-0"
+                              aria-label="在 Google Maps 中開啟"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(
+                                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} 香港 ${districtLabel}`)}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }}
+                            >
+                              開地圖
+                            </button>
+                          </span>
                         </h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <MapPin className="w-3 h-3" /> {districtLabel}
@@ -175,7 +192,7 @@ export default function Discover() {
                     <div className="p-6 space-y-4">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <img src={host?.avatarUrl} alt={host?.name} className="w-6 h-6 rounded-full" />
+                          {host?.avatarUrl ? <img src={host.avatarUrl} alt={host?.name} className="w-6 h-6 rounded-full" /> : <div className="w-6 h-6 rounded-full bg-white/10" />}
                           <span className="font-medium">{host?.name}</span>
                           <span className="text-muted-foreground flex items-center gap-1">
                             <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {hostProfile?.averageRating.toFixed(1) || 'N/A'}
@@ -213,6 +230,14 @@ export default function Discover() {
                         <span>{match.surface === 'hard' ? '硬地' : match.surface === 'turf' ? '仿真草' : '草地'}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1">水平: {match.skillLevel}★</span>
+                      </div>
+
+                      <div className="pt-2">
+                        <Link href={`/discover/${match.id}`} onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" className="font-bold uppercase tracking-wider">
+                            查看詳情
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                 </Card>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 export default function Dashboard() {
   const { currentUser, teams, events, venues, publicMatches, deletePublicMatch } = useAppStore();
   const aggStats = getAggregatedStats(currentUser);
+  const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
 
   const upcomingEvents = events
     .filter(e => e.status === 'scheduled')
@@ -66,7 +67,7 @@ export default function Dashboard() {
               <Link href="/teams" className="text-sm text-primary font-bold hover:underline uppercase tracking-wider">全部球隊</Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-              {teams.slice(0, 6).map((team, i) => (
+              {myTeams.slice(0, 6).map((team, i) => (
                 <motion.div
                   key={team.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -77,7 +78,7 @@ export default function Dashboard() {
                   <Link href={`/teams/${team.id}`}>
                     <Card className="w-36 p-3 border-border bg-card/50 backdrop-blur hover:border-primary/50 transition-colors cursor-pointer group text-center">
                       <div className="w-16 h-16 mx-auto rounded-xl bg-black overflow-hidden relative mb-3">
-                        <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        {team.logoUrl ? <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" /> : <div className="w-full h-full bg-white/10" />}
                         <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl" />
                       </div>
                       <div className="font-bold text-sm leading-tight truncate">{team.name}</div>
