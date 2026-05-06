@@ -34,6 +34,7 @@ export default function EventDetail() {
   const now = useNow(1000);
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
   const [rsvpOpen, setRsvpOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
@@ -61,6 +62,7 @@ export default function EventDetail() {
 
   const handleRSVP = (status: 'attending' | 'declined' | 'none') => {
     setRsvpOpen(false);
+    setDeclineOpen(false);
     updateEventRSVP(event.id, status);
     if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
   };
@@ -278,9 +280,35 @@ export default function EventDetail() {
               </Dialog>
             )}
 
-            <Button size="lg" variant={isDeclined ? "destructive" : "outline"} className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP(isDeclined ? 'none' : 'declined')}>
-              {isDeclined ? <><X className="w-5 h-5 mr-2"/> 已缺席</> : '缺席'}
-            </Button>
+            {isDeclined ? (
+              <Button size="lg" variant="destructive" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
+                <X className="w-5 h-5 mr-2"/> 已缺席
+              </Button>
+            ) : (
+              <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
+                    缺席
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">缺席確認</DialogTitle>
+                  </DialogHeader>
+                  <div className="py-6 space-y-4">
+                    <p className="text-sm text-muted-foreground">確定要將「{event.title}」設為缺席？</p>
+                    <div className="flex gap-3">
+                      <Button size="lg" variant="destructive" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={() => handleRSVP('declined')}>
+                        確定缺席
+                      </Button>
+                      <Button size="lg" variant="outline" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={() => setDeclineOpen(false)}>
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
 
             {isWaitlist && (
               <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>

@@ -3,13 +3,8 @@ import { Check, Zap, Wallet, TrendingUp, Sparkles, Shield } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAppStore } from '@/lib/store';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function Pricing() {
-  const { currentUser } = useAppStore();
-  const isPro = currentUser.subscription === 'pro';
-
   return (
     <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in duration-500 pb-20 pt-8">
       <div className="text-center space-y-4">
@@ -85,7 +80,9 @@ export default function Pricing() {
             <div className="text-xs text-muted-foreground mt-1">節省 2% transaction fee 已 cover 月費</div>
           </div>
 
-          <CheckoutButton label={isPro ? '已訂閱 Pro' : '升級 Pro · $48/月'} disabled={isPro} />
+          <Button asChild className="w-full h-12 font-bold tracking-widest uppercase">
+            <a href="/login">登入後升級 Pro · $48/月</a>
+          </Button>
         </Card>
       </div>
 
@@ -163,31 +160,5 @@ function ExampleCard({ icon, title, example, fee, total, note, highlight }: any)
       </div>
       <div className="text-xs text-muted-foreground border-t border-border pt-3">{note}</div>
     </Card>
-  );
-}
-
-function CheckoutButton({ label, disabled }: { label: string; disabled?: boolean }) {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button className="w-full h-12 font-bold tracking-widest uppercase" disabled={disabled}>
-          {label}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display uppercase tracking-wider text-2xl">Stripe 結帳 (Mock)</DialogTitle>
-        </DialogHeader>
-        <div className="py-12 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-            <Zap className="w-8 h-8 text-primary" />
-          </div>
-          <p className="text-muted-foreground">這是 demo 結帳介面。實際應用會載入 Stripe Subscriptions Elements。</p>
-          <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase mt-8 bg-[#635BFF] hover:bg-[#635BFF]/90 text-white">
-            Pay with Stripe · $48/月
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
