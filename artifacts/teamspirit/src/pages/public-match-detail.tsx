@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   MapPin, Calendar, Users, Star, Info, MessageSquare, 
   AlertTriangle, ShieldCheck, Clock, ExternalLink, 
-  ShieldAlert, Zap, Hourglass 
+  ShieldAlert, Zap, Hourglass, Share2 
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { detectDistrict } from '@/lib/districts';
@@ -69,6 +69,28 @@ export default function PublicMatchDetail() {
   const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
   const comments = matchComments.filter(c => c.matchId === match.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   const refundOpt = REFUND_POLICY_OPTIONS.find(o => o.value === match.refundPolicy);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = `${venueLabel} · 公開場`;
+
+    const navAny = navigator as any;
+    if (typeof navAny?.share === 'function') {
+      try {
+        await navAny.share({ title, url });
+        return;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navAny?.clipboard?.writeText?.(url);
+      toast.success('已複製連結');
+    } catch {
+      window.prompt('複製連結', url);
+    }
+  };
 
   const isHost = currentUser.id === match.hostId;
   const isAttending = match.attendees.includes(currentUser.id);
@@ -196,6 +218,14 @@ export default function PublicMatchDetail() {
               <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
                 <ExternalLink className="w-3 h-3" /> 開地圖
               </a>
+              <button
+                type="button"
+                aria-label="分享"
+                onClick={handleShare}
+                className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
+              >
+                <Share2 className="w-3 h-3" /> 分享
+              </button>
             </p>
           </div>
         </div>
