@@ -45,13 +45,22 @@ export default function TeamChat() {
   const knownIds = useMemo(() => new Set(messages.map((m) => m.id)), [messages]);
 
   const { status } = useTeamChatSocket(teamId, (payload) => {
+    const normalized: TeamMessage = {
+      id: String(payload?.id ?? ""),
+      teamId: String(payload?.teamId ?? teamId),
+      userId: String(payload?.userId ?? ""),
+      kind: payload?.kind === "image" ? "image" : "text",
+      text: typeof payload?.text === "string" ? payload.text : "",
+      imageUrl: typeof payload?.imageUrl === "string" ? payload.imageUrl : null,
+      createdAt: typeof payload?.createdAt === "string" ? payload.createdAt : new Date().toISOString(),
+    };
     if (!nearBottomRef.current) {
       setHasNew(true);
       setNewCount((c) => c + 1);
     }
     setMessages((prev) => {
-      if (prev.some((m) => m.id === payload.id)) return prev;
-      return [...prev, payload as TeamMessage];
+      if (prev.some((m) => m.id === normalized.id)) return prev;
+      return [...prev, normalized];
     });
   });
 
@@ -141,14 +150,15 @@ export default function TeamChat() {
     }
   };
 
-  const linkify = (input: string) => {
+  const linkify = (input: unknown) => {
+    const s = typeof input === "string" ? input : String(input ?? "");
     const re = /((?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+(?:\/[^\s]*)?)/g;
     const parts: React.ReactNode[] = [];
     let last = 0;
-    for (const m of input.matchAll(re)) {
+    for (const m of s.matchAll(re)) {
       const raw = m[0];
       const idx = m.index ?? 0;
-      if (idx > last) parts.push(input.slice(last, idx));
+      if (idx > last) parts.push(s.slice(last, idx));
       let urlText = raw;
       while (/[)\].,!?:;]+$/.test(urlText)) urlText = urlText.slice(0, -1);
       const href = /^https?:\/\//i.test(urlText) ? urlText : `https://${urlText.replace(/^www\./i, "www.")}`;
@@ -159,7 +169,7 @@ export default function TeamChat() {
       );
       last = idx + raw.length;
     }
-    if (last < input.length) parts.push(input.slice(last));
+    if (last < s.length) parts.push(s.slice(last));
     return parts;
   };
 
