@@ -20,7 +20,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { href: '/discover', label: '公開場', icon: Compass },
     { href: '/teams', label: '球隊', icon: Shield },
     { href: '/events', label: '活動', icon: Calendar },
-    { href: '/profile', label: '檔案', icon: UserIcon },
+    { href: '/profile', label: '個人', icon: UserIcon },
   ];
 
   return (
@@ -30,7 +30,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <Link href="/dashboard" className="text-xl font-display font-bold tracking-wider text-primary">TEAMSPIRIT</Link>
         <div className="flex items-center gap-4">
           <DropdownMenu>
-            <DropdownMenuTrigger className="relative">
+            <DropdownMenuTrigger className="relative" aria-label="通知">
               <Bell className="w-6 h-6" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-[10px] flex items-center justify-center rounded-full font-bold">

@@ -72,9 +72,11 @@ export default function Profile() {
             <AvatarFallback>{currentUser.name[0]}</AvatarFallback>
           </Avatar>
           <button
+            type="button"
             onClick={() => setEditOpen(true)}
             className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
             title="編輯個人資料"
+            aria-label="編輯個人資料"
           >
             <Camera className="w-5 h-5" />
           </button>
@@ -84,7 +86,7 @@ export default function Profile() {
           <div>
             <div className="flex items-center justify-center md:justify-start gap-3">
               <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-tight">{currentUser.name}</h1>
-              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary">
+              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary" aria-label="編輯個人資料">
                 <Pencil className="w-4 h-4" />
               </Button>
             </div>
