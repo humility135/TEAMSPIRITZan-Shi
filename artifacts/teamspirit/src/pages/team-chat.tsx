@@ -178,8 +178,15 @@ export default function TeamChat() {
                     {!mine && <div className="text-xs text-muted-foreground font-bold mb-1">{u?.name || m.userId}</div>}
                     <div className={`inline-block rounded-xl px-3 py-2 text-sm border ${mine ? "bg-primary/15 border-primary/25" : "bg-black/20 border-border/60"}`}>
                       {m.kind === "image" && m.imageUrl ? (
-                        <a href={m.imageUrl} target="_blank" rel="noreferrer">
-                          <img src={m.imageUrl} alt="image" className="max-w-[280px] w-full rounded-lg border border-border/60" />
+                        <a href={m.imageUrl} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={m.imageUrl}
+                            alt=""
+                            width={280}
+                            height={180}
+                            loading="lazy"
+                            className="max-w-[280px] max-h-[320px] w-full object-contain rounded-lg border border-border/60"
+                          />
                         </a>
                       ) : (
                         <span className="whitespace-pre-wrap break-words">{linkify(m.text)}</span>
@@ -207,6 +214,7 @@ export default function TeamChat() {
             type="file"
             accept="image/*"
             className="hidden"
+            aria-label="上傳圖片"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) uploadImage(f);
@@ -215,6 +223,7 @@ export default function TeamChat() {
           <Textarea
             value={text}
             placeholder="輸入訊息…（Enter 送出，Shift+Enter 換行）"
+            aria-label="輸入訊息"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

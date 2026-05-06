@@ -498,6 +498,7 @@ export default function EventDetail() {
             <div className="pt-6 mt-6 border-t border-border space-y-3">
               <Textarea
                 placeholder="寫低你想問/想講嘅嘢…（Enter 送出，Shift+Enter 換行）"
+                aria-label="留言輸入"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => {
