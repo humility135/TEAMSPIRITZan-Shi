@@ -308,6 +308,7 @@ router.post("/public-matches/:id/comments", requireAuth, async (req, res): Promi
   const id = String(req.params.id);
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   if (!text) { res.status(400).json({ error: "Empty comment" }); return; }
+  if (text.length > 1000) { res.status(400).json({ error: "Comment too long" }); return; }
   const [row] = await db.insert(matchCommentsTable).values({
     id: newId("c"), matchId: id, userId: me.id, text,
   }).returning();

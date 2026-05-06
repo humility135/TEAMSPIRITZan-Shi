@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
-import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown } from 'lucide-react';
+import { Users, Trophy, Settings, Calendar, MapPin, Camera, Plus, ArrowRight, LogOut, Copy, UserMinus, Shield, ShieldCheck, Crown, MessageSquare } from 'lucide-react';
 import { useAppStore, getTeamStats } from '@/lib/store';
 import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -221,6 +221,13 @@ export default function TeamDetail() {
               </div>
 
               <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+                {isMember && (
+                  <Link href={`/teams/${team.id}/chat`}>
+                    <Button variant="outline" className="gap-2">
+                      <MessageSquare className="w-4 h-4" /> 聊天室
+                    </Button>
+                  </Link>
+                )}
                 {isMember && !canManage && (
                   <Button variant="outline" className="gap-2 text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => setLeaveOpen(true)}>
                     <LogOut className="w-4 h-4" /> 退出球隊

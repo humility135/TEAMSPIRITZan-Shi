@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import { MapPin, Clock, Check, X, Minus, Plus, Navigation, Zap, Hourglass, Settings, AlertTriangle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/lib/store';
+import { api, ApiError } from '@/lib/api';
+import type { EventComment } from '@/lib/types';
 import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 function useNow(intervalMs: number = 1000) {
@@ -31,14 +35,25 @@ export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
   const [, setLocation] = useLocation();
   const { events, users, teams, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
+  const qc = useQueryClient();
   const now = useNow(1000);
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentSending, setCommentSending] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
   if (!event) return <div>Event not found</div>;
+
+  const commentsQ = useQuery({
+    queryKey: ['eventComments', event.id],
+    queryFn: () => api<EventComment[]>(`/events/${event.id}/comments`),
+    enabled: !!event?.id,
+  });
+  const comments = commentsQ.data ?? [];
+  const commentsForbidden = commentsQ.error instanceof ApiError && commentsQ.error.status === 403;
 
   // Check if current user is Owner or Admin of the team
   const myRole = currentUser.role?.[event.teamId];
@@ -82,6 +97,22 @@ export default function EventDetail() {
     else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
     else if (r.reason === 'full') toast.error('已滿額，無法完成補位');
     else toast.error('付款失敗，請再試');
+  };
+
+  const handleSendComment = async () => {
+    const text = commentText.trim();
+    if (!text) { toast.error('請先輸入留言'); return; }
+    if (text.length > 1000) { toast.error('留言太長（最多 1000 字）'); return; }
+    setCommentSending(true);
+    try {
+      await api(`/events/${event.id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
+      setCommentText('');
+      await qc.invalidateQueries({ queryKey: ['eventComments', event.id] });
+    } catch (e: any) {
+      toast.error(e?.message || '送出失敗');
+    } finally {
+      setCommentSending(false);
+    }
   };
 
   const handleDeclineOffer = async () => {
@@ -433,6 +464,57 @@ export default function EventDetail() {
           )}
         </div>
       )}
+
+      <Card className="p-6 border-border bg-card/50 backdrop-blur">
+        <h3 className="font-bold text-xl mb-6 flex items-center gap-2">留言區</h3>
+        {commentsForbidden ? (
+          <p className="text-sm text-muted-foreground text-center py-4">你唔係球隊成員，無法查看留言。</p>
+        ) : (
+          <>
+            <div className="space-y-6">
+              {comments.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">暫時未有留言。</p>
+              ) : (
+                comments.map((comment) => {
+                  const u = users.find((x) => x.id === comment.userId);
+                  return (
+                    <div key={comment.id} className="flex gap-4">
+                      <Avatar className="w-8 h-8 shrink-0">
+                        <AvatarImage src={u?.avatarUrl || `https://i.pravatar.cc/150?u=${comment.userId}`} />
+                        <AvatarFallback>{u?.name?.[0] || '?'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="font-bold text-sm">{u?.name || comment.userId}</span>
+                          <span className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-sm">{comment.text}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="pt-6 mt-6 border-t border-border space-y-3">
+              <Textarea
+                placeholder="寫低你想問/想講嘅嘢…（Enter 送出，Shift+Enter 換行）"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendComment();
+                  }
+                }}
+                disabled={commentSending}
+              />
+              <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleSendComment} disabled={commentSending || commentsQ.isLoading}>
+                {commentSending ? '送出中…' : '送出留言'}
+              </Button>
+            </div>
+          </>
+        )}
+      </Card>
 
       {/* Admin Cancel Button at the bottom */}
       {canManage && event.status === 'scheduled' && (

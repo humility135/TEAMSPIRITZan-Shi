@@ -5,10 +5,12 @@ import {
   teamMembersTable,
   venuesTable,
   eventsTable,
+  eventCommentsTable,
   publicMatchesTable,
   matchCommentsTable,
   hostProfilesTable,
   notificationsTable,
+  teamMessagesTable,
 } from "@workspace/db";
 
 async function main() {
@@ -17,6 +19,8 @@ async function main() {
   // Wipe (idempotent)
   await db.delete(notificationsTable);
   await db.delete(matchCommentsTable);
+  await db.delete(teamMessagesTable);
+  await db.delete(eventCommentsTable);
   await db.delete(publicMatchesTable);
   await db.delete(eventsTable);
   await db.delete(teamMembersTable);
@@ -132,6 +136,19 @@ async function main() {
   await db.insert(matchCommentsTable).values([
     { id: "c1", matchId: "pm1", userId: "u2", text: "請問仲有冇守門員位?" },
     { id: "c2", matchId: "pm1", userId: "u1", text: "有，你可以直接報名！" },
+  ]);
+
+  // Event comments
+  await db.insert(eventCommentsTable).values([
+    { id: "ec1", eventId: "e1", userId: "u2", text: "幾點集合？" },
+    { id: "ec2", eventId: "e1", userId: "u1", text: "7:30 到場熱身，8:00 開波。" },
+  ]);
+
+  // Team messages
+  await db.insert(teamMessagesTable).values([
+    { id: "tm1", teamId: "t1", userId: "u1", text: "今晚練波，記得帶深色衫。" },
+    { id: "tm2", teamId: "t1", userId: "u2", text: "收到，我會早啲到。" },
+    { id: "tm3", teamId: "t1", userId: "u3", text: "我可能遲 10 分鐘。" },
   ]);
 
   // Host profiles

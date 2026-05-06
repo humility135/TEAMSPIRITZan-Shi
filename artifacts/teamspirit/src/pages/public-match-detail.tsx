@@ -13,6 +13,7 @@ import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -28,13 +29,15 @@ function formatRemaining(ms: number) {
 export default function PublicMatchDetail() {
   const [location, setLocation] = useLocation();
   const [, params] = useRoute('/discover/:matchId');
-  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch } = useAppStore();
+  const { publicMatches, venues, users, hostProfiles, matchComments, currentUser, joinPublicMatch, leavePublicMatch, acceptMatchSlot, payMatchSlot, declineMatchSlot, cancelPublicMatch, addMatchComment } = useAppStore();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentAck, setPaymentAck] = useState(false);
   const [slotPayOpen, setSlotPayOpen] = useState(false);
   const [slotAck, setSlotAck] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentSending, setCommentSending] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -111,6 +114,21 @@ export default function PublicMatchDetail() {
       toast.error(e.message || "操作失敗");
     } finally {
       setLeaveOpen(false);
+    }
+  };
+
+  const handleSendComment = async () => {
+    const text = commentText.trim();
+    if (!text) { toast.error('請先輸入留言'); return; }
+    if (text.length > 1000) { toast.error('留言太長（最多 1000 字）'); return; }
+    setCommentSending(true);
+    try {
+      await addMatchComment(match.id, text);
+      setCommentText('');
+    } catch (e: any) {
+      toast.error(e?.message || '送出失敗');
+    } finally {
+      setCommentSending(false);
     }
   };
 
@@ -304,6 +322,23 @@ export default function PublicMatchDetail() {
                   );
                 })
               )}
+            </div>
+            <div className="pt-6 mt-6 border-t border-border space-y-3">
+              <Textarea
+                placeholder="寫低你想問/想講嘅嘢…（Enter 送出，Shift+Enter 換行）"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendComment();
+                  }
+                }}
+                disabled={commentSending}
+              />
+              <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleSendComment} disabled={commentSending}>
+                {commentSending ? '送出中…' : '送出留言'}
+              </Button>
             </div>
           </Card>
         </div>

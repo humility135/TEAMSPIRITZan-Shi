@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { db, eventsTable, teamMembersTable, ordersTable, type EventRow, type SlotOffer, type PlayerStat } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { db, eventsTable, eventCommentsTable, teamMembersTable, ordersTable, type EventRow, type SlotOffer, type PlayerStat } from "@workspace/db";
+import { and, asc, eq } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 import { notify, notifyMany } from "../lib/notify";
@@ -18,6 +18,45 @@ router.get("/events/:id", async (req, res): Promise<void> => {
   const [row] = await db.select().from(eventsTable).where(eq(eventsTable.id, String(req.params.id)));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
+});
+
+router.get("/events/:id/comments", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [e] = await db.select().from(eventsTable).where(eq(eventsTable.id, id));
+  if (!e) { res.status(404).json({ error: "Not found" }); return; }
+
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+  if (!memberRecord) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const rows = await db.select().from(eventCommentsTable)
+    .where(eq(eventCommentsTable.eventId, id))
+    .orderBy(asc(eventCommentsTable.createdAt));
+  res.json(rows);
+});
+
+router.post("/events/:id/comments", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [e] = await db.select().from(eventsTable).where(eq(eventsTable.id, id));
+  if (!e) { res.status(404).json({ error: "Not found" }); return; }
+
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+  if (!memberRecord) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!text) { res.status(400).json({ error: "Empty comment" }); return; }
+  if (text.length > 1000) { res.status(400).json({ error: "Comment too long" }); return; }
+
+  const [row] = await db.insert(eventCommentsTable).values({
+    id: newId("ec"),
+    eventId: id,
+    userId: me.id,
+    text,
+  }).returning();
+  res.status(201).json(row);
 });
 
 const CreateEventBody = z.object({

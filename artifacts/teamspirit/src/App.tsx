@@ -11,6 +11,7 @@ import { Layout } from "@/components/layout";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import TeamDetail from "@/pages/team-detail";
+import TeamChat from "@/pages/team-chat";
 import EventDetail from "@/pages/event-detail";
 import Pricing from "@/pages/pricing";
 import Profile from "@/pages/profile";
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/manage-match/:matchId" component={ManageMatch} />
           <Route path="/teams" component={Teams} />
           <Route path="/teams/:teamId/host" component={TeamHostEvent} />
+          <Route path="/teams/:teamId/chat" component={TeamChat} />
           <Route path="/teams/:teamId" component={TeamDetail} />
           <Route path="/events" component={Events} />
           <Route path="/events/:eventId" component={EventDetail} />

@@ -158,6 +158,22 @@ export interface MatchComment {
   createdAt: string;
 }
 
+export interface EventComment {
+  id: string;
+  eventId: string;
+  userId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface TeamMessage {
+  id: string;
+  teamId: string;
+  userId: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Event {
   id: string;
   teamId: string;

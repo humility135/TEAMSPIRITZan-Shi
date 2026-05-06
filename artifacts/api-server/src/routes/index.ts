@@ -9,6 +9,7 @@ import hostsRouter from "./hostProfiles";
 import eventsRouter from "./events";
 import publicMatchesRouter from "./publicMatches";
 import ordersRouter from "./orders";
+import teamChatRouter from "./teamChat";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(hostsRouter);
 router.use(eventsRouter);
 router.use(publicMatchesRouter);
 router.use(ordersRouter);
+router.use(teamChatRouter);
 
 export default router;

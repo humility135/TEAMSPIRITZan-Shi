@@ -29,6 +29,16 @@ function verify(token: string | undefined): string | null {
   return userId;
 }
 
+function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const parts = cookieHeader.split(";");
+  for (const p of parts) {
+    const [k, ...rest] = p.trim().split("=");
+    if (k === name) return rest.join("=");
+  }
+  return undefined;
+}
+
 export function setSessionCookie(res: Response, userId: string) {
   res.cookie(COOKIE, sign(userId), {
     httpOnly: true,
@@ -45,6 +55,11 @@ export function clearSessionCookie(res: Response) {
 
 export function getUserIdFromReq(req: Request): string | null {
   const token = (req as any).cookies?.[COOKIE] as string | undefined;
+  return verify(token);
+}
+
+export function getUserIdFromCookieHeader(cookieHeader: string | undefined): string | null {
+  const token = readCookie(cookieHeader, COOKIE);
   return verify(token);
 }
 
