@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ImageUp, Send } from "lucide-react";
+import { ArrowDown, ArrowLeft, ImageUp, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import type { TeamMessage } from "@/lib/types";
@@ -26,8 +26,11 @@ export default function TeamChat() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [messages, setMessages] = useState<TeamMessage[]>([]);
+  const [hasNew, setHasNew] = useState(false);
+  const [newCount, setNewCount] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const nearBottomRef = useRef(true);
 
   const historyQ = useQuery({
     queryKey: ["teamChatMessages", teamId],
@@ -42,11 +45,42 @@ export default function TeamChat() {
   const knownIds = useMemo(() => new Set(messages.map((m) => m.id)), [messages]);
 
   const { status } = useTeamChatSocket(teamId, (payload) => {
+    if (!nearBottomRef.current) {
+      setHasNew(true);
+      setNewCount((c) => c + 1);
+    }
     setMessages((prev) => {
       if (prev.some((m) => m.id === payload.id)) return prev;
       return [...prev, payload as TeamMessage];
     });
   });
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const threshold = 120;
+
+    const update = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+      nearBottomRef.current = atBottom;
+      if (atBottom) {
+        setHasNew(false);
+        setNewCount(0);
+      }
+    };
+
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    return () => el.removeEventListener("scroll", update);
+  }, []);
+
+  const scrollToBottom = () => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    setHasNew(false);
+    setNewCount(0);
+  };
 
   useEffect(() => {
     const el = listRef.current;
@@ -157,7 +191,8 @@ export default function TeamChat() {
       </div>
 
       <Card className="border-border bg-card/50 backdrop-blur overflow-hidden">
-        <div ref={listRef} className="h-[60vh] overflow-y-auto p-5 space-y-4">
+        <div className="relative">
+          <div ref={listRef} className="h-[60vh] overflow-y-auto p-5 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-10">
               暫時未有訊息
@@ -205,6 +240,19 @@ export default function TeamChat() {
                 </div>
               );
             })
+          )}
+          </div>
+          {hasNew && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <Button
+                size="sm"
+                className="font-bold tracking-widest uppercase shadow-lg"
+                aria-label="跳到最新訊息"
+                onClick={scrollToBottom}
+              >
+                <ArrowDown className="w-4 h-4 mr-2" /> 新訊息{newCount > 0 ? ` (${newCount})` : ""}
+              </Button>
+            </div>
           )}
         </div>
 
