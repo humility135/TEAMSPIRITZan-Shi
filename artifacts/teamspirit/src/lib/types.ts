@@ -170,7 +170,9 @@ export interface TeamMessage {
   id: string;
   teamId: string;
   userId: string;
+  kind: 'text' | 'image';
   text: string;
+  imageUrl?: string | null;
   createdAt: string;
 }
 

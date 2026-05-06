@@ -1,12 +1,37 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import { db, teamMessagesTable } from "@workspace/db";
+import fs from "node:fs";
+import path from "node:path";
+import multer from "multer";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
 import { requireTeamMember } from "../lib/teamAuth";
 import { broadcast } from "../lib/teamChatHub";
 
 const router: IRouter = Router();
+const uploadsDir = path.join(process.cwd(), "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination(_req, _file, cb) { cb(null, uploadsDir); },
+    filename(_req, file, cb) {
+      const ext = file.mimetype === "image/png"
+        ? ".png"
+        : file.mimetype === "image/jpeg"
+          ? ".jpg"
+          : file.mimetype === "image/gif"
+            ? ".gif"
+            : ".webp";
+      cb(null, `${newId("tu")}${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    if (["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.mimetype)) cb(null, true);
+    else cb(new Error("invalid_file"));
+  },
+});
 
 router.get("/teams/:teamId/chat/messages", requireAuth, async (req, res): Promise<void> => {
   const me = (req as AuthedRequest).user;
@@ -52,19 +77,51 @@ router.post("/teams/:teamId/chat/messages", requireAuth, async (req, res): Promi
   const ok = await requireTeamMember(teamId, me.id);
   if (!ok) { res.status(403).json({ error: "Forbidden" }); return; }
 
+  const kind = req.body?.kind === "image" ? "image" : "text";
+  const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl.trim() : "";
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
-  if (!text) { res.status(400).json({ error: "Empty message" }); return; }
-  if (text.length > 1000) { res.status(400).json({ error: "Message too long" }); return; }
+  if (kind === "text") {
+    if (!text) { res.status(400).json({ error: "Empty message" }); return; }
+    if (text.length > 1000) { res.status(400).json({ error: "Message too long" }); return; }
+  } else {
+    if (!imageUrl) { res.status(400).json({ error: "Empty imageUrl" }); return; }
+    if (imageUrl.length > 2048) { res.status(400).json({ error: "ImageUrl too long" }); return; }
+  }
 
   const [row] = await db.insert(teamMessagesTable).values({
     id: newId("tm"),
     teamId,
     userId: me.id,
-    text,
+    kind,
+    text: kind === "text" ? text : "",
+    imageUrl: kind === "image" ? imageUrl : null,
   }).returning();
 
   broadcast(teamId, JSON.stringify({ type: "message", payload: row }));
   res.status(201).json(row);
+});
+
+router.post("/teams/:teamId/chat/uploads", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const teamId = String(req.params.teamId);
+  const ok = await requireTeamMember(teamId, me.id);
+  if (!ok) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      upload.single("file")(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  } catch (e: any) {
+    res.status(400).json({ error: "Upload failed" });
+    return;
+  }
+
+  const file = (req as any).file as { filename: string } | undefined;
+  if (!file?.filename) { res.status(400).json({ error: "Missing file" }); return; }
+  res.json({ url: `/uploads/${file.filename}` });
 });
 
 export default router;

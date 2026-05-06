@@ -4,7 +4,9 @@ export const teamMessagesTable = sqliteTable("team_messages", {
   id: text("id").primaryKey(),
   teamId: text("team_id").notNull(),
   userId: text("user_id").notNull(),
+  kind: text("kind").notNull().default("text"),
   text: text("text").notNull(),
+  imageUrl: text("image_url"),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 

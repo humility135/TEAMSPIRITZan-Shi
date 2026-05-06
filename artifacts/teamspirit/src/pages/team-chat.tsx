@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, ImageUp, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import type { TeamMessage } from "@/lib/types";
@@ -24,8 +24,10 @@ export default function TeamChat() {
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [messages, setMessages] = useState<TeamMessage[]>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const historyQ = useQuery({
     queryKey: ["teamChatMessages", teamId],
@@ -62,7 +64,7 @@ export default function TeamChat() {
     try {
       const created = await api<TeamMessage>(`/teams/${teamId}/chat/messages`, {
         method: "POST",
-        body: JSON.stringify({ text: msg }),
+        body: JSON.stringify({ kind: "text", text: msg }),
       });
       setText("");
       if (!knownIds.has(created.id)) {
@@ -73,6 +75,58 @@ export default function TeamChat() {
     } finally {
       setSending(false);
     }
+  };
+
+  const uploadImage = async (file: File) => {
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) { toast.error("只支援 PNG/JPG/GIF/WEBP"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("圖片太大（最多 2MB）"); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/teams/${teamId}/chat/uploads`, {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) throw new Error(data?.error || "Upload failed");
+
+      const created = await api<TeamMessage>(`/teams/${teamId}/chat/messages`, {
+        method: "POST",
+        body: JSON.stringify({ kind: "image", imageUrl: data.url }),
+      });
+      if (!knownIds.has(created.id)) {
+        await qc.invalidateQueries({ queryKey: ["teamChatMessages", teamId] });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "上傳失敗");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const linkify = (input: string) => {
+    const re = /((?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+(?:\/[^\s]*)?)/g;
+    const parts: React.ReactNode[] = [];
+    let last = 0;
+    for (const m of input.matchAll(re)) {
+      const raw = m[0];
+      const idx = m.index ?? 0;
+      if (idx > last) parts.push(input.slice(last, idx));
+      let urlText = raw;
+      while (/[)\].,!?:;]+$/.test(urlText)) urlText = urlText.slice(0, -1);
+      const href = /^https?:\/\//i.test(urlText) ? urlText : `https://${urlText.replace(/^www\./i, "www.")}`;
+      parts.push(
+        <a key={`${idx}-${urlText}`} href={href} target="_blank" rel="noreferrer" className="underline break-all hover:opacity-80">
+          {urlText}
+        </a>,
+      );
+      last = idx + raw.length;
+    }
+    if (last < input.length) parts.push(input.slice(last));
+    return parts;
   };
 
   if (!team) {
@@ -123,7 +177,13 @@ export default function TeamChat() {
                   <div className={`max-w-[75%] ${mine ? "text-right" : ""}`}>
                     {!mine && <div className="text-xs text-muted-foreground font-bold mb-1">{u?.name || m.userId}</div>}
                     <div className={`inline-block rounded-xl px-3 py-2 text-sm border ${mine ? "bg-primary/15 border-primary/25" : "bg-black/20 border-border/60"}`}>
-                      {m.text}
+                      {m.kind === "image" && m.imageUrl ? (
+                        <a href={m.imageUrl} target="_blank" rel="noreferrer">
+                          <img src={m.imageUrl} alt="image" className="max-w-[280px] w-full rounded-lg border border-border/60" />
+                        </a>
+                      ) : (
+                        <span className="whitespace-pre-wrap break-words">{linkify(m.text)}</span>
+                      )}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">
                       {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -142,6 +202,16 @@ export default function TeamChat() {
         </div>
 
         <div className="border-t border-border p-4 space-y-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadImage(f);
+            }}
+          />
           <Textarea
             value={text}
             placeholder="輸入訊息…（Enter 送出，Shift+Enter 換行）"
@@ -152,14 +222,18 @@ export default function TeamChat() {
                 sendMessage();
               }
             }}
-            disabled={sending || status === "forbidden"}
+            disabled={sending || uploading || status === "forbidden"}
           />
-          <Button className="w-full font-bold tracking-widest uppercase" onClick={sendMessage} disabled={sending || status === "forbidden"}>
-            <Send className="w-4 h-4 mr-2" /> {sending ? "送出中…" : "送出"}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="w-full font-bold tracking-widest uppercase" onClick={() => fileRef.current?.click()} disabled={sending || uploading || status === "forbidden"}>
+              <ImageUp className="w-4 h-4 mr-2" /> {uploading ? "上傳中…" : "傳圖"}
+            </Button>
+            <Button className="w-full font-bold tracking-widest uppercase" onClick={sendMessage} disabled={sending || uploading || status === "forbidden"}>
+              <Send className="w-4 h-4 mr-2" /> {sending ? "送出中…" : "送出"}
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
   );
 }
-
