@@ -34,6 +34,7 @@ export default function PublicMatchDetail() {
   const [paymentAck, setPaymentAck] = useState(false);
   const [slotPayOpen, setSlotPayOpen] = useState(false);
   const [slotAck, setSlotAck] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -108,6 +109,8 @@ export default function PublicMatchDetail() {
       toast.info(isAttending ? "已取消報名。" : "已退出候補。");
     } catch (e: any) {
       toast.error(e.message || "操作失敗");
+    } finally {
+      setLeaveOpen(false);
     }
   };
 
@@ -363,7 +366,7 @@ export default function PublicMatchDetail() {
                     <div className="bg-primary/20 text-primary p-4 rounded-xl text-center font-bold">
                       ✓ 你已成功報名
                     </div>
-                    <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>取消報名</Button>
+                    <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setLeaveOpen(true)}>取消報名</Button>
                   </div>
                 )}
                 {match.status !== 'cancelled' && (
@@ -382,7 +385,7 @@ export default function PublicMatchDetail() {
                 <div className="bg-primary/20 text-primary p-4 rounded-xl text-center font-bold">
                   ✓ 你已成功報名
                 </div>
-                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>取消報名</Button>
+                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setLeaveOpen(true)}>取消報名</Button>
               </div>
             ) : isWaitlist ? (
               <div className="space-y-4">
@@ -390,7 +393,7 @@ export default function PublicMatchDetail() {
                   <div className="font-bold">已喺候補名單</div>
                   <div className="text-xs text-amber-100/80 mt-1">第 {waitlistPos} 位 — 有人走會即時通知你</div>
                 </div>
-                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleLeave}>退出候補</Button>
+                <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={() => setLeaveOpen(true)}>退出候補</Button>
               </div>
             ) : isFull ? (
               <Button
@@ -468,6 +471,23 @@ export default function PublicMatchDetail() {
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isProcessing}>取消</Button>
             <Button onClick={handleJoin} disabled={isProcessing || !paymentAck} className="font-bold">
               {isProcessing ? "處理中..." : "確認付款並報名"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wide text-2xl">取消報名確認</DialogTitle>
+            <DialogDescription>
+              {isAttending ? `確定要取消「${venueLabel}」報名？` : '確定要退出候補？'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveOpen(false)}>唔取消</Button>
+            <Button variant="destructive" onClick={handleLeave} className="font-bold">
+              {isAttending ? '確定取消' : '確定退出'}
             </Button>
           </DialogFooter>
         </DialogContent>

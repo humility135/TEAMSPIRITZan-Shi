@@ -130,8 +130,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const hydrateMatch = (m: any): PublicMatch => ({
       ...m,
-      datetime: m.datetime,
-      endDatetime: m.endDatetime,
+      datetime: (() => {
+        const v = m.datetime;
+        if (typeof v === 'number') return new Date(v).toISOString();
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (/^\d+(?:\.\d+)?$/.test(s)) return new Date(Number(s)).toISOString();
+          return s;
+        }
+        return new Date(v).toISOString();
+      })(),
+      endDatetime: (() => {
+        const v = m.endDatetime;
+        if (!v) return v;
+        if (typeof v === 'number') return new Date(v).toISOString();
+        if (typeof v === 'string') {
+          const s = v.trim();
+          if (/^\d+(?:\.\d+)?$/.test(s)) return new Date(Number(s)).toISOString();
+          return s;
+        }
+        return new Date(v).toISOString();
+      })(),
       attendees: m.attendees ?? [],
       waitlistIds: m.waitlistIds ?? [],
       slotOffers: m.slotOffers ?? [],
