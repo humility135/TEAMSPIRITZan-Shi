@@ -244,24 +244,28 @@ export default function EventDetail() {
                       ? '已喺候補名單'
                       : isFull
                         ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
-                        : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
+                        : canManage
+                          ? '出席（發起人免費）'
+                          : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
                 </Button>
               </DialogTrigger>
               {!isAttending && !isWaitlist && (
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle className="font-display uppercase tracking-wider text-2xl">
-                      {isFull ? '加入候補' : '付款確認'}
+                      {isFull ? '加入候補' : canManage ? '出席確認' : '付款確認'}
                     </DialogTitle>
                   </DialogHeader>
                   <div className="py-6 space-y-3">
                     <p className="text-sm text-muted-foreground">
                       {isFull
                         ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
-                        : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
+                        : canManage
+                          ? `確認出席「${event.title}」（發起人免費）。`
+                          : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
                     </p>
                     <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                      {isFull ? '加入候補' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
+                      {isFull ? '加入候補' : canManage ? '確認出席' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
                     </Button>
                   </div>
                 </DialogContent>

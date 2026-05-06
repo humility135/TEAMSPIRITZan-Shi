@@ -126,7 +126,11 @@ router.post("/events/:id/slot-offers/:offerId/accept", requireAuth, async (req, 
     res.status(409).json({ error: "Offer not available" }); return;
   }
 
-  if (e.fee === 0) {
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+  const isOrganizer = !!memberRecord && (memberRecord.role === "Owner" || memberRecord.role === "Admin");
+
+  if (e.fee === 0 || isOrganizer) {
     const attendingIds = [...e.attendingIds, me.id];
     const waitlistIds = e.waitlistIds.filter((x) => x !== me.id);
     const slotOffers = e.slotOffers.filter((o) => o.id !== offerId);
