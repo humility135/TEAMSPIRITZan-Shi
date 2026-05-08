@@ -6,6 +6,7 @@ export const publicMatchesTable = sqliteTable("public_matches", {
   hostId: text("host_id").notNull(),
   venueId: text("venue_id"),
   venueAddress: text("venue_address"),
+  district: text("district"),
   datetime: text("datetime").notNull(),
   endDatetime: text("end_datetime"),
   fee: integer("fee").notNull().default(0),

@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 type Entry =
-  | { kind: 'team'; item: any; datetime: string };
+  | { kind: 'team'; item: any; datetime: string }
+  | { kind: 'public'; item: any; datetime: string };
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 export default function Events() {
-  const { currentUser, teams, events } = useAppStore();
+  const { currentUser, teams, events, publicMatches, venues } = useAppStore();
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -28,8 +29,19 @@ export default function Events() {
       .filter(e => myTeamIds.includes(e.teamId))
       .map(e => ({ kind: 'team', item: e, datetime: e.datetime }));
 
-    return [...teamEvents];
-  }, [events, myTeamIds]);
+    const joinedPublic: Entry[] = publicMatches
+      .filter(m => m.attendees.includes(currentUser.id))
+      .map(m => {
+        const venueName = venues.find(v => v.id === m.venueId)?.name || m.venueAddress || '公開場';
+        return { 
+          kind: 'public', 
+          item: { ...m, title: venueName }, 
+          datetime: m.datetime 
+        };
+      });
+
+    return [...teamEvents, ...joinedPublic];
+  }, [events, myTeamIds, publicMatches, currentUser.id, venues]);
 
   const now = Date.now();
   const merged = allEntries
@@ -96,7 +108,7 @@ export default function Events() {
               <div className="space-y-3">
                 {merged.map((entry, i) => (
                   <motion.div key={`${entry.kind}-${entry.item.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                    <TeamEventRow event={entry.item} />
+                    <EventRow entry={entry} />
                   </motion.div>
                 ))}
               </div>
@@ -312,6 +324,7 @@ function FullScreenCalendar({
         {/* Legend */}
         <div className="flex items-center gap-4 p-3 border-t border-border bg-black/20 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/70" /> 球隊活動</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /> 公開場</span>
         </div>
       </Card>
 
@@ -333,7 +346,7 @@ function FullScreenCalendar({
             ) : (
               dayEntries.map((entry, i) => (
                 <motion.div key={`${entry.kind}-${entry.item.id}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                  <TeamEventRow event={entry.item} />
+                  <EventRow entry={entry} />
                 </motion.div>
               ))
             )}
@@ -358,53 +371,97 @@ function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
   );
 }
 
-function TeamEventRow({ event }: { event: any }) {
+function EventRow({ entry }: { entry: Entry }) {
+  const { kind, item: event } = entry;
   const { teams, currentUser } = useAppStore();
+  const isTeam = kind === 'team';
   const venueLabel = event.venueAddress ?? '—';
-  const hasCap = event.capacity != null;
-  const isFull = hasCap && event.attendingIds.length >= event.capacity;
-  const team = teams.find(t => t.id === event.teamId);
-  const rsvp = event.attendingIds.includes(currentUser.id)
-    ? 'attending'
-    : event.declinedIds.includes(currentUser.id)
-    ? 'declined'
-    : event.waitlistIds.includes(currentUser.id)
-    ? 'waitlist'
-    : 'none';
+  
+  if (isTeam) {
+    const hasCap = event.capacity != null;
+    const isFull = hasCap && event.attendingIds.length >= event.capacity;
+    const team = teams.find(t => t.id === event.teamId);
+    const rsvp = event.attendingIds.includes(currentUser.id)
+      ? 'attending'
+      : event.declinedIds.includes(currentUser.id)
+      ? 'declined'
+      : event.waitlistIds.includes(currentUser.id)
+      ? 'waitlist'
+      : 'none';
 
-  return (
-    <Link href={`/events/${event.id}`}>
-      <Card className="p-0 overflow-hidden border-border hover:border-primary/50 transition-all bg-card/50 backdrop-blur cursor-pointer group">
-        <div className="flex flex-col sm:flex-row">
-          <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-border bg-black/30 flex flex-col justify-center items-center text-center">
-            <div className="text-xs text-primary font-bold tracking-wider uppercase">
-              {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+    return (
+      <Link href={`/events/${event.id}`}>
+        <Card className="p-0 overflow-hidden border-border hover:border-primary/50 transition-all bg-card/50 backdrop-blur cursor-pointer group">
+          <div className="flex flex-col sm:flex-row">
+            <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-border bg-black/30 flex flex-col justify-center items-center text-center">
+              <div className="text-xs text-primary font-bold tracking-wider uppercase">
+                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-2xl font-display font-bold mt-1">
+                {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              </div>
             </div>
-            <div className="text-2xl font-display font-bold mt-1">
-              {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            <div className="p-5 flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-white/20"><Shield className="w-3 h-3 mr-1"/>{team?.name}</Badge>
+                {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已確認</Badge>}
+                {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
+                {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
+                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
+                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+              </div>
+              <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
+                <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
+                <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/人` : '免費'}</span>
+              </div>
+            </div>
+            <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">
+              <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
           </div>
-          <div className="p-5 flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-white/20"><Shield className="w-3 h-3 mr-1"/>{team?.name}</Badge>
-              {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已確認</Badge>}
-              {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
-              {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
-              {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
-              {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+        </Card>
+      </Link>
+    );
+  } else {
+    // Public Match
+    const hasCap = event.maxPlayers != null;
+    const isFull = hasCap && event.attendees.length >= event.maxPlayers;
+    const isAttending = event.attendees.includes(currentUser.id);
+
+    return (
+      <Link href={`/discover/${event.id}`}>
+        <Card className="p-0 overflow-hidden border-border hover:border-primary/50 transition-all bg-card/50 backdrop-blur cursor-pointer group">
+          <div className="flex flex-col sm:flex-row">
+            <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-border bg-black/30 flex flex-col justify-center items-center text-center">
+              <div className="text-xs text-primary font-bold tracking-wider uppercase">
+                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-2xl font-display font-bold mt-1">
+                {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              </div>
             </div>
-            <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
-              <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/人` : '免費'}</span>
+            <div className="p-5 flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-primary/40 bg-primary/10 text-primary">PUBLIC MATCH</Badge>
+                {isAttending && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已報名</Badge>}
+                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
+                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+              </div>
+              <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
+                <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendees.length}{hasCap ? `/${event.maxPlayers}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
+                <span className={event.fee > 0 ? 'text-primary font-bold' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}` : '免費'}</span>
+              </div>
+            </div>
+            <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">
+              <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
           </div>
-          <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">
-            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-          </div>
-        </div>
-      </Card>
-    </Link>
-  );
+        </Card>
+      </Link>
+    );
+  }
 }

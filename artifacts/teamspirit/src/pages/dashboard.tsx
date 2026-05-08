@@ -13,13 +13,25 @@ export default function Dashboard() {
   const aggStats = getAggregatedStats(currentUser);
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
 
-  const upcomingEvents = events
-    .filter(e => e.status === 'scheduled')
+  const attendingTeamEvents = events
+    .filter(e => e.status === 'scheduled' && e.attendingIds.includes(currentUser.id));
+
+  const joinedPublicMatches = publicMatches
+    .filter(m => m.attendees.includes(currentUser.id) && m.status === 'open');
+
+  const upcomingEvents = [
+    ...attendingTeamEvents.map(e => ({ ...e, eventType: 'team' as const })),
+    ...joinedPublicMatches.map(m => ({ 
+      ...m, 
+      eventType: 'public' as const, 
+      title: m.venueAddress || venues.find(v => v.id === m.venueId)?.name || '公開場' 
+    }))
+  ]
     .sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime())
     .slice(0, 3);
   
   const nearbyMatches = publicMatches
-    .filter(m => m.status === 'open')
+    .filter(m => m.status === 'open' && !m.attendees.includes(currentUser.id))
     .filter(m => {
       // Filter out past matches
       const matchDateStr = safeDate(m.datetime).toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
@@ -212,11 +224,17 @@ export default function Dashboard() {
             </div>
             
             <div className="space-y-4">
-              {upcomingEvents.map((event, i) => {
-                const venueLabel = event.venueAddress ?? venues.find(v => v.id === event.venueId)?.name ?? '—';
-                const team = teams.find(t => t.id === event.teamId);
-                const isAttending = event.attendingIds.includes(currentUser.id);
-                const hasCap = event.capacity != null;
+              {upcomingEvents.map((event: any, i) => {
+                const isTeam = event.eventType === 'team';
+                const venueLabel = event.venueAddress ?? venues.find((v: any) => v.id === event.venueId)?.name ?? '—';
+                const team = isTeam ? teams.find(t => t.id === event.teamId) : null;
+                const isAttending = isTeam 
+                  ? event.attendingIds.includes(currentUser.id)
+                  : event.attendees.includes(currentUser.id);
+                const hasCap = (isTeam ? event.capacity : event.maxPlayers) != null;
+                const capacity = isTeam ? event.capacity : event.maxPlayers;
+                const attendeesCount = isTeam ? event.attendingIds.length : event.attendees.length;
+                const detailUrl = isTeam ? `/events/${event.id}` : `/discover/${event.id}`;
                 
                 return (
                   <motion.div 
@@ -225,7 +243,7 @@ export default function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
                   >
-                    <Link href={`/events/${event.id}`}>
+                    <Link href={detailUrl}>
                       <Card className="p-0 overflow-hidden border-border hover:border-primary/50 transition-all group bg-card/50 backdrop-blur cursor-pointer">
                         <div className="flex flex-col sm:flex-row">
                           <div className="p-6 sm:w-1/3 border-b sm:border-b-0 sm:border-r border-border bg-black/20 flex flex-col justify-center">
@@ -238,14 +256,17 @@ export default function Dashboard() {
                           </div>
                           <div className="p-6 flex-1 flex flex-col justify-center">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-bold px-2 py-1 rounded bg-white/10 text-white tracking-wider uppercase">{team?.name}</span>
-                              {isAttending && <span className="text-xs font-bold px-2 py-1 rounded bg-green-500/20 text-green-500 tracking-wider uppercase">已確認出席</span>}
+                              <Badge variant="outline" className={`text-[10px] tracking-widest uppercase ${isTeam ? 'bg-white/10 text-white' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                                {isTeam ? (team?.name || 'TEAM EVENT') : 'PUBLIC MATCH'}
+                              </Badge>
+                              {isAttending && <span className="text-xs font-bold px-2 py-1 rounded bg-green-500/20 text-green-500 tracking-wider uppercase">已報名</span>}
                             </div>
                             <h3 className="text-xl font-bold mb-4">{event.title}</h3>
                             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1 min-w-0"><MapPin className="w-4 h-4 shrink-0" /> <span className="truncate max-w-[200px]">{venueLabel}</span></div>
-                              <div className="flex items-center gap-1"><Users className="w-4 h-4" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary text-xs ml-1">無上限</span>}</div>
+                              <div className="flex items-center gap-1"><Users className="w-4 h-4" /> {attendeesCount}{hasCap ? `/${capacity}` : ''} 人{!hasCap && <span className="text-primary text-xs ml-1">無上限</span>}</div>
                               {event.fee === 0 && <span className="text-green-400 text-xs font-bold">免費</span>}
+                              {!isTeam && event.fee > 0 && <span className="text-primary text-xs font-bold">${event.fee}</span>}
                             </div>
                           </div>
                           <div className="p-6 flex items-center justify-center sm:justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">

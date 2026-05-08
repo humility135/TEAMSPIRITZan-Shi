@@ -134,3 +134,20 @@ export const detectDistrict = (text: string): string => {
 
   return '其他';
 };
+
+export const normalizeDistrict = (district: string): string => {
+  if (!district) return '其他';
+  let d = district.trim();
+  if (d === '油尖旺') return '油尖旺區';
+  if (d === '深水埗') return '深水埗區';
+  if (d === '九龍城') return '九龍城區';
+  if (d === '黃大仙') return '黃大仙區';
+  
+  // 如果沒有「區」字且長度為 2，嘗試補上
+  if (!d.endsWith('區') && d.length <= 3) {
+    const found = hkDistricts.find(hd => hd.startsWith(d));
+    if (found) return found;
+  }
+  
+  return d.endsWith('區') ? d : (hkDistricts.includes(d + '區' as any) ? d + '區' : d);
+};

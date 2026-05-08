@@ -3,8 +3,10 @@ import { useLocation, useRoute } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MapPin, Check, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
+import { MapPin, Check, AlertTriangle, Info, ShieldAlert, Search } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { VenueSelector } from '@/components/venue-selector';
+import { detectDistrict } from '@/lib/districts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +18,9 @@ import { SurfaceType } from '@/lib/types';
 
 const hostSchema = z.object({
   title: z.string().min(1, '請輸入活動名稱'),
+  venueId: z.string().optional(),
   venueAddress: z.string().min(3, '請輸入場地地址'),
+  district: z.string().optional(),
   date: z.string().min(1, '請揀日期').refine(d => {
     const today = new Date();
     const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
@@ -37,7 +41,7 @@ type HostFormValues = z.infer<typeof hostSchema>;
 export default function TeamHostEvent() {
   const [, params] = useRoute('/teams/:teamId/host');
   const [, setLocation] = useLocation();
-  const { teams, createEvent } = useAppStore();
+  const { teams, venues, createEvent } = useAppStore();
   
   const team = teams.find(t => t.id === params?.teamId);
 
@@ -45,7 +49,9 @@ export default function TeamHostEvent() {
     resolver: zodResolver(hostSchema),
     defaultValues: {
       title: '',
+      venueId: '',
       venueAddress: '',
+      district: '',
       date: '',
       startTime: '',
       endTime: '',
@@ -80,7 +86,9 @@ export default function TeamHostEvent() {
       await createEvent({
         teamId: team.id,
         title: values.title.trim(),
+        venueId: values.venueId,
         venueAddress: values.venueAddress.trim(),
+        district: values.district || detectDistrict(values.venueAddress),
         datetime: startDateTime.toISOString(),
         endDatetime: endDateTime.toISOString(),
         fee: values.fee === '' ? 0 : Number(values.fee),
@@ -130,14 +138,40 @@ export default function TeamHostEvent() {
 
               <FormField
                 control={form.control}
+                name="venueId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>選擇球場 (可選)</FormLabel>
+                    <FormControl>
+                      <VenueSelector
+                        venues={venues}
+                        selectedVenueId={field.value}
+                        onSelect={(v) => {
+                          field.onChange(v.id);
+                          form.setValue('venueAddress', v.name);
+                          form.setValue('district', v.district);
+                          // Auto-map surface
+                          if (v.surface.includes('草')) form.setValue('surface', 'turf');
+                          else if (v.surface.includes('硬')) form.setValue('surface', 'hard');
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-[11px]">選擇場地後會自動填充地址同類型。</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="venueAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>場地地址</FormLabel>
+                    <FormLabel>詳細場地 / 地址</FormLabel>
                     <FormControl>
-                      <Input placeholder="例如 黃大仙鳳舞街40號 摩士公園足球場 3號場" {...field} />
+                      <Input placeholder="例如：摩士公園 3 號場" {...field} />
                     </FormControl>
-                    <FormDescription className="text-[11px]">會用作 Google Maps 定位，寫得清楚啲方便波友搵路。</FormDescription>
+                    <FormDescription className="text-[11px]">請填寫具體場號（例如：3號場）。</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

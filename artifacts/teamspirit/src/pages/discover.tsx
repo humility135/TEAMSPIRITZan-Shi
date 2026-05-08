@@ -67,7 +67,6 @@ export default function Discover() {
                 {hkDistricts.map(d => (
                   <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
-                <SelectItem value="其他">其他</SelectItem>
               </SelectContent>
             </Select>
           </div>

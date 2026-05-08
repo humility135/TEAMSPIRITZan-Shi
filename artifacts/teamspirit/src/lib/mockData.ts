@@ -134,7 +134,7 @@ export const mockTeams: Team[] = [
     memberIds: ['u1', 'u2', 'u3'],
     record: { w: 12, d: 3, l: 5, gf: 45, ga: 22 },
     isPro: true,
-    district: '九龍城',
+    district: '九龍城區',
     level: 4,
     inviteCode: 'KCFC23'
   },
@@ -156,7 +156,7 @@ export const mockVenues: Venue[] = [
   {
     id: 'v1',
     name: '摩士公園足球場',
-    district: '黃大仙',
+    district: '黃大仙區',
     address: '黃大仙鳳舞街40號',
     lat: 22.3364,
     lng: 114.1888,
@@ -166,7 +166,7 @@ export const mockVenues: Venue[] = [
   {
     id: 'v2',
     name: '京士柏遊樂場',
-    district: '油麻地',
+    district: '油尖旺區',
     address: '油麻地京士柏道23號',
     lat: 22.3116,
     lng: 114.1755,
@@ -176,7 +176,7 @@ export const mockVenues: Venue[] = [
   {
     id: 'v3',
     name: '修頓球場',
-    district: '灣仔',
+    district: '灣仔區',
     address: '灣仔軒尼詩道130號',
     lat: 22.2775,
     lng: 114.1722,

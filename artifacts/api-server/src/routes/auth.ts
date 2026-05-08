@@ -43,7 +43,12 @@ router.post("/auth/google", async (req, res): Promise<void> => {
       throw new Error('Failed to fetch user info from Google');
     }
     
-    const userInfo = await response.json();
+    const userInfo = (await response.json()) as {
+      sub: string;
+      email: string;
+      name?: string;
+      picture?: string;
+    };
     const { sub: googleId, email, name, picture } = userInfo;
 
     if (!googleId || !email) {
@@ -95,24 +100,29 @@ router.post("/auth/test-login", async (req, res): Promise<void> => {
     return;
   }
 
-  const testPhone = "00000000";
-  let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, testPhone));
+  try {
+    const testPhone = "00000000";
+    let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, testPhone));
 
-  if (!user) {
-    const id = newId("u");
-    [user] = await db.insert(usersTable).values({
-      id,
-      phone: testPhone,
-      name: "測試帳號 (Test User)",
-      avatarUrl: `https://i.pravatar.cc/150?u=${id}`,
-      tokensBalance: 100,
-      subscription: "pro",
-      seasonStatsByTeam: {},
-    }).returning();
+    if (!user) {
+      const id = newId("u");
+      [user] = await db.insert(usersTable).values({
+        id,
+        phone: testPhone,
+        name: "測試帳號 (Test User)",
+        avatarUrl: `https://i.pravatar.cc/150?u=${id}`,
+        tokensBalance: 100,
+        subscription: "pro",
+        seasonStatsByTeam: {},
+      }).returning();
+    }
+
+    setSessionCookie(res, user.id);
+    res.json({ user, message: "Logged in with test account" });
+  } catch (error) {
+    req.log.error({ err: error }, "Test login failed");
+    res.status(500).json({ error: "測試登入失敗", details: (error as Error).message });
   }
-
-  setSessionCookie(res, user.id);
-  res.json({ user, message: "Logged in with test account" });
 });
 
 router.post("/auth/request-otp", async (req, res): Promise<void> => {

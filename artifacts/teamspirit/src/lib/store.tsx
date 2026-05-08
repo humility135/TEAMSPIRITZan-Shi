@@ -57,7 +57,7 @@ interface AppContextType extends AppState {
   joinPublicMatch: (matchId: string) => void;
   leavePublicMatch: (matchId: string) => void;
   kickAttendee: (matchId: string, userId: string) => void;
-  createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'>) => Promise<PublicMatch | void>;
+  createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'> & { district?: string }) => Promise<PublicMatch | void>;
   cancelPublicMatch: (matchId: string) => void;
   cancelEvent: (eventId: string) => Promise<void>;
   deletePublicMatch: (matchId: string) => void;
@@ -69,7 +69,7 @@ interface AppContextType extends AppState {
   deleteTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
-  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueAddress: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
+  createEvent: (data: { teamId: string; title: string; datetime: string; endDatetime: string; venueId?: string; venueAddress: string; district?: string; surface?: import('./types').SurfaceType; skillLevel?: number; fee: number; capacity: number | null; description?: string; rules?: string }) => Promise<Event>;
   getRole: (teamId: string) => Role | undefined;
   logout: () => Promise<void>;
 }

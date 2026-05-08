@@ -118,6 +118,7 @@ export interface PublicMatch {
   hostId: string;
   venueId?: string;
   venueAddress?: string;
+  district?: string;
   datetime: string;
   endDatetime?: string;
   fee: number;
@@ -184,6 +185,7 @@ export interface Event {
   endDatetime?: string;
   venueId?: string;
   venueAddress?: string;
+  district?: string;
   surface?: SurfaceType;
   skillLevel?: number;
   fee: number;

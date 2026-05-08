@@ -29,7 +29,9 @@ router.get("/public-matches/:id", async (req, res): Promise<void> => {
 });
 
 const CreateMatchBody = z.object({
+  venueId: z.string().optional(),
   venueAddress: z.string().optional(),
+  district: z.string().optional(),
   datetime: z.string(),
   endDatetime: z.string().optional(),
   fee: z.number().int().nonnegative(),
@@ -51,7 +53,9 @@ router.post("/public-matches", requireAuth, async (req, res): Promise<void> => {
   const id = newId("pm");
   const [row] = await db.insert(publicMatchesTable).values({
     id, hostId: me.id,
+    venueId: parsed.data.venueId,
     venueAddress: parsed.data.venueAddress,
+    district: parsed.data.district,
     datetime: new Date(parsed.data.datetime).toISOString(),
     endDatetime: parsed.data.endDatetime ? new Date(parsed.data.endDatetime).toISOString() : undefined,
     fee: parsed.data.fee, surface: parsed.data.surface,
