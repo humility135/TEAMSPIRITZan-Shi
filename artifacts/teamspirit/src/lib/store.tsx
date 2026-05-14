@@ -187,12 +187,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!state) return;
     if (state.isProMode) {
-      document.documentElement.style.setProperty('--primary', '72 100% 50%');
-      document.documentElement.style.setProperty('--ring', '72 100% 50%');
       document.documentElement.classList.add('pro-mode');
     } else {
-      document.documentElement.style.setProperty('--primary', '220 14% 96%');
-      document.documentElement.style.setProperty('--ring', '220 14% 96%');
       document.documentElement.classList.remove('pro-mode');
     }
   }, [state?.isProMode]);
