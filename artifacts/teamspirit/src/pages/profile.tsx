@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useAppStore, getTeamStats, getAggregatedStats } from '@/lib/store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
@@ -13,10 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { Star, ShieldCheck, Camera, Pencil, Radar as RadarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/lib/i18n';
+import { detectDistrict, districtTranslations } from '@/lib/districts';
 
 export default function Profile() {
-  const { currentUser, teams, isProMode, hostProfiles, updateCurrentUser } = useAppStore();
+  const { currentUser, teams, isProMode, hostProfiles, publicMatches, venues, updateCurrentUser, cancelPublicMatch, finishPublicMatch } = useAppStore();
+  const [, setLoc] = useLocation();
   const { toast } = useToast();
+  const { t, lang } = useI18n();
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
   const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
   const stats = selectedTeamId === 'all'
@@ -24,10 +28,11 @@ export default function Profile() {
     : getTeamStats(currentUser, selectedTeamId);
   const selectedTeam = myTeams.find(t => t.id === selectedTeamId);
   const hostProfile = hostProfiles.find(p => p.userId === currentUser.id);
+  const myHostedMatches = publicMatches.filter(m => m.hostId === currentUser.id).sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
 
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(currentUser.name);
-  const [bio, setBio] = useState(localStorage.getItem('teamspirit_bio') || 'A reliable midfielder with a knack for showing up when it counts. Active since 2022.');
+  const [bio, setBio] = useState(localStorage.getItem('teamspirit_bio') || t('defaultBio'));
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +40,7 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: '圖片太大', description: '頭像上限 2MB', variant: 'destructive' });
+      toast({ title: t('imageTooLarge'), description: t('max2MB'), variant: 'destructive' });
       return;
     }
     const reader = new FileReader();
@@ -51,16 +56,16 @@ export default function Profile() {
     localStorage.setItem('teamspirit_bio', bio);
     setEditOpen(false);
     setAvatarPreview(null);
-    toast({ title: '個人資料已更新' });
+    toast({ title: t('saveProfile') });
   };
 
   // Radar chart data mock based on stats
   const radarData = [
-    { subject: '入球', A: Math.min(100, stats.goals * 5), fullMark: 100 },
-    { subject: '助攻', A: Math.min(100, stats.assists * 6), fullMark: 100 },
-    { subject: '出席率', A: stats.attendance, fullMark: 100 },
-    { subject: '紀律', A: Math.max(0, 100 - (stats.yellow * 10 + stats.red * 20)), fullMark: 100 },
-    { subject: '經驗', A: Math.min(100, stats.matches * 3), fullMark: 100 },
+    { subject: t('radarSubjectGoals'), A: Math.min(100, stats.goals * 5), fullMark: 100 },
+    { subject: t('radarSubjectAssists'), A: Math.min(100, stats.assists * 6), fullMark: 100 },
+    { subject: t('radarSubjectAttendance'), A: stats.attendance, fullMark: 100 },
+    { subject: t('radarSubjectDiscipline'), A: Math.max(0, 100 - (stats.yellow * 10 + stats.red * 20)), fullMark: 100 },
+    { subject: t('radarSubjectExperience'), A: Math.min(100, stats.matches * 3), fullMark: 100 },
   ];
 
   return (
@@ -75,8 +80,8 @@ export default function Profile() {
             type="button"
             onClick={() => setEditOpen(true)}
             className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-            title="編輯個人資料"
-            aria-label="編輯個人資料"
+            title={t('editProfile')}
+            aria-label={t('editProfile')}
           >
             <Camera className="w-5 h-5" />
           </button>
@@ -86,16 +91,16 @@ export default function Profile() {
           <div>
             <div className="flex items-center justify-center md:justify-start gap-3">
               <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-tight">{currentUser.name}</h1>
-              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary" aria-label="編輯個人資料">
+              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="text-muted-foreground hover:text-primary" aria-label={t('editProfile')}>
                 <Pencil className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
               <Badge variant="outline" className={`font-bold tracking-widest uppercase ${currentUser.subscription === 'pro' ? 'border-primary text-primary' : ''}`}>
-                {currentUser.subscription.toUpperCase()} PLAN
+                {t('subscriptionPlan', { type: currentUser.subscription.toUpperCase() })}
               </Badge>
               <span className="text-sm text-muted-foreground font-bold tracking-wider uppercase">
-                {currentUser.subscription === 'pro' ? 'Pro 會員' : 'Free Forever'}
+                {currentUser.subscription === 'pro' ? t('proMember') : t('freeMember')}
               </span>
             </div>
           </div>
@@ -106,7 +111,7 @@ export default function Profile() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display uppercase tracking-wider text-2xl">編輯個人資料</DialogTitle>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('editProfile')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="flex flex-col items-center gap-3">
@@ -121,43 +126,43 @@ export default function Profile() {
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} className="text-xs text-primary">
-                <Camera className="w-3 h-3 mr-1" /> 更換頭像
+                <Camera className="w-3 h-3 mr-1" /> {t('changeAvatar')}
               </Button>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="p-name">名稱</Label>
+              <Label htmlFor="p-name">{t('profileName')}</Label>
               <Input id="p-name" value={name} onChange={e => setName(e.target.value)} maxLength={30} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="p-bio">自我介紹</Label>
-              <Textarea id="p-bio" value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={150} placeholder="講下你嘅踢波風格 / 位置…" />
+              <Label htmlFor="p-bio">{t('profileBio')}</Label>
+              <Textarea id="p-bio" value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={150} placeholder={t('bioPlaceholder')} />
               <div className="text-xs text-muted-foreground text-right">{bio.length}/150</div>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setEditOpen(false); setAvatarPreview(null); setName(currentUser.name); }}>取消</Button>
-            <Button onClick={handleSave} className="font-bold tracking-wide uppercase">儲存</Button>
+            <Button variant="outline" onClick={() => { setEditOpen(false); setAvatarPreview(null); setName(currentUser.name); }}>{t('cancel')}</Button>
+            <Button onClick={handleSave} className="font-bold tracking-wide uppercase">{t('save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Tabs defaultValue="stats" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0 bg-black/40 p-1 rounded-xl">
-          <TabsTrigger value="stats" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">球員數據</TabsTrigger>
-          <TabsTrigger value="host" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">Host 紀錄</TabsTrigger>
+          <TabsTrigger value="stats" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">{t('careerStats')}</TabsTrigger>
+          <TabsTrigger value="host" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">{t('hostedMatches')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stats" className="mt-8 space-y-6">
           {myTeams.length > 0 && (
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mr-1">球隊</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mr-1">{t('myTeams')}</span>
               <button
                 onClick={() => setSelectedTeamId('all')}
                 className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider transition-colors ${
                   selectedTeamId === 'all' ? 'bg-primary text-primary-foreground' : 'bg-black/40 text-muted-foreground hover:text-foreground'
                 }`}
               >
-                所有球隊
+                {t('allTeams')}
               </button>
               {myTeams.map(t => (
                 <button
@@ -176,41 +181,41 @@ export default function Profile() {
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="p-8 border-border bg-card/50 backdrop-blur">
               <div className="flex items-baseline justify-between mb-8 gap-3 flex-wrap">
-                <h2 className="text-2xl font-display font-bold uppercase tracking-wide">Career Stats</h2>
+                <h2 className="text-2xl font-display font-bold uppercase tracking-wide">{t('careerStats')}</h2>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {selectedTeamId === 'all' ? `所有球隊（${myTeams.length}）` : selectedTeam?.name}
+                  {selectedTeamId === 'all' ? `${t('allTeams')}（${myTeams.length}）` : selectedTeam?.name}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-1">
-                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">Matches</div>
+                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">{t('matchesLabel')}</div>
                   <div className="text-5xl font-display font-bold">{stats.matches}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">Attendance</div>
+                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">{t('attendanceLabel')}</div>
                   <div className="text-5xl font-display font-bold">{stats.attendance}%</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">Goals</div>
+                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">{t('goalsLabel')}</div>
                   <div className="text-5xl font-display font-bold text-primary">{stats.goals}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">Assists</div>
+                  <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground">{t('assistsLabel')}</div>
                   <div className="text-5xl font-display font-bold text-white">{stats.assists}</div>
                 </div>
               </div>
             </Card>
 
             <Card className="p-8 border-border bg-card/50 backdrop-blur flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
-              <h2 className="absolute top-8 left-8 text-2xl font-display font-bold uppercase tracking-wide z-10">Player Radar</h2>
+              <h2 className="absolute top-8 left-8 text-2xl font-display font-bold uppercase tracking-wide z-10">{t('playerRadar')}</h2>
               
               {!isProMode ? (
                 <div className="text-center z-10">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 blur-sm">
                     <RadarIcon className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg mb-2">Pro Feature</h3>
-                  <p className="text-sm text-muted-foreground mb-4">解鎖完整的球員能力雷達圖分析。</p>
+                  <h3 className="font-bold text-lg mb-2">{t('proFeature')}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('proRadarDesc')}</p>
                 </div>
               ) : (
                 <div className="w-full h-[250px] mt-8">
@@ -235,37 +240,84 @@ export default function Profile() {
                   <ShieldCheck className="w-10 h-10 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-display font-bold uppercase tracking-wide mb-2">你還未成為 Host</h2>
+                  <h2 className="text-2xl font-display font-bold uppercase tracking-wide mb-2">{t('notHostYet')}</h2>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    分享你的場地，賺取評分。建立良好的 Host 聲譽，吸引更多高質素波友報名你的公開場。
+                    {t('beHostDesc')}
                   </p>
                 </div>
                 <Link href="/discover/host">
-                  <Button size="lg" className="font-bold tracking-widest uppercase">成為 Host 發佈第一場</Button>
+                  <Button size="lg" className="font-bold tracking-widest uppercase">{t('firstHostBtn')}</Button>
                 </Link>
               </div>
             ) : (
               <div className="space-y-8">
-                <h2 className="text-2xl font-display font-bold uppercase tracking-wide">搞手紀錄</h2>
+                <h2 className="text-2xl font-display font-bold uppercase tracking-wide">{t('hostedMatches')}</h2>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-black/30 p-6 rounded-2xl text-center">
-                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">主辦次數</div>
+                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">{t('hostedCount')}</div>
                     <div className="text-4xl font-display font-bold text-white">{hostProfile.hostedCount}</div>
                   </div>
                   <div className="bg-black/30 p-6 rounded-2xl text-center">
-                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">準時率</div>
+                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">{t('punctuality')}</div>
                     <div className="text-4xl font-display font-bold text-primary">{hostProfile.punctualityRate}%</div>
                   </div>
                   <div className="bg-black/30 p-6 rounded-2xl text-center">
-                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">平均評分</div>
+                    <div className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-2">{t('avgRating')}</div>
                     <div className="text-4xl font-display font-bold text-yellow-500 flex items-center justify-center gap-1">
                       {hostProfile.averageRating.toFixed(1)} <Star className="w-5 h-5 fill-yellow-500" />
                     </div>
                   </div>
                 </div>
 
+                <div className="space-y-6 pt-6 border-t border-border">
+                  <h3 className="font-bold uppercase tracking-wide">{t('myHostedMatches')} ({myHostedMatches.length})</h3>
+                  <div className="grid gap-4">
+                    {myHostedMatches.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">{t('noHostedMatches')}</p>
+                    ) : (
+                      myHostedMatches.map(m => {
+                        const isPast = new Date(m.datetime).getTime() < Date.now();
+                        const isCancelled = m.status === 'cancelled';
+                        const isFinished = m.status === 'finished';
+                        
+                        return (
+                          <div key={m.id} className="bg-black/20 p-4 rounded-xl border border-border/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className={`text-[10px] uppercase tracking-tighter ${isCancelled ? 'bg-destructive/10 text-destructive border-destructive/30' : isFinished ? 'bg-green-500/10 text-green-500 border-green-500/30' : 'bg-primary/10 text-primary border-primary/30'}`}>
+                                  {isCancelled ? t('statusCancelled') : isFinished ? t('statusFinished') : t('statusRecruiting')}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">{new Date(m.datetime).toLocaleString(lang === 'en' ? 'en-US' : 'zh-HK', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                              </div>
+                              <h4 className="font-bold text-lg">{lang === 'en' ? (venues.find(v => v.id === m.venueId)?.nameEn ?? m.venueAddressEn ?? m.venueAddress) : (venues.find(v => v.id === m.venueId)?.name ?? m.venueAddress)}</h4>
+                              <p className="text-xs text-muted-foreground">{t('fee')}: ${m.fee} · {t('profilePeople')}: {m.attendees.length}/{m.maxPlayers || t('unlimited')}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Link href={`/discover/${m.id}`}>
+                                <Button variant="outline" size="sm">{t('viewDetail')}</Button>
+                              </Link>
+                              {!isCancelled && !isFinished && (
+                                <>
+                                  {isPast && (
+                                    <Button size="sm" className="bg-primary text-primary-foreground font-bold" onClick={() => {
+                                      setLoc(`/discover/${m.id}?action=finish`);
+                                    }}>{t('finishMatch')}</Button>
+                                  )}
+                                  <Button variant="destructive" size="sm" onClick={() => {
+                                    setLoc(`/discover/${m.id}?action=cancel`);
+                                  }}>{t('cancel')}</Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-4 pt-6 border-t border-border">
-                  <h3 className="font-bold uppercase tracking-wide">波友評語 ({hostProfile.reviews.length})</h3>
+                  <h3 className="font-bold uppercase tracking-wide">{t('peerReviews')} ({hostProfile.reviews.length})</h3>
                   <div className="grid gap-4">
                     {hostProfile.reviews.map((review, i) => (
                       <div key={i} className="bg-black/20 p-4 rounded-xl border border-border/50">
@@ -275,7 +327,7 @@ export default function Profile() {
                               <Star key={j} className={`w-3 h-3 ${j < review.rating ? 'fill-yellow-500' : 'fill-transparent text-muted-foreground'}`} />
                             ))}
                           </div>
-                          <div className="text-xs text-muted-foreground">{new Date(review.date).toLocaleDateString()}</div>
+                          <div className="text-xs text-muted-foreground">{new Date(review.date).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK')}</div>
                         </div>
                         <p className="text-sm">{review.comment}</p>
                       </div>

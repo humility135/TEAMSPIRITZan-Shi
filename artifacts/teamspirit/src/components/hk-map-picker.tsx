@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
+
+import { districtTranslations } from '@/lib/districts';
 
 type Region = 'NT' | 'KLN' | 'HKI' | 'ISL';
 type Color = 'red' | 'green' | 'blue' | 'yellow';
@@ -99,6 +102,7 @@ interface HKMapPickerProps {
 }
 
 export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
+  const { t, lang } = useI18n();
   const [hover, setHover] = useState<string | null>(null);
 
   return (
@@ -148,7 +152,7 @@ export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
                   stroke="rgba(0,0,0,0.35)"
                   strokeWidth="0.6"
                 >
-                  {d.name}
+                  {lang === 'en' ? (districtTranslations[d.name] || d.name) : d.name}
                 </text>
               </g>
             );
@@ -159,11 +163,11 @@ export function HKMapPicker({ value, onChange }: HKMapPickerProps) {
       {value ? (
         <div className="flex items-center gap-2 text-sm bg-primary/10 border border-primary/40 rounded-lg px-3 py-2">
           <MapPin className="w-4 h-4 text-primary" />
-          <span className="text-muted-foreground">已揀主場：</span>
-          <span className="font-bold text-primary">{value}</span>
+          <span className="text-muted-foreground">{t('hkMapSelected')}</span>
+          <span className="font-bold text-primary">{lang === 'en' ? (districtTranslations[value] || value) : value}</span>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground text-center">點一下地圖上嘅地區揀你嘅主場</p>
+        <p className="text-xs text-muted-foreground text-center">{t('hkMapHint')}</p>
       )}
     </div>
   );

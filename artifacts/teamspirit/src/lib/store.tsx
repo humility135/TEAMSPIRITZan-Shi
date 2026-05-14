@@ -54,18 +54,22 @@ interface AppContextType extends AppState {
   declineMatchSlot: (matchId: string, offerId: string) => void;
   updateMatchStats: (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => void;
   markNotificationRead: (id: string) => void;
+  clearNotifications: () => void;
   joinPublicMatch: (matchId: string) => void;
   leavePublicMatch: (matchId: string) => void;
   kickAttendee: (matchId: string, userId: string) => void;
   createPublicMatch: (match: Omit<PublicMatch, 'id' | 'hostId' | 'status' | 'createdAt' | 'attendees'> & { district?: string }) => Promise<PublicMatch | void>;
   cancelPublicMatch: (matchId: string) => void;
   cancelEvent: (eventId: string) => Promise<void>;
+  finishEvent: (eventId: string, score: { home: number; away: number }) => Promise<void>;
+  finishPublicMatch: (matchId: string, score: { home: number; away: number }) => Promise<void>;
   deletePublicMatch: (matchId: string) => void;
   addMatchComment: (matchId: string, text: string) => void;
   updateCurrentUser: (patch: Partial<Pick<User, 'name' | 'avatarUrl'>>) => void;
   updateTeam: (teamId: string, patch: Partial<Pick<Team, 'name' | 'logoUrl' | 'accentColor' | 'district' | 'level'>>) => void;
   addTeam: (data: { name: string; district: string; level: number; accentColor?: string; logoUrl?: string }) => Promise<Team>;
   leaveTeam: (teamId: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>;
+  joinTeam: (inviteCode: string) => Promise<{ success: boolean; teamId: string; teamName: string }>;
   deleteTeam: (teamId: string) => void;
   removeMember: (teamId: string, userId: string) => void;
   setMemberRole: (teamId: string, userId: string, role: Role) => void;
@@ -185,9 +189,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (state.isProMode) {
       document.documentElement.style.setProperty('--primary', '72 100% 50%');
       document.documentElement.style.setProperty('--ring', '72 100% 50%');
+      document.documentElement.classList.add('pro-mode');
     } else {
       document.documentElement.style.setProperty('--primary', '220 14% 96%');
       document.documentElement.style.setProperty('--ring', '220 14% 96%');
+      document.documentElement.classList.remove('pro-mode');
     }
   }, [state?.isProMode]);
 
@@ -256,6 +262,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     inv(['notifications']);
   }, []);
 
+  const clearNotifications = useCallback(async () => {
+    await api('/notifications/clear', { method: 'POST' });
+    inv(['notifications']);
+  }, []);
+
   const joinPublicMatch = useCallback(async (matchId: string) => {
     await api(`/public-matches/${matchId}/join`, { method: 'POST' });
     inv(['publicMatches', 'notifications']);
@@ -285,6 +296,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cancelEvent = useCallback(async (eventId: string) => {
     await api(`/events/${eventId}/cancel`, { method: 'POST' });
     inv(['events', 'notifications']);
+  }, []);
+
+  const finishEvent = useCallback(async (eventId: string, score: { home: number; away: number }) => {
+    await api(`/events/${eventId}/finish`, { method: 'PATCH', body: JSON.stringify(score) });
+    inv(['events']);
+  }, []);
+
+  const finishPublicMatch = useCallback(async (matchId: string, score: { home: number; away: number }) => {
+    await api(`/public-matches/${matchId}/finish`, { method: 'PATCH', body: JSON.stringify(score) });
+    inv(['publicMatches']);
   }, []);
 
   const deletePublicMatch = useCallback(async (matchId: string) => {
@@ -319,9 +340,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       inv(['teams', 'teamMembers']);
       return res;
     } catch (e: any) {
-      return { ok: false, error: e.message || '無法退出' };
+      return { ok: false, error: e.message || (localStorage.getItem('teamspirit_lang') === 'en' ? 'Failed to leave' : '無法退出') };
     }
   }, []);
+
+  const joinTeam = useCallback(async (inviteCode: string) => {
+    const result = await api<{ success: boolean; teamId: string; teamName: string }>('/teams/join', {
+      method: 'POST',
+      body: JSON.stringify({ inviteCode }),
+    });
+    await qc.invalidateQueries({ queryKey: ['teams'] });
+    await qc.invalidateQueries({ queryKey: ['teamMembers'] });
+    return result;
+  }, [qc]);
 
   const deleteTeam = useCallback(async (teamId: string) => {
     await api(`/teams/${teamId}`, { method: 'DELETE' });
@@ -355,11 +386,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state]);
 
   if (meQ.isLoading || (meQ.data && !state)) {
-    return <div className="min-h-screen flex items-center justify-center text-zinc-400">載入中…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-zinc-400">{localStorage.getItem('teamspirit_lang') === 'en' ? 'Loading...' : '載入中…'}</div>;
   }
   if (!state) {
     // 401 effect above will navigate to /login
-    return <div className="min-h-screen flex items-center justify-center text-zinc-400">前往登入…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-zinc-400">{localStorage.getItem('teamspirit_lang') === 'en' ? 'Redirecting to login...' : '前往登入…'}</div>;
   }
 
   return (
@@ -375,18 +406,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       declineMatchSlot,
       updateMatchStats,
       markNotificationRead,
+      clearNotifications,
       joinPublicMatch,
       leavePublicMatch,
       kickAttendee,
       createPublicMatch,
       cancelPublicMatch,
       cancelEvent,
+      finishEvent,
+      finishPublicMatch,
       deletePublicMatch,
       addMatchComment,
       updateCurrentUser,
       updateTeam,
       addTeam,
       leaveTeam,
+      joinTeam,
       deleteTeam,
       removeMember,
       setMemberRole,

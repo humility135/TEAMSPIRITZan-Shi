@@ -269,7 +269,7 @@ router.post("/public-matches/:id/slot-offers/:offerId/pay", requireAuth, async (
   const orderId = newId("ord");
   await db.insert(ordersTable).values({
     id: orderId, userId: me.id, kind: "match_slot", refId: m.id,
-    amount: m.fee, status: "paid", paidAt: new Date(),
+    amount: m.fee, status: "paid", paidAt: new Date().toISOString(),
   });
   await notify(me.id, "付款成功，已補上公開場");
   res.json({ ok: true, match: updated, orderId });
@@ -317,6 +317,23 @@ router.post("/public-matches/:id/comments", requireAuth, async (req, res): Promi
     id: newId("c"), matchId: id, userId: me.id, text,
   }).returning();
   res.status(201).json(row);
+});
+
+router.patch("/public-matches/:id/finish", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [m] = await db.select().from(publicMatchesTable).where(eq(publicMatchesTable.id, id));
+  if (!m) { res.status(404).json({ error: "Not found" }); return; }
+  if (m.hostId !== me.id) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const scoreSchema = z.object({ home: z.number().int().min(0), away: z.number().int().min(0) });
+  const parsed = scoreSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid score" }); return; }
+
+  const [updated] = await db.update(publicMatchesTable)
+    .set({ status: "finished", finalScore: parsed.data })
+    .where(eq(publicMatchesTable.id, id)).returning();
+  res.json(updated);
 });
 
 export default router;

@@ -1,9 +1,30 @@
-// List of HK 18 Districts
 export const hkDistricts = [
   "中西區", "灣仔區", "東區", "南區", 
   "油尖旺區", "深水埗區", "九龍城區", "黃大仙區", "觀塘區", 
   "葵青區", "荃灣區", "屯門區", "元朗區", "北區", "大埔區", "沙田區", "西貢區", "離島區"
-];
+] as const;
+
+export const districtTranslations: Record<string, string> = {
+  "中西區": "Central & Western",
+  "灣仔區": "Wan Chai",
+  "東區": "Eastern",
+  "南區": "Southern",
+  "油尖旺區": "Yau Tsim Mong",
+  "深水埗區": "Sham Shui Po",
+  "九龍城區": "Kowloon City",
+  "黃大仙區": "Wong Tai Sin",
+  "觀塘區": "Kwun Tong",
+  "葵青區": "Kwai Tsing",
+  "荃灣區": "Tsuen Wan",
+  "屯門區": "Tuen Mun",
+  "元朗區": "Yuen Long",
+  "北區": "Northern",
+  "大埔區": "Tai Po",
+  "沙田區": "Sha Tin",
+  "西貢區": "Sai Kung",
+  "離島區": "Islands",
+  "其他": "Other"
+};
 
 export const detectDistrict = (text: string): string => {
   if (!text) return '其他';

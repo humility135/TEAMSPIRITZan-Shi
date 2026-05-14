@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Check, AlertTriangle, Info, ShieldAlert, Search } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { VenueSelector } from '@/components/venue-selector';
 import { detectDistrict } from '@/lib/districts';
 import { Card } from '@/components/ui/card';
@@ -16,34 +17,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { SurfaceType } from '@/lib/types';
 
-const hostSchema = z.object({
-  title: z.string().min(1, '請輸入活動名稱'),
-  venueId: z.string().optional(),
-  venueAddress: z.string().min(3, '請輸入場地地址'),
-  district: z.string().optional(),
-  date: z.string().min(1, '請揀日期').refine(d => {
-    const today = new Date();
-    const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-    return d >= hkDateStr;
-  }, '唔可以揀過去嘅日期'),
-  startTime: z.string().min(1, '請揀開始時間'),
-  endTime: z.string().min(1, '請揀完結時間'),
-  surface: z.enum(['hard', 'turf', 'grass']),
-  skillLevel: z.coerce.number().min(1).max(5),
-  maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), '請輸入大過 0 嘅整數'),
-  fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
-  description: z.string(),
-  rules: z.string(),
-});
+type HostFormValues = z.infer<ReturnType<typeof useHostSchema>>;
 
-type HostFormValues = z.infer<typeof hostSchema>;
+function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
+  return z.object({
+    title: z.string().min(1, t('teamHostEventNameRequired')),
+    venueId: z.string().optional(),
+    venueAddress: z.string().min(3, t('teamHostEventVenueRequired')),
+    district: z.string().optional(),
+    date: z.string().min(1, t('teamHostEventDateRequired')).refine(d => {
+      const today = new Date();
+      const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+      return d >= hkDateStr;
+    }, t('teamHostEventDatePast')),
+    startTime: z.string().min(1, t('teamHostEventStartTimeRequired')),
+    endTime: z.string().min(1, t('teamHostEventEndTimeRequired')),
+    surface: z.enum(['hard', 'turf', 'grass']),
+    skillLevel: z.coerce.number().min(1).max(5),
+    maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), t('teamHostEventCapacityInvalid')),
+    fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), t('teamHostEventFeeInvalid')),
+    description: z.string(),
+    rules: z.string(),
+  });
+}
 
 export default function TeamHostEvent() {
   const [, params] = useRoute('/teams/:teamId/host');
   const [, setLocation] = useLocation();
   const { teams, venues, createEvent } = useAppStore();
-  
+  const { t } = useI18n();
+
   const team = teams.find(t => t.id === params?.teamId);
+
+  const hostSchema = useHostSchema(t);
 
   const form = useForm<HostFormValues>({
     resolver: zodResolver(hostSchema),
@@ -64,25 +70,25 @@ export default function TeamHostEvent() {
     }
   });
 
-  if (!team) return <div className="p-8 text-center">Team not found</div>;
+  if (!team) return <div className="p-8 text-center">{t('teamNotFound')}</div>;
 
   const onSubmit = async (values: HostFormValues) => {
     if (!values.date || !values.startTime || !values.endTime) {
-      toast.error('請確保日期同時間都填好晒');
+      toast.error(t('teamHostEventDateTimeError'));
       return;
     }
-    
+
     try {
       const startDateTimeStr = `${values.date}T${values.startTime}:00+08:00`;
       const endDateTimeStr = `${values.date}T${values.endTime}:00+08:00`;
-      
+
       const startDateTime = new Date(startDateTimeStr);
       const endDateTime = new Date(endDateTimeStr);
-      
+
       if (endDateTime <= startDateTime) {
         endDateTime.setDate(endDateTime.getDate() + 1);
       }
-      
+
       await createEvent({
         teamId: team.id,
         title: values.title.trim(),
@@ -98,19 +104,19 @@ export default function TeamHostEvent() {
         description: values.description,
         rules: values.rules,
       });
-      toast.success('活動已發起！');
+      toast.success(t('teamHostEventSuccess'));
       setLocation(`/teams/${team.id}`);
     } catch (e) {
       console.error("Event creation error:", e);
-      toast.error('發生錯誤，請檢查資料格式');
+      toast.error(t('teamHostEventError'));
     }
   };
 
     return (
       <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
         <div>
-          <h1 className="text-4xl font-display font-bold uppercase tracking-tight">發起球隊活動</h1>
-          <p className="text-muted-foreground mt-2">為 {team.name} 建立比賽、訓練或練波局，隊友可即時 RSVP。</p>
+          <h1 className="text-4xl font-display font-bold uppercase tracking-tight">{t('teamHostEventTitle')}</h1>
+          <p className="text-muted-foreground mt-2">{t('teamHostEventDesc', { teamName: team.name })}</p>
         </div>
 
       <Card className="p-8 border-border bg-card/50 backdrop-blur">
@@ -119,7 +125,7 @@ export default function TeamHostEvent() {
 
             <section className="space-y-6">
               <h2 className="text-xl font-display font-bold uppercase border-b border-border pb-2 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" /> 基本資料
+                <MapPin className="w-5 h-5 text-primary" /> {t('teamHostEventBasicInfo')}
               </h2>
 
               <FormField
@@ -127,9 +133,9 @@ export default function TeamHostEvent() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>活動名稱</FormLabel>
+                    <FormLabel>{t('teamHostEventNameLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="例如 友誼賽 vs 紅磡聯" {...field} />
+                      <Input placeholder={t('teamHostEventNamePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +147,7 @@ export default function TeamHostEvent() {
                 name="venueId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>選擇球場 (可選)</FormLabel>
+                    <FormLabel>{t('teamHostEventVenueLabel')}</FormLabel>
                     <FormControl>
                       <VenueSelector
                         venues={venues}
@@ -156,7 +162,7 @@ export default function TeamHostEvent() {
                         }}
                       />
                     </FormControl>
-                    <FormDescription className="text-[11px]">選擇場地後會自動填充地址同類型。</FormDescription>
+                    <FormDescription className="text-[11px]">{t('teamHostEventVenueHelper')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -167,11 +173,11 @@ export default function TeamHostEvent() {
                 name="venueAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>詳細場地 / 地址</FormLabel>
+                    <FormLabel>{t('teamHostEventAddressLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="例如：摩士公園 3 號場" {...field} />
+                      <Input placeholder={t('teamHostEventAddressPlaceholder')} {...field} />
                     </FormControl>
-                    <FormDescription className="text-[11px]">請填寫具體場號（例如：3號場）。</FormDescription>
+                    <FormDescription className="text-[11px]">{t('teamHostEventAddressHelper')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -182,13 +188,13 @@ export default function TeamHostEvent() {
                 name="surface"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>場地類型</FormLabel>
+                    <FormLabel>{t('teamHostEventSurfaceLabel')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="hard">硬地 (Hard)</SelectItem>
-                        <SelectItem value="turf">仿真草 (Turf)</SelectItem>
-                        <SelectItem value="grass">真草 (Grass)</SelectItem>
+                        <SelectItem value="hard">{t('hostMatchSurfaceHard')}</SelectItem>
+                        <SelectItem value="turf">{t('hostMatchSurfaceTurf')}</SelectItem>
+                        <SelectItem value="grass">{t('hostMatchSurfaceGrass')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -202,7 +208,7 @@ export default function TeamHostEvent() {
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>日期</FormLabel>
+                      <FormLabel>{t('teamHostEventDateLabel')}</FormLabel>
                       <FormControl><Input type="date" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -213,7 +219,7 @@ export default function TeamHostEvent() {
                   name="startTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>開始時間</FormLabel>
+                      <FormLabel>{t('teamHostEventStartTimeLabel')}</FormLabel>
                       <FormControl><Input type="time" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -224,7 +230,7 @@ export default function TeamHostEvent() {
                   name="endTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>完結時間</FormLabel>
+                      <FormLabel>{t('teamHostEventEndTimeLabel')}</FormLabel>
                       <FormControl><Input type="time" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -238,11 +244,11 @@ export default function TeamHostEvent() {
                   name="maxPlayers"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>人數上限</FormLabel>
+                      <FormLabel>{t('teamHostEventCapacityLabel')}</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} step={1} placeholder="留空 = 不設上限" {...field} />
+                        <Input type="number" min={1} step={1} placeholder={t('teamHostEventMaxPlayersPlaceholder')} {...field} />
                       </FormControl>
-                      <FormDescription className="text-[11px]">留空就係不設上限。</FormDescription>
+                      <FormDescription className="text-[11px]">{t('teamHostEventMaxPlayersHelper')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -252,11 +258,11 @@ export default function TeamHostEvent() {
                   name="fee"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>報名費 / 人</FormLabel>
+                      <FormLabel>{t('teamHostEventFeeLabel')}</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                          <Input type="number" min={0} className="pl-7" placeholder="留空 = 免費" {...field} />
+                          <Input type="number" min={0} className="pl-7" placeholder={t('teamHostEventFeePlaceholder')} {...field} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -268,15 +274,15 @@ export default function TeamHostEvent() {
                   name="skillLevel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>水平 (1-5★)</FormLabel>
+                      <FormLabel>{t('teamHostEventLevelLabel')}</FormLabel>
                       <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="1">1★ 新手</SelectItem>
-                          <SelectItem value="2">2★ 業餘</SelectItem>
-                          <SelectItem value="3">3★ 常規</SelectItem>
-                          <SelectItem value="4">4★ 競技</SelectItem>
-                          <SelectItem value="5">5★ 職業</SelectItem>
+                          <SelectItem value="1">{t('teamHostEventLevel1')}</SelectItem>
+                          <SelectItem value="2">{t('teamHostEventLevel2')}</SelectItem>
+                          <SelectItem value="3">{t('teamHostEventLevel3')}</SelectItem>
+                          <SelectItem value="4">{t('teamHostEventLevel4')}</SelectItem>
+                          <SelectItem value="5">{t('teamHostEventLevel5')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -288,17 +294,17 @@ export default function TeamHostEvent() {
 
             <section className="space-y-6">
               <h2 className="text-xl font-display font-bold uppercase border-b border-border pb-2 flex items-center gap-2">
-                <Info className="w-5 h-5 text-primary" /> 詳細資料
+                <Info className="w-5 h-5 text-primary" /> {t('teamHostEventDetailSection')}
               </h2>
-              
+
               <FormField
                 control={form.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>活動描述</FormLabel>
+                    <FormLabel>{t('teamHostEventDescLabel')}</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="例如：聯賽第 3 輪，務求穩陣攞 3 分。" rows={3} {...field} />
+                      <Textarea placeholder={t('teamHostEventDescPlaceholder')} rows={3} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -310,9 +316,9 @@ export default function TeamHostEvent() {
                 name="rules"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>特別規則</FormLabel>
+                    <FormLabel>{t('teamHostEventRulesLabel')}</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="例如：自備一淺一深波衫、守門員免費。" rows={2} {...field} />
+                      <Textarea placeholder={t('teamHostEventRulesPlaceholder')} rows={2} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -321,7 +327,7 @@ export default function TeamHostEvent() {
             </section>
 
             <Button type="submit" className="w-full font-bold tracking-wide uppercase" size="lg">
-              立即發佈
+              {t('teamHostEventCreateBtn')}
             </Button>
 
           </form>

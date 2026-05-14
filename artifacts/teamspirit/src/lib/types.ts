@@ -15,21 +15,21 @@ export interface RefundPolicyOption {
 export const REFUND_POLICY_OPTIONS: RefundPolicyOption[] = [
   {
     value: 'half',
-    label: '半退',
-    short: '分階段退款',
-    description: '48 小時前 100% / 24 小時前 50% / 6 小時前 0%。',
+    label: 'refundHalfLabel',
+    short: 'refundHalfShort',
+    description: 'refundHalfDesc',
   },
   {
     value: 'auto',
-    label: '自動（跟天氣）',
-    short: '掛 8 號 / 黑雨自動全退',
-    description: '系統綁定香港天文台資料，掛 8 號風球或黑雨警告會自動全額退款，其餘情況跟「半退」階梯處理。',
+    label: 'refundAutoLabel',
+    short: 'refundAutoShort',
+    description: 'refundAutoDesc',
   },
 ];
 
 export const REFUND_POLICY_LABEL: Record<RefundPolicyKind, string> = {
-  half: '半退（48/24/6h 階梯）',
-  auto: '自動（跟天氣）',
+  half: 'refundHalfLabel',
+  auto: 'refundAutoLabel',
 };
 
 export const RACE_THRESHOLD_HOURS = 24;
@@ -97,8 +97,11 @@ export interface Weather {
 export interface Venue {
   id: string;
   name: string;
+  nameEn?: string;
   district: string;
+  districtEn?: string;
   address: string;
+  addressEn?: string;
   lat: number;
   lng: number;
   surface: SurfaceType;
@@ -118,6 +121,7 @@ export interface PublicMatch {
   hostId: string;
   venueId?: string;
   venueAddress?: string;
+  venueAddressEn?: string;
   district?: string;
   datetime: string;
   endDatetime?: string;
@@ -185,6 +189,7 @@ export interface Event {
   endDatetime?: string;
   venueId?: string;
   venueAddress?: string;
+  venueAddressEn?: string;
   district?: string;
   surface?: SurfaceType;
   skillLevel?: number;
@@ -208,6 +213,7 @@ export interface Notification {
   id: string;
   type: 'event' | 'system' | 'team';
   message: string;
+  messageEn?: string;
   createdAt: string;
   read: boolean;
 }

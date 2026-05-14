@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowLeft, ImageUp, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 import type { TeamMessage } from "@/lib/types";
 import { useTeamChatSocket } from "@/lib/useTeamChatSocket";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ export default function TeamChat() {
   const [, setLocation] = useLocation();
   const { teams, users, currentUser } = useAppStore();
   const qc = useQueryClient();
+  const { t, lang } = useI18n();
 
   const teamId = params?.teamId ?? "";
   const team = teams.find((t) => t.id === teamId);
@@ -102,7 +104,7 @@ export default function TeamChat() {
   const sendMessage = async () => {
     const msg = text.trim();
     if (!msg) return;
-    if (msg.length > 1000) { toast.error("訊息太長（最多 1000 字）"); return; }
+    if (msg.length > 1000) { toast.error(t('teamChatMessageTooLong')); return; }
     setSending(true);
     try {
       const created = await api<TeamMessage>(`/teams/${teamId}/chat/messages`, {
@@ -114,15 +116,15 @@ export default function TeamChat() {
         await qc.invalidateQueries({ queryKey: ["teamChatMessages", teamId] });
       }
     } catch (e: any) {
-      toast.error(e?.message || "送出失敗");
+      toast.error(e?.message || t('teamChatSendFailed'));
     } finally {
       setSending(false);
     }
   };
 
   const uploadImage = async (file: File) => {
-    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) { toast.error("只支援 PNG/JPG/GIF/WEBP"); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error("圖片太大（最多 2MB）"); return; }
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) { toast.error(t('teamChatImageTypeError')); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error(t('teamChatImageTooBig')); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -143,7 +145,7 @@ export default function TeamChat() {
         await qc.invalidateQueries({ queryKey: ["teamChatMessages", teamId] });
       }
     } catch (e: any) {
-      toast.error(e?.message || "上傳失敗");
+      toast.error(e?.message || t('teamChatUploadFailed'));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -174,15 +176,15 @@ export default function TeamChat() {
   };
 
   if (!team) {
-    return <div className="p-8 text-center">Team not found</div>;
+    return <div className="p-8 text-center">{t('teamNotFound')}</div>;
   }
 
   if (!isMember) {
     return (
       <div className="p-8 max-w-xl mx-auto">
         <Card className="p-6 border-border bg-card/50 backdrop-blur text-center space-y-4">
-          <div className="text-lg font-bold">你唔係球隊成員</div>
-          <Button variant="outline" onClick={() => setLocation(`/teams/${team.id}`)}>返回球隊</Button>
+          <div className="text-lg font-bold">{t('teamChatNotMember')}</div>
+          <Button variant="outline" onClick={() => setLocation(`/teams/${team.id}`)}>{t('teamChatBackToTeam')}</Button>
         </Card>
       </div>
     );
@@ -192,11 +194,11 @@ export default function TeamChat() {
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex items-center justify-between">
         <Link href={`/teams/${team.id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft className="w-4 h-4" /> 返回球隊
+          <ArrowLeft className="w-4 h-4" /> {t('teamChatBackToTeam')}
         </Link>
-        <div className="text-sm font-bold tracking-widest uppercase">{team.name} · 聊天室</div>
+        <div className="text-sm font-bold tracking-widest uppercase">{team.name} · {t('teamChatRoom')}</div>
         <div className="text-xs text-muted-foreground">
-          {status === "connected" ? "已連線" : status === "forbidden" ? "無權限" : "重連中…"}
+          {status === "connected" ? t('teamChatConnected') : status === "forbidden" ? t('teamChatForbidden') : t('teamChatReconnecting')}
         </div>
       </div>
 
@@ -205,7 +207,7 @@ export default function TeamChat() {
           <div ref={listRef} className="h-[60vh] overflow-y-auto p-5 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-10">
-              暫時未有訊息
+              {t('teamChatNoMessages')}
             </div>
           ) : (
             messages.map((m) => {
@@ -238,13 +240,13 @@ export default function TeamChat() {
                       )}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">
-                      {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(m.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'zh-HK', { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
                   {mine && (
                     <Avatar className="w-8 h-8 shrink-0">
                       <AvatarImage src={currentUser.avatarUrl || `https://i.pravatar.cc/150?u=${currentUser.id}`} />
-                      <AvatarFallback>{currentUser.name?.[0] || "我"}</AvatarFallback>
+                      <AvatarFallback>{currentUser.name?.[0] || t('teamChatMe')}</AvatarFallback>
                     </Avatar>
                   )}
                 </div>
@@ -257,10 +259,10 @@ export default function TeamChat() {
               <Button
                 size="sm"
                 className="font-bold tracking-widest uppercase shadow-lg"
-                aria-label="跳到最新訊息"
+                aria-label={t('teamChatJumpToLatest')}
                 onClick={scrollToBottom}
               >
-                <ArrowDown className="w-4 h-4 mr-2" /> 新訊息{newCount > 0 ? ` (${newCount})` : ""}
+                <ArrowDown className="w-4 h-4 mr-2" /> {t('teamChatNewMessages')}{newCount > 0 ? ` (${newCount})` : ""}
               </Button>
             </div>
           )}
@@ -272,7 +274,7 @@ export default function TeamChat() {
             type="file"
             accept="image/*"
             className="hidden"
-            aria-label="上傳圖片"
+            aria-label={t('teamChatUploadImage')}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) uploadImage(f);
@@ -280,8 +282,8 @@ export default function TeamChat() {
           />
           <Textarea
             value={text}
-            placeholder="輸入訊息…（Enter 送出，Shift+Enter 換行）"
-            aria-label="輸入訊息"
+            placeholder={t('teamChatMessagePlaceholder')}
+            aria-label={t('teamChatInputAria')}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -293,10 +295,10 @@ export default function TeamChat() {
           />
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" className="w-full font-bold tracking-widest uppercase" onClick={() => fileRef.current?.click()} disabled={sending || uploading || status === "forbidden"}>
-              <ImageUp className="w-4 h-4 mr-2" /> {uploading ? "上傳中…" : "傳圖"}
+              <ImageUp className="w-4 h-4 mr-2" /> {uploading ? t('teamChatUploading') : t('teamChatSendImage')}
             </Button>
             <Button className="w-full font-bold tracking-widest uppercase" onClick={sendMessage} disabled={sending || uploading || status === "forbidden"}>
-              <Send className="w-4 h-4 mr-2" /> {sending ? "送出中…" : "送出"}
+              <Send className="w-4 h-4 mr-2" /> {sending ? t('teamChatSending') : t('teamChatSend')}
             </Button>
           </div>
         </div>

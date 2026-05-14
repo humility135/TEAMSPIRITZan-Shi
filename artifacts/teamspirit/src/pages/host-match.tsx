@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Users, Check, AlertTriangle, Info, ShieldAlert, Search } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { VenueSelector } from '@/components/venue-selector';
 import { detectDistrict } from '@/lib/districts';
 import { Card } from '@/components/ui/card';
@@ -16,31 +17,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { REFUND_POLICY_OPTIONS, RefundPolicyKind, SurfaceType } from '@/lib/types';
 
-const hostSchema = z.object({
-  venueId: z.string().optional(),
-  venueAddress: z.string().min(3, '請輸入場地地址'),
-  district: z.string().optional(),
-  date: z.string().min(1, '請揀日期').refine(d => {
-    const today = new Date();
-    // 轉換成香港時區嘅 YYYY-MM-DD
-    const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-    return d >= hkDateStr;
-  }, '唔可以揀過去嘅日期'),
-  startTime: z.string().min(1, '請揀開始時間'),
-  endTime: z.string().min(1, '請揀完結時間'),
-  surface: z.enum(['hard', 'turf', 'grass']),
-  skillLevel: z.coerce.number().min(1).max(5),
-  maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), '請輸入大過 0 嘅整數'),
-  fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), '費用要係 0 或正數'),
-  description: z.string(),
-  rules: z.string(),
-}); // Removed strict endTime > startTime check to allow overnight matches
+type HostFormValues = z.infer<ReturnType<typeof useHostSchema>>;
 
-type HostFormValues = z.infer<typeof hostSchema>;
+function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
+  return z.object({
+    venueId: z.string().optional(),
+    venueAddress: z.string().min(3, t('hostMatchVenueRequired')),
+    district: z.string().optional(),
+    date: z.string().min(1, t('hostMatchDateRequired')).refine(d => {
+      const today = new Date();
+      // 轉換成香港時區嘅 YYYY-MM-DD
+      const hkDateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+      return d >= hkDateStr;
+    }, t('hostMatchDatePast')),
+    startTime: z.string().min(1, t('hostMatchStartTimeRequired')),
+    endTime: z.string().min(1, t('hostMatchEndTimeRequired')),
+    surface: z.enum(['hard', 'turf', 'grass']),
+    skillLevel: z.coerce.number().min(1).max(5),
+    maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), t('hostMatchMaxPlayersInvalid')),
+    fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), t('hostMatchFeeInvalid')),
+    description: z.string(),
+    rules: z.string(),
+  }); // Removed strict endTime > startTime check to allow overnight matches
+}
 
 export default function HostMatch() {
   const [, setLocation] = useLocation();
   const { venues, createPublicMatch } = useAppStore();
+  const { t } = useI18n();
+
+  const hostSchema = useHostSchema(t);
 
   const form = useForm<HostFormValues>({
     resolver: zodResolver(hostSchema),
@@ -63,24 +69,24 @@ export default function HostMatch() {
   const onSubmit = (values: HostFormValues) => {
     // Make sure we have valid date and time strings before combining them
     if (!values.date || !values.startTime || !values.endTime) {
-      toast.error('請確保日期同時間都填好晒');
+      toast.error(t('hostMatchDateTimeError'));
       return;
     }
-    
+
     try {
       // Create a full ISO string by extracting local parts and appending HK timezone
       // E.g. "2025-04-26T20:00:00+08:00"
       const startDateTimeStr = `${values.date}T${values.startTime}:00+08:00`;
       const endDateTimeStr = `${values.date}T${values.endTime}:00+08:00`;
-      
+
       const startDateTime = new Date(startDateTimeStr);
       const endDateTime = new Date(endDateTimeStr);
-      
+
       // Handle overnight matches (e.g. 23:00 to 01:00)
       if (endDateTime <= startDateTime) {
         endDateTime.setDate(endDateTime.getDate() + 1);
       }
-      
+
       createPublicMatch({
         venueId: values.venueId,
         venueAddress: values.venueAddress.trim(),
@@ -97,19 +103,19 @@ export default function HostMatch() {
         waitlistIds: [],
         slotOffers: [],
       });
-      toast.success('公開場已成功發佈！');
+      toast.success(t('hostMatchSuccess'));
       setLocation('/discover');
     } catch (e) {
       console.error("Date parsing error:", e);
-      toast.error('日期或時間格式有誤');
+      toast.error(t('hostMatchFormatError'));
     }
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div>
-        <h1 className="text-4xl font-display font-bold uppercase tracking-tight">發佈公開場</h1>
-        <p className="text-muted-foreground mt-2">Book 咗場夾唔夠人？發佈到平台，同區波友即時報名加入。</p>
+        <h1 className="text-4xl font-display font-bold uppercase tracking-tight">{t('hostMatchTitle')}</h1>
+        <p className="text-muted-foreground mt-2">{t('hostMatchDesc')}</p>
       </div>
 
       <Card className="p-8 border-border bg-card/50 backdrop-blur">
@@ -118,7 +124,7 @@ export default function HostMatch() {
 
             <section className="space-y-6">
               <h2 className="text-xl font-display font-bold uppercase border-b border-border pb-2 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" /> 基本資料
+                <MapPin className="w-5 h-5 text-primary" /> {t('hostMatchBasicInfo')}
               </h2>
 
               <FormField
@@ -126,7 +132,7 @@ export default function HostMatch() {
                 name="venueId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>選擇球場 (可選)</FormLabel>
+                    <FormLabel>{t('hostMatchVenueLabel')}</FormLabel>
                     <FormControl>
                       <VenueSelector
                         venues={venues}
@@ -141,7 +147,7 @@ export default function HostMatch() {
                         }}
                       />
                     </FormControl>
-                    <FormDescription className="text-[11px]">選擇場地後會自動填充地址同類型。</FormDescription>
+                    <FormDescription className="text-[11px]">{t('hostMatchVenueHelper')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -152,11 +158,11 @@ export default function HostMatch() {
                 name="venueAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>詳細場地 / 地址</FormLabel>
+                    <FormLabel>{t('hostMatchAddressLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="例如：摩士公園 3 號場" {...field} />
+                      <Input placeholder={t('hostMatchAddressPlaceholder')} {...field} />
                     </FormControl>
-                    <FormDescription className="text-[11px]">請填寫具體場號（例如：3號場）。</FormDescription>
+                    <FormDescription className="text-[11px]">{t('hostMatchAddressHelper')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -167,13 +173,13 @@ export default function HostMatch() {
                 name="surface"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>場地類型</FormLabel>
+                    <FormLabel>{t('hostMatchSurfaceLabel')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="hard">硬地 (Hard)</SelectItem>
-                        <SelectItem value="turf">仿真草 (Turf)</SelectItem>
-                        <SelectItem value="grass">真草 (Grass)</SelectItem>
+                        <SelectItem value="hard">{t('hostMatchSurfaceHard')}</SelectItem>
+                        <SelectItem value="turf">{t('hostMatchSurfaceTurf')}</SelectItem>
+                        <SelectItem value="grass">{t('hostMatchSurfaceGrass')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -187,7 +193,7 @@ export default function HostMatch() {
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>日期</FormLabel>
+                      <FormLabel>{t('hostMatchDateLabel')}</FormLabel>
                       <FormControl><Input type="date" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -198,7 +204,7 @@ export default function HostMatch() {
                   name="startTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>開始時間</FormLabel>
+                      <FormLabel>{t('hostMatchStartTimeLabel')}</FormLabel>
                       <FormControl><Input type="time" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -209,7 +215,7 @@ export default function HostMatch() {
                   name="endTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>完結時間</FormLabel>
+                      <FormLabel>{t('hostMatchEndTimeLabel')}</FormLabel>
                       <FormControl><Input type="time" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -223,11 +229,11 @@ export default function HostMatch() {
                   name="maxPlayers"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>人數上限</FormLabel>
+                      <FormLabel>{t('hostMatchMaxPlayersLabel')}</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} step={1} placeholder="留空 = 不設上限" {...field} />
+                        <Input type="number" min={1} step={1} placeholder={t('hostMatchMaxPlayersPlaceholder')} {...field} />
                       </FormControl>
-                      <FormDescription className="text-[11px]">留空就係不設上限。</FormDescription>
+                      <FormDescription className="text-[11px]">{t('hostMatchMaxPlayersHelper')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -237,11 +243,11 @@ export default function HostMatch() {
                   name="fee"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>報名費 / 人 (HKD)</FormLabel>
+                      <FormLabel>{t('hostMatchFeeLabel')}</FormLabel>
                       <FormControl>
-                        <Input type="number" min={0} placeholder="留空 = 免費" {...field} />
+                        <Input type="number" min={0} placeholder={t('hostMatchFeePlaceholder')} {...field} />
                       </FormControl>
-                      <FormDescription className="text-[11px]">留空或 0 = 免費場。</FormDescription>
+                      <FormDescription className="text-[11px]">{t('hostMatchFeeHelper')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -251,15 +257,15 @@ export default function HostMatch() {
                   name="skillLevel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>水平要求 (1-5★)</FormLabel>
+                      <FormLabel>{t('hostMatchLevelLabel')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="1">1★ (新手)</SelectItem>
-                          <SelectItem value="2">2★ (業餘)</SelectItem>
-                          <SelectItem value="3">3★ (常規)</SelectItem>
-                          <SelectItem value="4">4★ (競技)</SelectItem>
-                          <SelectItem value="5">5★ (職業)</SelectItem>
+                          <SelectItem value="1">{t('hostMatchLevel1')}</SelectItem>
+                          <SelectItem value="2">{t('hostMatchLevel2')}</SelectItem>
+                          <SelectItem value="3">{t('hostMatchLevel3')}</SelectItem>
+                          <SelectItem value="4">{t('hostMatchLevel4')}</SelectItem>
+                          <SelectItem value="5">{t('hostMatchLevel5')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -271,7 +277,7 @@ export default function HostMatch() {
 
             <section className="space-y-6">
               <h2 className="text-xl font-display font-bold uppercase border-b border-border pb-2 flex items-center gap-2">
-                <Info className="w-5 h-5 text-primary" /> 詳細資料
+                <Info className="w-5 h-5 text-primary" /> {t('hostMatchDetailSection')}
               </h2>
 
               <FormField
@@ -279,8 +285,8 @@ export default function HostMatch() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>活動描述</FormLabel>
-                    <FormControl><Textarea className="h-24" placeholder="例如：休閒踢，志在流汗。" {...field} /></FormControl>
+                    <FormLabel>{t('hostMatchDescLabel')}</FormLabel>
+                    <FormControl><Textarea className="h-24" placeholder={t('hostMatchDescPlaceholder')} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -291,8 +297,8 @@ export default function HostMatch() {
                 name="rules"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>特別規則</FormLabel>
-                    <FormControl><Textarea placeholder="例如：守門員免費、不准粗口、自備一淺一深波衫。" {...field} /></FormControl>
+                    <FormLabel>{t('hostMatchRulesLabel')}</FormLabel>
+                    <FormControl><Textarea placeholder={t('hostMatchRulesPlaceholder')} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -304,14 +310,14 @@ export default function HostMatch() {
                 <Check className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="font-bold mb-1 text-primary">Publish 後會即時 Push 俾同區用戶</h4>
-                <p className="text-sm text-primary/80">系統會自動通知附近活躍球員。平台代收報名費，避免「放飛機」。</p>
+                <h4 className="font-bold mb-1 text-primary">{t('hostMatchPublishNote')}</h4>
+                <p className="text-sm text-primary/80">{t('hostMatchPublishDetail')}</p>
               </div>
             </div>
 
             <div className="flex justify-end gap-4 pt-4">
-              <Button type="button" variant="outline" onClick={() => setLocation('/discover')}>取消</Button>
-              <Button type="submit" size="lg" className="font-bold tracking-widest uppercase">發佈公開場</Button>
+              <Button type="button" variant="outline" onClick={() => setLocation('/discover')}>{t('hostMatchCancelBtn')}</Button>
+              <Button type="submit" size="lg" className="font-bold tracking-widest uppercase">{t('hostMatchPublishBtn')}</Button>
             </div>
           </form>
         </Form>

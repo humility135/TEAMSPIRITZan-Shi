@@ -1,17 +1,18 @@
 import { db, notificationsTable } from "@workspace/db";
 import { newId } from "./ids";
 
-export async function notify(userId: string, message: string, type: "event" | "system" | "team" = "event") {
+export async function notify(userId: string, message: string, messageEn?: string, type: "event" | "system" | "team" = "event") {
   await db.insert(notificationsTable).values({
     id: newId("n"),
     userId,
     type,
     message,
+    messageEn,
     read: false,
   });
 }
 
-export async function notifyMany(userIds: string[], message: string, type: "event" | "system" | "team" = "event") {
+export async function notifyMany(userIds: string[], message: string, messageEn?: string, type: "event" | "system" | "team" = "event") {
   if (userIds.length === 0) return;
   await db.insert(notificationsTable).values(
     userIds.map((userId) => ({
@@ -19,6 +20,7 @@ export async function notifyMany(userIds: string[], message: string, type: "even
       userId,
       type,
       message,
+      messageEn,
       read: false,
     })),
   );

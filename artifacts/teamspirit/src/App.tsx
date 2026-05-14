@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { AppProvider } from "@/lib/store";
+import { I18nProvider } from "@/lib/i18n";
 import { Layout } from "@/components/layout";
 
 import Home from "@/pages/home";
@@ -15,6 +16,7 @@ import TeamChat from "@/pages/team-chat";
 import EventDetail from "@/pages/event-detail";
 import Pricing from "@/pages/pricing";
 import Profile from "@/pages/profile";
+import Notifications from "@/pages/notifications";
 import Discover from "@/pages/discover";
 import Teams from "@/pages/teams";
 import TeamHostEvent from "@/pages/team-host-event";
@@ -58,6 +60,7 @@ function AppRoutes() {
           <Route path="/events" component={Events} />
           <Route path="/events/:eventId" component={EventDetail} />
           <Route path="/profile" component={Profile} />
+          <Route path="/notifications" component={Notifications} />
           <Route path="/terms" component={Terms} />
           <Route component={NotFound} />
         </Switch>
@@ -79,7 +82,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRoutes />
+            <I18nProvider>
+              <AppRoutes />
+            </I18nProvider>
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

@@ -69,8 +69,11 @@ async function sync() {
 
       for (const item of data) {
         const name = item.Name_tc || item.Name_cn || item.Name_en || "";
+        const nameEn = item.Name_en || "";
         const address = item.Address_tc || item.Address_cn || item.Address_en || "";
+        const addressEn = item.Address_en || "";
         let district = item.District_tc || item.District_cn || item.District_en || "";
+        const districtEn = item.District_en || "";
         
         // Normalize district
         if (district) {
@@ -96,8 +99,11 @@ async function sync() {
         await db.insert(venuesTable).values({
           id,
           name,
+          nameEn,
           address,
+          addressEn,
           district,
+          districtEn,
           lat,
           lng,
           surface: source.surface as any,
@@ -106,8 +112,11 @@ async function sync() {
           target: venuesTable.id,
           set: {
             name,
+            nameEn,
             address,
+            addressEn,
             district,
+            districtEn,
             lat,
             lng,
             surface: source.surface as any

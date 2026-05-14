@@ -5,6 +5,7 @@ export const notificationsTable = sqliteTable("notifications", {
   userId: text("user_id").notNull(),
   type: text("type").notNull(),
   message: text("message").notNull(),
+  messageEn: text("message_en"),
   read: integer("read", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });

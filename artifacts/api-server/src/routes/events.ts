@@ -216,7 +216,7 @@ router.post("/events/:id/slot-offers/:offerId/pay", requireAuth, async (req, res
   const orderId = newId("ord");
   await db.insert(ordersTable).values({
     id: orderId, userId: me.id, kind: "event_slot", refId: e.id,
-    amount: e.fee, status: "paid", paidAt: new Date(),
+    amount: e.fee, status: "paid", paidAt: new Date().toISOString(),
   });
   await notify(me.id, `付款成功，已補上：${e.title}`);
   res.json({ ok: true, event: updated, orderId });
@@ -257,8 +257,19 @@ router.patch("/events/:id/stats", requireAuth, async (req, res): Promise<void> =
   const parsed = StatsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const id = String(req.params.id);
+  const me = (req as AuthedRequest).user;
   const [e] = await db.select().from(eventsTable).where(eq(eventsTable.id, id));
   if (!e) { res.status(404).json({ error: "Not found" }); return; }
+
+  // Check if user is owner/admin of the team
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+    
+  if (!memberRecord || (memberRecord.role !== "Owner" && memberRecord.role !== "Admin")) {
+    res.status(403).json({ error: "Forbidden: Only team Owner or Admin can update stats" });
+    return;
+  }
+
   const playerStats: PlayerStat[] = [...e.playerStats];
   let s = playerStats.find((p) => p.userId === parsed.data.userId);
   if (!s) {
@@ -290,6 +301,28 @@ router.post("/events/:id/cancel", requireAuth, async (req, res): Promise<void> =
     .where(eq(eventsTable.id, id)).returning();
     
   await notifyMany(e.attendingIds, `球隊活動已取消：${e.title}`);
+  res.json(updated);
+});
+
+router.patch("/events/:id/finish", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const id = String(req.params.id);
+  const [e] = await db.select().from(eventsTable).where(eq(eventsTable.id, id));
+  if (!e) { res.status(404).json({ error: "Not found" }); return; }
+
+  const [memberRecord] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, e.teamId), eq(teamMembersTable.userId, me.id)));
+  if (!memberRecord || (memberRecord.role !== "Owner" && memberRecord.role !== "Admin")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+
+  const scoreSchema = z.object({ home: z.number().int().min(0), away: z.number().int().min(0) });
+  const parsed = scoreSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid score" }); return; }
+
+  const [updated] = await db.update(eventsTable)
+    .set({ status: "finished", finalScore: parsed.data })
+    .where(eq(eventsTable.id, id)).returning();
   res.json(updated);
 });
 

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n';
 
 function useNow(intervalMs: number = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -34,7 +35,8 @@ function formatRemaining(ms: number) {
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
   const [, setLocation] = useLocation();
-  const { events, users, teams, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
+  const { events, users, teams, venues, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
+  const { t, lang } = useI18n();
   const qc = useQueryClient();
   const now = useNow(1000);
   const [payOfferId, setPayOfferId] = useState<string | null>(null);
@@ -43,9 +45,15 @@ export default function EventDetail() {
   const [manageOpen, setManageOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentSending, setCommentSending] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [homeScore, setHomeScore] = useState('0');
+  const [awayScore, setAwayScore] = useState('0');
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const event = events.find(e => e.id === params?.eventId);
-  if (!event) return <div>Event not found</div>;
+  if (!event) return <div className="p-8 text-center">{t('noMatchesFound')}</div>;
 
   const commentsQ = useQuery({
     queryKey: ['eventComments', event.id],
@@ -57,7 +65,8 @@ export default function EventDetail() {
 
   // Check if current user is Owner or Admin of the team
   const myRole = currentUser.role?.[event.teamId];
-  const canManage = myRole === 'Owner' || myRole === 'Admin';
+  const isPast = new Date(event.datetime).getTime() < Date.now();
+  const canManage = (myRole === 'Owner' || myRole === 'Admin') && event.status !== 'cancelled';
 
   const isAttending = event.attendingIds.includes(currentUser.id);
   const isDeclined = event.declinedIds.includes(currentUser.id);
@@ -67,8 +76,9 @@ export default function EventDetail() {
   const isFinished = event.status === 'finished';
   const hasCap = event.capacity != null;
   const isFull = hasCap && event.attendingIds.length >= (event.capacity as number);
-  const venueAddress = event.venueAddress ?? '';
-  const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : '';
+  const venue = event.venueId ? venues.find(v => v.id === event.venueId) : undefined;
+  const venueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddressEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+  const mapsUrl = venueLabel !== '—' ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueLabel)}` : '';
 
   const myOffer = event.slotOffers.find(o => o.eligibleUserIds.includes(currentUser.id) || o.acceptedBy === currentUser.id);
   const acceptedByMe = myOffer?.acceptedBy === currentUser.id;
@@ -79,37 +89,37 @@ export default function EventDetail() {
     setRsvpOpen(false);
     setDeclineOpen(false);
     updateEventRSVP(event.id, status);
-    if (status === 'attending' && isFull && !isAttending) toast.info('已滿額，已自動加入候補名單');
+    if (status === 'attending' && isFull && !isAttending) toast.info(t('waitlistNote'));
   };
 
   const handleAcceptOffer = async () => {
     if (!myOffer) return;
     const { needPayment } = await acceptEventSlot(event.id, myOffer.id);
     if (needPayment) setPayOfferId(myOffer.id);
-    else toast.success('已自動補上！');
+    else toast.success(t('slotAutoFilled'));
   };
 
   const handlePayOffer = async () => {
     if (!payOfferId) return;
     const r = await payEventSlot(event.id, payOfferId);
     setPayOfferId(null);
-    if (r.ok) toast.success('付款成功，已正式補上');
-    else if (r.reason === 'expired') toast.error('呢個補位機會已過期');
-    else if (r.reason === 'full') toast.error('已滿額，無法完成補位');
-    else toast.error('付款失敗，請再試');
+    if (r.ok) toast.success(t('eventDetailPaymentSuccess'));
+    else if (r.reason === 'expired') toast.error(t('eventDetailOfferExpired'));
+    else if (r.reason === 'full') toast.error(t('eventDetailFullCannotFill'));
+    else toast.error(t('eventDetailPaymentFailed'));
   };
 
   const handleSendComment = async () => {
     const text = commentText.trim();
-    if (!text) { toast.error('請先輸入留言'); return; }
-    if (text.length > 1000) { toast.error('留言太長（最多 1000 字）'); return; }
+    if (!text) { toast.error(t('commentPlaceholder')); return; }
+    if (text.length > 1000) { toast.error(t('commentTooLong')); return; }
     setCommentSending(true);
     try {
       await api(`/events/${event.id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
       setCommentText('');
       await qc.invalidateQueries({ queryKey: ['eventComments', event.id] });
     } catch (e: any) {
-      toast.error(e?.message || '送出失敗');
+      toast.error(e?.message || t('processing'));
     } finally {
       setCommentSending(false);
     }
@@ -118,18 +128,35 @@ export default function EventDetail() {
   const handleDeclineOffer = async () => {
     if (!myOffer) return;
     await declineEventSlot(event.id, myOffer.id);
-    toast.info('已放棄此次補位');
+    toast.info(t('declineOffer'));
   };
 
   const handleCancelEvent = async () => {
-    if (confirm("確定要取消此球隊活動嗎？所有已報名嘅參加者都會收到通知。")) {
-      try {
-        await cancelEvent(event.id);
-        toast.success("活動已取消");
-        setManageOpen(false);
-      } catch (e: any) {
-        toast.error(e.message || "取消失敗");
-      }
+    setIsCancelling(true);
+    try {
+      await cancelEvent(event.id);
+      toast.success(t('matchCancelled'));
+      setCancelOpen(false);
+      setManageOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || t('eventDetailCancelFailed'));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const { finishEvent } = useAppStore();
+  const handleFinishMatch = async () => {
+    setIsFinishing(true);
+    try {
+      await finishEvent(event.id, { home: Number(homeScore), away: Number(awayScore) });
+      toast.success(t('confirmFinish'));
+      setFinishOpen(false);
+      setManageOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || t('eventDetailFinishFailed'));
+    } finally {
+      setIsFinishing(false);
     }
   };
 
@@ -141,41 +168,57 @@ export default function EventDetail() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase border border-primary/20">
-                {event.status === 'finished' ? '已完場' : event.status === 'cancelled' ? '已取消' : '即將舉行'}
+                {event.status === 'finished' ? t('statusFinished') : event.status === 'cancelled' ? t('statusCancelled') : t('statusScheduled')}
               </div>
-              {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase">免費</Badge>}
-              {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase">無上限</Badge>}
-              {isFull && <Badge className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/40 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+              {event.fee === 0 && <Badge className="bg-green-500/15 text-green-400 border border-green-500/40 text-[10px] tracking-widest uppercase">{t('free')}</Badge>}
+              {!hasCap && <Badge className="bg-primary/15 text-primary border border-primary/40 text-[10px] tracking-widest uppercase">{t('spotsUnlimited')}</Badge>}
+              {isFull && <Badge className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/40 text-[10px] tracking-widest uppercase">{t('statusFull')}</Badge>}
             </div>
 
-            {canManage && event.status === 'scheduled' && (
+            {canManage && (event.status === 'scheduled' || event.status === 'finished') && (
               <Dialog open={manageOpen} onOpenChange={setManageOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10">
-                    <Settings className="w-4 h-4" /> 管理活動
+                    <Settings className="w-4 h-4" /> {t('manageEvent')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">管理活動</DialogTitle>
+                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('eventDetailManage')}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-4">
+                    {isPast && event.status === 'scheduled' && (
+                      <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-bold text-destructive flex items-center gap-2">
-                              <AlertTriangle className="w-4 h-4" /> 取消活動
+                            <div className="font-bold text-primary flex items-center gap-2">
+                              <Check className="w-4 h-4" /> {t('finishMatch')}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">取消後所有參加者會收到通知，無法復原。</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t('finishMatchHint')}</div>
                           </div>
-                          <Button variant="destructive" onClick={handleCancelEvent}>取消</Button>
+                          <Button onClick={() => setFinishOpen(true)}>{t('finishMatch')}</Button>
                         </div>
+                      </div>
+                    )}
+
+                    <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-destructive flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" /> {event.status === 'finished' ? t('deleteMatch') : t('cancelMatch')}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {event.status === 'finished' ? t('deleteMatchConfirmHint') : t('cancelMatchConfirmHint')}
+                          </div>
+                        </div>
+                        <Button variant="destructive" onClick={() => setCancelOpen(true)}>
+                          {event.status === 'finished' ? t('deleteMatch') : t('cancelMatch')}
+                        </Button>
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setManageOpen(false)}>關閉</Button>
+                    <Button variant="outline" onClick={() => setManageOpen(false)}>{t('close')}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -186,8 +229,8 @@ export default function EventDetail() {
 
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="font-bold text-white text-base">{event.attendingIds.length}</span>{hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">人（無上限）</span>}
-              {hasCap && <span className="text-xs">人已報名</span>}
+              <span className="font-bold text-white text-base">{event.attendingIds.length}</span>{hasCap ? <span>/ {event.capacity}</span> : <span className="text-primary text-xs">{t('unlimited')}</span>}
+              {hasCap && <span className="text-xs">{t('spotsRegistered')}</span>}
             </span>
           </div>
 
@@ -195,25 +238,25 @@ export default function EventDetail() {
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-primary shrink-0" />
               <span className="text-lg">
-                {safeDate(event.datetime).toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} · {formatTime(event.datetime)}
+                {formatDate(safeDate(event.datetime), lang === 'en' ? 'en-US' : 'zh-HK')} · {formatTime(event.datetime)}
                 {event.endDatetime && <span className="text-muted-foreground"> – {formatTime(event.endDatetime)}</span>}
               </span>
             </div>
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
               <div className="flex-1 min-w-0">
-                <div className="text-lg text-white break-words">{venueAddress || '—'}</div>
-                <div className="text-xs mt-1">點 <span className="text-primary">導航</span> 可喺 Google Maps 開啟。</div>
+                <div className="text-lg text-white break-words">{venueLabel}</div>
+                <div className="text-xs mt-1">{t('navHint')}</div>
               </div>
               {mapsUrl && (
                 <Button variant="outline" size="sm" className="bg-white/5 uppercase tracking-wider font-bold text-xs gap-1.5 shrink-0" onClick={() => window.open(mapsUrl, '_blank')}>
-                  <Navigation className="w-3.5 h-3.5" /> 導航
+                  <Navigation className="w-3.5 h-3.5" /> {t('openMap')}
                 </Button>
               )}
             </div>
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold shrink-0">$</div>
-              <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee} / 人` : '免費入場'}</span>
+              <span className="text-lg font-display text-white">{event.fee > 0 ? `$${event.fee} / ${t('pax')}` : t('free')}</span>
             </div>
           </div>
         </div>
@@ -226,14 +269,14 @@ export default function EventDetail() {
               <div className="flex-1 space-y-3">
                 <div>
                   <div className="font-display uppercase tracking-wide text-lg">
-                    {myOffer.mode === 'race' ? '搶位中（24h 內）' : '輪到你補位'}
+                    {myOffer.mode === 'race' ? t('raceMode') : t('queueMode')}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {acceptedByMe
-                      ? `已接受！請於 1 小時內完成付款。剩餘 `
+                      ? t('offerAcceptedHint')
                       : myOffer.mode === 'race'
-                        ? `有人放飛機，候補嘅各位鬥快 claim。先 claim 先得，仲要 1 小時內付款先正式入到名單。`
-                        : `你係候補名單第 1 位，呢個位優先畀你。1 小時內接受並付款，否則自動畀下一位。`}
+                        ? t('offerRaceHint')
+                        : t('offerQueueHint')}
                     {acceptedByMe && deadlineMs && (
                       <span className="inline-block ml-1 font-mono font-bold text-yellow-400">{formatRemaining(remainingMs)}</span>
                     )}
@@ -243,16 +286,16 @@ export default function EventDetail() {
                   {!acceptedByMe ? (
                     <>
                       <Button size="lg" className="font-bold uppercase tracking-wider bg-yellow-500 hover:bg-yellow-400 text-black" onClick={handleAcceptOffer}>
-                        {event.fee > 0 ? `接受並付款 ($${event.fee})` : '接受補位'}
+                        {event.fee > 0 ? `${t('acceptOffer')} ($${event.fee})` : t('acceptOffer')}
                       </Button>
-                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>放棄</Button>
+                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>{t('declineOffer')}</Button>
                     </>
                   ) : (
                     <>
                       <Button size="lg" className="font-bold uppercase tracking-wider bg-primary text-primary-foreground" onClick={() => setPayOfferId(myOffer.id)}>
-                        立即付款 (${event.fee})
+                        {t('payNow')} (${event.fee})
                       </Button>
-                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>放棄</Button>
+                      <Button size="lg" variant="outline" onClick={handleDeclineOffer}>{t('declineOffer')}</Button>
                     </>
                   )}
                 </div>
@@ -266,44 +309,44 @@ export default function EventDetail() {
         <div className="border-t border-border p-4 bg-black/20 space-y-3">
           {isWaitlist && !myOffer && (
             <div className="text-center text-sm text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
-              你已加入候補（第 {waitlistPos} 位）— 有人放飛機，系統會即時通知你
+              {t('joined')} ({t('waitlistRank').replace('{rank}', waitlistPos.toString())})
             </div>
           )}
           <div className="flex flex-wrap items-center justify-center gap-4">
             {isAttending ? (
               <Button size="lg" variant="default" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8 bg-green-500 text-black hover:bg-green-400">
-                <Check className="w-5 h-5 mr-2"/> 已出席
+                <Check className="w-5 h-5 mr-2"/> {t('eventDetailAttended')}
               </Button>
             ) : (
               <Dialog open={rsvpOpen} onOpenChange={setRsvpOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
-                    {isWaitlist
-                      ? '已喺候補名單'
-                      : isFull
-                        ? `加入候補${event.fee > 0 ? '（$0 留位）' : ''}`
-                        : canManage
-                          ? '出席（發起人免費）'
-                          : `出席${event.fee > 0 ? ` ($${event.fee})` : ''}`}
-                  </Button>
+              <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
+                {isWaitlist
+                  ? t('joined')
+                  : isFull
+                    ? t('joinWaitlist')
+                    : canManage
+                      ? t('attendFree')
+                      : t('registerNow')}
+              </Button>
                 </DialogTrigger>
                 {!isWaitlist && (
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle className="font-display uppercase tracking-wider text-2xl">
-                        {isFull ? '加入候補' : canManage ? '出席確認' : '付款確認'}
+                        {isFull ? t('joinWaitlist') : t('registerConfirm')}
                       </DialogTitle>
                     </DialogHeader>
                     <div className="py-6 space-y-3">
                       <p className="text-sm text-muted-foreground">
                         {isFull
-                          ? '依家已滿額，會將你加入候補名單。如果有人放飛機，系統會即時通知你補位（1 小時內付款）。'
+                          ? t('waitlistNote')
                           : canManage
-                            ? `確認出席「${event.title}」（發起人免費）。`
-                            : `確認出席「${event.title}」${event.fee > 0 ? `，需付款 $${event.fee}` : '（免費）'}。`}
+                            ? t('confirmAttendFree', { title: event.title })
+                            : event.fee > 0 ? t('confirmAttendPaid', { title: event.title, fee: event.fee.toString() }) : t('confirmAttendFreeNoFee', { title: event.title })}
                       </p>
                       <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={() => handleRSVP('attending')}>
-                        {isFull ? '加入候補' : canManage ? '確認出席' : event.fee > 0 ? `Stripe 結帳 ($${event.fee})` : '確認出席'}
+                        {isFull ? t('joinWaitlist') : canManage ? t('confirmAttending') : t('confirmPayment')}
                       </Button>
                     </div>
                   </DialogContent>
@@ -313,27 +356,27 @@ export default function EventDetail() {
 
             {isDeclined ? (
               <Button size="lg" variant="destructive" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
-                <X className="w-5 h-5 mr-2"/> 已缺席
+                <X className="w-5 h-5 mr-2"/> {t('eventsAbsent')}
               </Button>
             ) : (
               <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8">
-                    缺席
+                    {t('declineMatch')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">缺席確認</DialogTitle>
+                    <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('declineConfirmHeader')}</DialogTitle>
                   </DialogHeader>
                   <div className="py-6 space-y-4">
-                    <p className="text-sm text-muted-foreground">確定要將「{event.title}」設為缺席？</p>
+                    <p className="text-sm text-muted-foreground">{t('declineConfirmBody', { title: event.title })}</p>
                     <div className="flex gap-3">
                       <Button size="lg" variant="destructive" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={() => handleRSVP('declined')}>
-                        確定缺席
+                        {t('confirmCancel')}
                       </Button>
                       <Button size="lg" variant="outline" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={() => setDeclineOpen(false)}>
-                        取消
+                        {t('notCancel')}
                       </Button>
                     </div>
                   </div>
@@ -343,7 +386,7 @@ export default function EventDetail() {
 
             {isWaitlist && (
               <Button size="lg" variant="outline" className="w-full md:w-auto font-bold tracking-widest uppercase h-14 px-8" onClick={() => handleRSVP('none')}>
-                取消候補
+                {t('leaveWaitlist')}
               </Button>
             )}
           </div>
@@ -351,23 +394,60 @@ export default function EventDetail() {
       )}
     </Card>
 
+      {/* Finish Event Dialog */}
+      <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl text-center">{t('scoreReport')}</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 space-y-8">
+            <div className="flex items-center justify-center gap-6">
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('home')}</div>
+                <input
+                  type="number"
+                  value={homeScore}
+                  onChange={e => setHomeScore(e.target.value)}
+                  className="w-20 h-20 text-4xl font-display font-bold text-center bg-black/40 rounded-2xl border border-border focus:border-primary outline-none"
+                />
+              </div>
+              <div className="text-4xl font-display font-bold text-muted-foreground mt-6">-</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('away')}</div>
+                <input
+                  type="number"
+                  value={awayScore}
+                  onChange={e => setAwayScore(e.target.value)}
+                  className="w-20 h-20 text-4xl font-display font-bold text-center bg-black/40 rounded-2xl border border-border focus:border-primary outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">{t('postMatchHint')}</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setFinishOpen(false)} disabled={isFinishing}>{t('notCancel')}</Button>
+            <Button onClick={handleFinishMatch} disabled={isFinishing} className="font-bold tracking-wide uppercase">{t('confirmFinish')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Pay slot dialog */}
       <Dialog open={!!payOfferId} onOpenChange={(open) => !open && setPayOfferId(null)}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="font-display uppercase tracking-wider text-2xl">補位付款</DialogTitle>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('payNow')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="text-center text-5xl font-display font-bold text-yellow-400">
               {formatRemaining(remainingMs)}
             </div>
-            <p className="text-sm text-center text-muted-foreground">逾時將會自動畀下一位候補</p>
+            <p className="text-sm text-center text-muted-foreground">{t('payDeadlineHint')}</p>
             <div className="bg-black/30 p-3 rounded-xl flex justify-between font-bold">
-              <span>應付</span>
+              <span>{t('payDue')}</span>
               <span className="text-primary">${event.fee.toFixed(2)}</span>
             </div>
             <Button size="lg" className="w-full h-14 font-bold tracking-wider uppercase" onClick={handlePayOffer}>
-              Stripe 結帳 (${event.fee})
+              {t('stripeCheckout')} (${event.fee})
             </Button>
           </div>
         </DialogContent>
@@ -377,18 +457,18 @@ export default function EventDetail() {
       {isFinished && (
         <div className="space-y-6">
           <Card className="p-8 border-border bg-card/50 backdrop-blur text-center">
-            <h2 className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-4">Final Score</h2>
+            <h2 className="text-sm font-bold tracking-widest uppercase text-muted-foreground mb-4">{t('scoreReport')}</h2>
             <div className="flex items-center justify-center gap-8 md:gap-16">
-              <div className="text-3xl md:text-5xl font-display font-bold">HOME</div>
+              <div className="text-3xl md:text-5xl font-display font-bold">{t('home')}</div>
               <div className="text-6xl md:text-8xl font-display font-bold text-primary tracking-tighter">
                 {event.finalScore?.home} <span className="text-4xl text-muted-foreground">-</span> {event.finalScore?.away}
               </div>
-              <div className="text-3xl md:text-5xl font-display font-bold">AWAY</div>
+              <div className="text-3xl md:text-5xl font-display font-bold">{t('away')}</div>
             </div>
           </Card>
 
           <Card className="p-6 border-border bg-card/50 backdrop-blur">
-            <h2 className="text-xl font-display font-bold uppercase tracking-wide mb-6">Match Stats (Admin)</h2>
+            <h2 className="text-xl font-display font-bold uppercase tracking-wide mb-6">{t('matchStatsAdmin')}</h2>
             <div className="space-y-4">
               {event.attendingIds.map(id => {
                 const u = users.find(x => x.id === id);
@@ -400,8 +480,8 @@ export default function EventDetail() {
                       <span className="font-bold">{u?.name || id}</span>
                     </div>
                     <div className="flex items-center gap-6">
-                      <StatCounter label="Goals" value={stat.goals} onMinus={() => updateMatchStats(event.id, id, 'goals', -1)} onPlus={() => updateMatchStats(event.id, id, 'goals', 1)} />
-                      <StatCounter label="Assists" value={stat.assists} onMinus={() => updateMatchStats(event.id, id, 'assists', -1)} onPlus={() => updateMatchStats(event.id, id, 'assists', 1)} />
+                      <StatCounter label={t('goalsLabel')} value={stat.goals} onMinus={() => updateMatchStats(event.id, id, 'goals', -1)} onPlus={() => updateMatchStats(event.id, id, 'goals', 1)} />
+                      <StatCounter label={t('assistsLabel')} value={stat.assists} onMinus={() => updateMatchStats(event.id, id, 'assists', -1)} onPlus={() => updateMatchStats(event.id, id, 'assists', 1)} />
                       
                       <div className="flex gap-2">
                         <Button size="icon" variant="outline" className={`w-8 h-8 rounded ${stat.yellow > 0 ? 'bg-yellow-500 border-yellow-500' : 'border-yellow-500/50 text-yellow-500'}`} onClick={() => updateMatchStats(event.id, id, 'yellow', stat.yellow > 0 ? -1 : 1)}></Button>
@@ -421,11 +501,11 @@ export default function EventDetail() {
         <div className={`grid gap-8 ${event.waitlistIds.length > 0 ? 'md:grid-cols-2' : ''}`}>
           <div className="space-y-4">
             <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between">
-              出席名單 <span className="text-primary">{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}</span>
+              {t('attendeesList')} <span className="text-primary">{event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''}</span>
             </h3>
             <Card className="border-border bg-card/50 backdrop-blur p-4">
               {event.attendingIds.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">仲未有人出席</p>
+                <p className="text-sm text-muted-foreground text-center py-4">{t('eventDetailNoAttendees')}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {event.attendingIds.map(id => {
@@ -444,7 +524,7 @@ export default function EventDetail() {
           {event.waitlistIds.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-xl font-display font-bold uppercase flex items-center justify-between text-muted-foreground">
-                候補名單 <span>{event.waitlistIds.length}</span>
+                {t('eventDetailWaitlist')} <span>{event.waitlistIds.length}</span>
               </h3>
               <Card className="border-border bg-card/50 backdrop-blur p-4">
                 <div className="space-y-2">
@@ -466,14 +546,14 @@ export default function EventDetail() {
       )}
 
       <Card className="p-6 border-border bg-card/50 backdrop-blur">
-        <h3 className="font-bold text-xl mb-6 flex items-center gap-2">留言區</h3>
+        <h3 className="font-bold text-xl mb-6 flex items-center gap-2">{t('commentZone')}</h3>
         {commentsForbidden ? (
-          <p className="text-sm text-muted-foreground text-center py-4">你唔係球隊成員，無法查看留言。</p>
+          <p className="text-sm text-muted-foreground text-center py-4">{t('forbiddenComment')}</p>
         ) : (
           <>
             <div className="space-y-6">
               {comments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">暫時未有留言。</p>
+                <p className="text-muted-foreground text-center py-4">{t('noComments')}</p>
               ) : (
                 comments.map((comment) => {
                   const u = users.find((x) => x.id === comment.userId);
@@ -486,7 +566,7 @@ export default function EventDetail() {
                       <div>
                         <div className="flex items-baseline gap-2 mb-1">
                           <span className="font-bold text-sm">{u?.name || comment.userId}</span>
-                          <span className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                          <span className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK')}</span>
                         </div>
                         <p className="text-sm">{comment.text}</p>
                       </div>
@@ -497,8 +577,8 @@ export default function EventDetail() {
             </div>
             <div className="pt-6 mt-6 border-t border-border space-y-3">
               <Textarea
-                placeholder="寫低你想問/想講嘅嘢…（Enter 送出，Shift+Enter 換行）"
-                aria-label="留言輸入"
+                placeholder={t('commentPlaceholder')}
+                aria-label={t('commentPlaceholder')}
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => {
@@ -510,7 +590,7 @@ export default function EventDetail() {
                 disabled={commentSending}
               />
               <Button className="w-full font-bold uppercase tracking-wider" variant="outline" onClick={handleSendComment} disabled={commentSending || commentsQ.isLoading}>
-                {commentSending ? '送出中…' : '送出留言'}
+                {commentSending ? t('processing') : t('sendComment')}
               </Button>
             </div>
           </>
@@ -521,15 +601,33 @@ export default function EventDetail() {
       {canManage && event.status === 'scheduled' && (
         <div className="pt-8 flex justify-center">
           <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30" onClick={handleCancelEvent}>
-            <AlertTriangle className="w-4 h-4 mr-2" /> 取消此活動
+            <AlertTriangle className="w-4 h-4 mr-2" /> {t('cancelMatch')}
           </Button>
         </div>
       )}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('cancelMatch')}</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <p className="text-sm text-muted-foreground">{t('cancelEventConfirmHint')}</p>
+            <div className="flex gap-3">
+              <Button size="lg" variant="destructive" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={handleCancelEvent} disabled={isCancelling}>
+                {isCancelling ? t('processing') : t('confirmCancel')}
+              </Button>
+              <Button size="lg" variant="outline" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={() => setCancelOpen(false)} disabled={isCancelling}>
+                {t('notCancel')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function StatCounter({ label, value, onMinus, onPlus }: any) {
+function StatCounter({ label, value, onMinus, onPlus }: { label: string; value: number; onMinus: () => void; onPlus: () => void }) {
   return (
     <div className="flex items-center gap-2">
       <div className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground w-12">{label}</div>

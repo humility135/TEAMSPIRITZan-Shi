@@ -3,21 +3,25 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { Calendar as CalendarIcon, MapPin, Users, ArrowRight, Compass, Shield, CheckCircle2, CircleDashed, List, LayoutGrid, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
+import { Event, PublicMatch } from '@/lib/types';
+
 type Entry =
-  | { kind: 'team'; item: any; datetime: string }
-  | { kind: 'public'; item: any; datetime: string };
+  | { kind: 'team'; item: Event; datetime: string }
+  | { kind: 'public'; item: PublicMatch & { title: string }; datetime: string };
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 export default function Events() {
   const { currentUser, teams, events, publicMatches, venues } = useAppStore();
+  const { t, lang } = useI18n();
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -32,7 +36,8 @@ export default function Events() {
     const joinedPublic: Entry[] = publicMatches
       .filter(m => m.attendees.includes(currentUser.id))
       .map(m => {
-        const venueName = venues.find(v => v.id === m.venueId)?.name || m.venueAddress || '公開場';
+        const v = venues.find(x => x.id === m.venueId);
+        const venueName = (lang === 'en' ? (v?.nameEn || m.venueAddressEn || m.venueAddress) : (v?.name || m.venueAddress)) || t('publicMatch');
         return { 
           kind: 'public', 
           item: { ...m, title: venueName }, 
@@ -70,9 +75,9 @@ export default function Events() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">
-            我嘅 <span className="text-primary">活動</span>
+            {t('eventsTitlePrefix')} <span className="text-primary">{t('eventsTitleHighlight')}</span>
           </h1>
-          <p className="text-muted-foreground text-lg">球隊活動日程，一眼睇晒。</p>
+          <p className="text-muted-foreground text-lg">{t('eventsDesc')}</p>
         </div>
         <div className="inline-flex rounded-xl bg-black/40 p-1 self-start md:self-auto">
           <Button
@@ -81,7 +86,7 @@ export default function Events() {
             onClick={() => setView('list')}
             className={`rounded-lg font-bold uppercase tracking-wider gap-2 ${view === 'list' ? 'bg-primary text-primary-foreground hover:bg-primary' : 'text-muted-foreground'}`}
           >
-            <List className="w-4 h-4" /> 列表
+            <List className="w-4 h-4" /> {t('eventsListView')}
           </Button>
           <Button
             size="sm"
@@ -89,16 +94,16 @@ export default function Events() {
             onClick={() => setView('calendar')}
             className={`rounded-lg font-bold uppercase tracking-wider gap-2 ${view === 'calendar' ? 'bg-primary text-primary-foreground hover:bg-primary' : 'text-muted-foreground'}`}
           >
-            <LayoutGrid className="w-4 h-4" /> 日曆
+            <LayoutGrid className="w-4 h-4" /> {t('eventsCalendarView')}
           </Button>
         </div>
       </header>
 
       {view === 'list' ? (
-        <Tabs value={filter} onValueChange={v => setFilter(v as any)}>
+        <Tabs value={filter} onValueChange={v => { if (v === 'upcoming' || v === 'past') setFilter(v); }}>
           <TabsList className="grid w-full grid-cols-2 max-w-sm bg-black/40 p-1 rounded-xl">
-            <TabsTrigger value="upcoming" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">即將舉行</TabsTrigger>
-            <TabsTrigger value="past" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">過往紀錄</TabsTrigger>
+            <TabsTrigger value="upcoming" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">{t('eventsUpcoming')}</TabsTrigger>
+            <TabsTrigger value="past" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase tracking-wider">{t('eventsPast')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value={filter} className="mt-6">
@@ -138,6 +143,7 @@ function FullScreenCalendar({
   onSelectDate: (d: Date | undefined) => void;
   dayEntries: Entry[];
 }) {
+  const { t, lang } = useI18n();
   const today = new Date();
   const [cursor, setCursor] = useState<Date>(selectedDate ?? today);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -201,7 +207,7 @@ function FullScreenCalendar({
     setSheetOpen(true);
   };
 
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekdays = t('eventsWeekdays').split(',');
 
   return (
     <>
@@ -211,18 +217,18 @@ function FullScreenCalendar({
           <div className="flex items-center justify-between">
             <div className="flex items-baseline gap-3 flex-wrap">
               <h2 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-wide">
-                {year}年 {month + 1}月
+                {year}{t('eventsYear')} {month + 1}{t('eventsMonth')}
               </h2>
               <span className="text-xs text-muted-foreground tracking-wider uppercase">
                 {monthStats.total > 0
-                  ? <>本月 <span className="text-primary font-bold">{monthStats.total}</span> 個活動 · {monthStats.daysWithEvents} 日</>
-                  : '本月暫無活動'}
+                  ? <>{t('eventsMonthStats')} <span className="text-primary font-bold">{monthStats.total}</span> {t('eventsMonthEvents')} · {monthStats.daysWithEvents} {t('eventsMonthDays')}</>
+                  : t('eventsMonthNone')}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={goToday} className="font-bold uppercase tracking-wider text-xs">今日</Button>
-              <Button variant="ghost" size="icon" onClick={goPrev} aria-label="上個月"><ChevronLeft className="w-5 h-5" /></Button>
-              <Button variant="ghost" size="icon" onClick={goNext} aria-label="下個月"><ChevronRight className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="sm" onClick={goToday} className="font-bold uppercase tracking-wider text-xs">{t('eventsToday')}</Button>
+              <Button variant="ghost" size="icon" onClick={goPrev} aria-label={t('eventsPrevMonth')}><ChevronLeft className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={goNext} aria-label={t('eventsNextMonth')}><ChevronRight className="w-5 h-5" /></Button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -234,7 +240,7 @@ function FullScreenCalendar({
                   : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white'
               }`}
             >
-              <Filter className="w-3 h-3" /> 只睇有活動日
+              <Filter className="w-3 h-3" /> {t('eventsFilterOnlyDays')}
             </button>
           </div>
         </div>
@@ -296,7 +302,7 @@ function FullScreenCalendar({
                       className="hidden sm:block truncate text-[10px] leading-tight px-1 py-0.5 rounded bg-white/10 text-foreground border-l-2 border-white/40"
                       title={e.item.title}
                     >
-                      {new Date(e.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })} {e.item.title}
+                      {new Date(e.datetime).toLocaleTimeString(lang === 'en' ? 'en-US' : 'zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })} {e.item.title}
                     </div>
                   ))}
                   {events.length > 2 && (
@@ -323,8 +329,8 @@ function FullScreenCalendar({
 
         {/* Legend */}
         <div className="flex items-center gap-4 p-3 border-t border-border bg-black/20 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/70" /> 球隊活動</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /> 公開場</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/70" /> {t('eventsLegendTeam')}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /> {t('eventsLegendPublic')}</span>
         </div>
       </Card>
 
@@ -333,15 +339,15 @@ function FullScreenCalendar({
         <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto bg-background border-t border-border">
           <SheetHeader className="text-left">
             <SheetTitle className="text-2xl font-display font-bold uppercase tracking-wide">
-              {selectedDate?.toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'long' })}
+              {selectedDate?.toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'long', day: 'numeric', weekday: 'long' })}
             </SheetTitle>
-            <p className="text-sm text-muted-foreground">{dayEntries.length} 個活動</p>
+            <p className="text-sm text-muted-foreground">{dayEntries.length} {t('eventsDayEvents')}</p>
           </SheetHeader>
           <div className="mt-4 space-y-3 pb-4">
             {dayEntries.length === 0 ? (
               <Card className="p-10 text-center border-dashed">
                 <CalendarIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">呢日冇任何活動。</p>
+                <p className="text-muted-foreground">{t('eventsDayNone')}</p>
               </Card>
             ) : (
               dayEntries.map((entry, i) => (
@@ -358,14 +364,15 @@ function FullScreenCalendar({
 }
 
 function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
+  const { t } = useI18n();
   return (
     <Card className="p-12 text-center border-dashed">
       <CalendarIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
       <h3 className="text-xl font-display font-bold uppercase tracking-wide mb-2">
-        {filter === 'upcoming' ? '暫時冇安排' : '冇過往紀錄'}
+        {filter === 'upcoming' ? t('eventsEmptyUpcomingTitle') : t('eventsEmptyPastTitle')}
       </h3>
       <p className="text-muted-foreground">
-        {filter === 'upcoming' ? '去球隊發起新活動。' : '踢多幾場就會見到歷史喇。'}
+        {filter === 'upcoming' ? t('eventsEmptyUpcomingDesc') : t('eventsEmptyPastDesc')}
       </p>
     </Card>
   );
@@ -374,12 +381,14 @@ function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
 function EventRow({ entry }: { entry: Entry }) {
   const { kind, item: event } = entry;
   const { teams, currentUser } = useAppStore();
+  const { t, lang } = useI18n();
   const isTeam = kind === 'team';
   const venueLabel = event.venueAddress ?? '—';
   
   if (isTeam) {
-    const hasCap = event.capacity != null;
-    const isFull = hasCap && event.attendingIds.length >= event.capacity;
+    const cap = event.capacity;
+    const hasCap = cap != null;
+    const isFull = hasCap && event.attendingIds.length >= cap;
     const team = teams.find(t => t.id === event.teamId);
     const rsvp = event.attendingIds.includes(currentUser.id)
       ? 'attending'
@@ -395,26 +404,26 @@ function EventRow({ entry }: { entry: Entry }) {
           <div className="flex flex-col sm:flex-row">
             <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-border bg-black/30 flex flex-col justify-center items-center text-center">
               <div className="text-xs text-primary font-bold tracking-wider uppercase">
-                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+                {new Date(event.datetime).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric' })}
               </div>
               <div className="text-2xl font-display font-bold mt-1">
-                {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {new Date(event.datetime).toLocaleTimeString(lang === 'en' ? 'en-US' : 'zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </div>
             </div>
             <div className="p-5 flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-white/20"><Shield className="w-3 h-3 mr-1"/>{team?.name}</Badge>
-                {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已確認</Badge>}
-                {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>候補</Badge>}
-                {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">缺席</Badge>}
-                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
-                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+                {rsvp === 'attending' && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>{t('eventsConfirmed')}</Badge>}
+                {rsvp === 'waitlist' && <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] tracking-widest uppercase"><CircleDashed className="w-3 h-3 mr-1"/>{t('eventsWaitlist')}</Badge>}
+                {rsvp === 'declined' && <Badge className="bg-muted text-muted-foreground border-0 text-[10px] tracking-widest uppercase">{t('eventsAbsent')}</Badge>}
+                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">{t('eventsFinished')}</Badge>}
+                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">{t('eventsFull')}</Badge>}
               </div>
               <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
               <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
                 <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
-                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${event.capacity}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
-                <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/人` : '免費'}</span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendingIds.length}{hasCap ? `/${cap}` : ''} {t('pax')}{!hasCap && <span className="text-primary ml-1">{t('unlimited')}</span>}</span>
+                <span className={event.fee > 0 ? '' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/${t('perPerson')}` : t('eventsFree')}</span>
               </div>
             </div>
             <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">
@@ -426,8 +435,9 @@ function EventRow({ entry }: { entry: Entry }) {
     );
   } else {
     // Public Match
-    const hasCap = event.maxPlayers != null;
-    const isFull = hasCap && event.attendees.length >= event.maxPlayers;
+    const maxP = event.maxPlayers;
+    const hasCap = maxP != null;
+    const isFull = hasCap && event.attendees.length >= maxP;
     const isAttending = event.attendees.includes(currentUser.id);
 
     return (
@@ -436,24 +446,24 @@ function EventRow({ entry }: { entry: Entry }) {
           <div className="flex flex-col sm:flex-row">
             <div className="p-5 sm:w-32 border-b sm:border-b-0 sm:border-r border-border bg-black/30 flex flex-col justify-center items-center text-center">
               <div className="text-xs text-primary font-bold tracking-wider uppercase">
-                {new Date(event.datetime).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+                {new Date(event.datetime).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric' })}
               </div>
               <div className="text-2xl font-display font-bold mt-1">
-                {new Date(event.datetime).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {new Date(event.datetime).toLocaleTimeString(lang === 'en' ? 'en-US' : 'zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </div>
             </div>
             <div className="p-5 flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-primary/40 bg-primary/10 text-primary">PUBLIC MATCH</Badge>
-                {isAttending && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>已報名</Badge>}
-                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">已完場</Badge>}
-                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">已滿額</Badge>}
+                <Badge variant="outline" className="text-[10px] tracking-widest uppercase border-primary/40 bg-primary/10 text-primary">{t('publicLabel')}</Badge>
+                {isAttending && <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px] tracking-widest uppercase"><CheckCircle2 className="w-3 h-3 mr-1"/>{t('registered')}</Badge>}
+                {event.status === 'finished' && <Badge variant="outline" className="text-[10px] tracking-widest uppercase">{t('eventsFinished')}</Badge>}
+                {isFull && <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] tracking-widest uppercase">{t('eventsFull')}</Badge>}
               </div>
               <h3 className="font-bold text-lg leading-tight truncate">{event.title}</h3>
               <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
                 <span className="flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /> <span className="truncate max-w-[220px]">{venueLabel}</span></span>
-                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendees.length}{hasCap ? `/${event.maxPlayers}` : ''} 人{!hasCap && <span className="text-primary ml-1">無上限</span>}</span>
-                <span className={event.fee > 0 ? 'text-primary font-bold' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}` : '免費'}</span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.attendees.length}{hasCap ? `/${maxP}` : ''} {t('pax')}{!hasCap && <span className="text-primary ml-1">{t('unlimited')}</span>}</span>
+                <span className={event.fee > 0 ? 'text-primary font-bold' : 'text-green-400 font-bold'}>{event.fee > 0 ? `$${event.fee}/${t('perPerson')}` : t('eventsFree')}</span>
               </div>
             </div>
             <div className="p-5 flex items-center justify-end border-t sm:border-t-0 sm:border-l border-border bg-black/20">

@@ -5,8 +5,11 @@ export type Weather = { temp: number; condition: string; lightningWarning: boole
 export const venuesTable = sqliteTable("venues", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  nameEn: text("name_en"),
   district: text("district").notNull(),
+  districtEn: text("district_en"),
   address: text("address").notNull(),
+  addressEn: text("address_en"),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
   surface: text("surface").notNull(),

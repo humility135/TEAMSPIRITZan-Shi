@@ -155,4 +155,30 @@ router.patch("/teams/:teamId/members/:userId", requireAuth, async (req, res): Pr
   res.json(updated ?? { ok: true });
 });
 
+router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
+  const me = (req as AuthedRequest).user;
+  const inviteCode = typeof req.body?.inviteCode === "string" ? req.body.inviteCode.trim().toUpperCase() : "";
+  if (!inviteCode) { res.status(400).json({ error: "請輸入邀請碼" }); return; }
+
+  const [team] = await db.select().from(teamsTable).where(eq(teamsTable.inviteCode, inviteCode));
+  if (!team) { res.status(404).json({ error: "搵唔到相關球隊，請檢查邀請碼是否正確" }); return; }
+
+  // Check if already a member
+  const [existing] = await db.select().from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, team.id), eq(teamMembersTable.userId, me.id)));
+  
+  if (existing) {
+    res.status(400).json({ error: "你已經係呢個球隊嘅成員" });
+    return;
+  }
+
+  await db.insert(teamMembersTable).values({
+    teamId: team.id,
+    userId: me.id,
+    role: "Member"
+  });
+
+  res.json({ success: true, teamId: team.id, teamName: team.name });
+});
+
 export default router;

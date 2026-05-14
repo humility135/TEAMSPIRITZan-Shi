@@ -21,6 +21,7 @@ export const publicMatchesTable = sqliteTable("public_matches", {
   isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
   waitlistIds: text("waitlist_ids", { mode: 'json' }).$type<string[]>().notNull().default([]),
   slotOffers: text("slot_offers", { mode: 'json' }).$type<SlotOffer[]>().notNull().default([]),
+  finalScore: text("final_score", { mode: 'json' }).$type<{ home: number; away: number } | null>(),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 

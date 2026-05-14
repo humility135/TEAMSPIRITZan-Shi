@@ -8,21 +8,34 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { hkDistricts, detectDistrict } from '@/lib/districts';
+import { hkDistricts, detectDistrict, districtTranslations } from '@/lib/districts';
 import { useLocation } from 'wouter';
 import { safeDate, formatTime } from '@/lib/utils';
+import { getDistance, getUserLocation } from '@/lib/geo';
+import { useEffect } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 export default function Discover() {
   const [, setLocation] = useLocation();
   const { publicMatches, users, venues, currentUser, hostProfiles } = useAppStore();
+  const { t, lang } = useI18n();
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const searchParams = new URLSearchParams(window.location.search);
+  const q = searchParams.get('q') || '';
+
+  useEffect(() => {
+    getUserLocation()
+      .then(pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
+      .catch(() => {});
+  }, []);
 
   const activeMatches = publicMatches.filter(m => m.status === 'open' || m.status === 'full');
 
   const filteredMatches = activeMatches.filter(m => {
     const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
-    const rawDistrict = venue?.district ?? (m.venueAddress ? detectDistrict(m.venueAddress) : '其他');
+    const rawDistrict = venue?.district ?? (m.venueAddress ? detectDistrict(m.venueAddress) : t('discoverOther'));
     
     // Check if the match matches the selected district
     if (districtFilter !== 'all' && rawDistrict !== districtFilter) return false;
@@ -33,8 +46,29 @@ export default function Discover() {
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
     if (matchDateStr < todayStr) return false;
 
+    // Search filter
+    if (q) {
+      const searchLower = q.toLowerCase();
+      const matchVenue = venue?.name?.toLowerCase().includes(searchLower) || 
+                         venue?.nameEn?.toLowerCase().includes(searchLower) ||
+                         m.venueAddress?.toLowerCase().includes(searchLower) ||
+                         m.venueAddressEn?.toLowerCase().includes(searchLower);
+      if (!matchVenue) return false;
+    }
+
     return true;
-  }).sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime());
+  }).sort((a, b) => {
+    if (userLocation) {
+      const vA = a.venueId ? venues.find(v => v.id === a.venueId) : null;
+      const vB = b.venueId ? venues.find(v => v.id === b.venueId) : null;
+      if (vA && vB) {
+        const dA = getDistance(userLocation.lat, userLocation.lng, vA.lat, vA.lng);
+        const dB = getDistance(userLocation.lat, userLocation.lng, vB.lat, vB.lng);
+        return dA - dB;
+      }
+    }
+    return safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime();
+  });
 
   // Use hkDistricts from lib
 
@@ -44,14 +78,14 @@ export default function Discover() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">
-              公開場 <span className="text-primary">Discover</span>
+              {t('discover')}
             </h1>
-            <p className="text-muted-foreground text-lg mt-2">任何人 book 咗場都可以 publish，散兵游勇即時報名加入。</p>
+            <p className="text-muted-foreground text-lg mt-2">{t('discoverDesc')}</p>
           </div>
           <Link href="/discover/host">
             <Button className="font-bold tracking-wide uppercase">
               <Plus className="w-5 h-5 mr-2" />
-              成為 Host (發佈公開場)
+              {t('hostMatch')}
             </Button>
           </Link>
         </div>
@@ -60,12 +94,12 @@ export default function Discover() {
           <div className="flex-1">
             <Select value={districtFilter} onValueChange={setDistrictFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="地區" />
+                <SelectValue placeholder={t('filterDistrict')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">所有地區</SelectItem>
+                <SelectItem value="all">{t('allDistricts')}</SelectItem>
                 {hkDistricts.map(d => (
-                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                  <SelectItem key={d} value={d}>{lang === 'en' ? districtTranslations[d] : d}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -73,15 +107,15 @@ export default function Discover() {
           <div className="flex-1">
             <Select value={levelFilter} onValueChange={setLevelFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="水平" />
+                <SelectValue placeholder={t('filterLevel')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">所有水平</SelectItem>
-                <SelectItem value="1">1★ (新手)</SelectItem>
-                <SelectItem value="2">2★ (業餘)</SelectItem>
-                <SelectItem value="3">3★ (常規)</SelectItem>
-                <SelectItem value="4">4★ (競技)</SelectItem>
-                <SelectItem value="5">5★ (職業)</SelectItem>
+                <SelectItem value="all">{t('allLevels')}</SelectItem>
+                <SelectItem value="1">{t('level1')}</SelectItem>
+                <SelectItem value="2">{t('level2')}</SelectItem>
+                <SelectItem value="3">{t('level3')}</SelectItem>
+                <SelectItem value="4">{t('level4')}</SelectItem>
+                <SelectItem value="5">{t('level5')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -94,19 +128,19 @@ export default function Discover() {
             <Search className="w-10 h-10 text-primary" />
           </div>
           <div>
-            <h3 className="text-2xl font-display font-bold uppercase tracking-wide mb-2">未有符合條件的公開場</h3>
-            <p className="text-muted-foreground">你嗰區仲未有公開場，要唔要做第一個 host?</p>
+            <h3 className="text-2xl font-display font-bold uppercase tracking-wide mb-2">{t('noMatchesFound')}</h3>
+            <p className="text-muted-foreground">{t('beFirstHost')}</p>
           </div>
           <Link href="/discover/host">
-            <Button size="lg" className="font-bold tracking-wide uppercase">立即發佈</Button>
+            <Button size="lg" className="font-bold tracking-wide uppercase">{t('hostNow')}</Button>
           </Link>
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
           {filteredMatches.map((match, i) => {
             const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
-            const venueLabel = venue?.name ?? match.venueAddress ?? '—';
-            const districtLabel = venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : '其他');
+            const venueLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+            const districtLabel = lang === 'en' ? (venue?.districtEn ?? (match.venueAddress ? districtTranslations[detectDistrict(match.venueAddress)] : t('discoverOther'))) : (venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : t('discoverOther')));
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);
             const isAttending = currentUser ? match.attendees.includes(currentUser.id) : false;
@@ -138,26 +172,26 @@ export default function Discover() {
                 >
                   {isAttending && (
                     <div className="absolute top-4 right-4 z-10">
-                      <Badge className="bg-primary text-primary-foreground font-bold uppercase">已報名</Badge>
+                      <Badge className="bg-primary text-primary-foreground font-bold uppercase">{t('joined')}</Badge>
                     </div>
                   )}
                   <div className="p-6 pb-0 flex gap-4">
                     <div className="w-16 h-16 rounded-xl bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shrink-0">
                       <span className="text-sm font-bold text-primary leading-none uppercase">
-                        {matchDate.toLocaleDateString('zh-HK', { month: 'short', timeZone: 'Asia/Hong_Kong' })}
+                        {matchDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', timeZone: 'Asia/Hong_Kong' })}
                       </span>
                       <span className="text-2xl font-display font-bold text-primary leading-tight">
-                        {matchDate.toLocaleDateString('zh-HK', { day: 'numeric', timeZone: 'Asia/Hong_Kong' })}
+                        {matchDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { day: 'numeric', timeZone: 'Asia/Hong_Kong' })}
                       </span>
                     </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="outline" className="text-[10px] tracking-wider uppercase border-primary/30 text-primary bg-primary/5">
-                            PUBLIC
+                            {t('publicLabel')}
                           </Badge>
                           {match.isVerified && (
                             <Badge variant="outline" className="text-[10px] tracking-wider uppercase border-blue-500/30 text-blue-500 bg-blue-500/5">
-                              VERIFIED
+                              {t('verified')}
                             </Badge>
                           )}
                         </div>
@@ -167,23 +201,28 @@ export default function Discover() {
                             <button
                               type="button"
                               className="text-xs text-primary hover:underline shrink-0"
-                              aria-label="在 Google Maps 中開啟"
+                              aria-label={t('discoverMapAria')}
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 window.open(
-                                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} 香港 ${districtLabel}`)}`,
+                                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} ${lang === 'en' ? 'Hong Kong' : '香港'} ${districtLabel}`)}`,
                                   "_blank",
                                   "noopener,noreferrer",
                                 );
                               }}
                             >
-                              開地圖
+                              {t('openMap')}
                             </button>
                           </span>
                         </h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <MapPin className="w-3 h-3" /> {districtLabel}
+                          {userLocation && venue && (
+                            <span className="ml-2 opacity-70">
+                              · {getDistance(userLocation.lat, userLocation.lng, venue.lat, venue.lng).toFixed(1)}km
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -198,15 +237,15 @@ export default function Discover() {
                           </span>
                         </div>
                         <div className="font-bold text-primary">
-                          ${match.fee} <span className="text-xs text-muted-foreground font-normal">/ 人</span>
+                          ${match.fee} <span className="text-xs text-muted-foreground font-normal">/ {t('perPerson')}</span>
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-medium">
-                          <span>已報名 {match.attendees.length}{cap != null ? ` / ${cap}` : ' (不設上限)'}</span>
+                          <span>{t('registered')} {match.attendees.length}{cap != null ? ` / ${cap}` : ` (${t('unlimited')})`}</span>
                           <span className={`${isFull ? 'text-destructive' : 'text-primary'}`}>
-                            {cap == null ? '無限位' : isFull ? '已滿額' : `尚餘 ${cap - match.attendees.length} 位`}
+                            {cap == null ? t('unlimited') : isFull ? t('full') : `${cap - match.attendees.length} ${t('spotsLeft')}`}
                           </span>
                         </div>
                         {cap != null && (
@@ -217,7 +256,7 @@ export default function Discover() {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" /> 
-                          {matchDate.toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} 
+                          {matchDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} 
                           <span className="ml-1">
                             {formatTime(match.datetime)}
                             {match.endDatetime && (
@@ -226,15 +265,15 @@ export default function Discover() {
                           </span>
                         </span>
                         <span>•</span>
-                        <span>{match.surface === 'hard' ? '硬地' : match.surface === 'turf' ? '仿真草' : '草地'}</span>
+                        <span>{match.surface === 'hard' ? t('hostMatchSurfaceHard') : match.surface === 'turf' ? t('hostMatchSurfaceTurf') : t('hostMatchSurfaceGrass')}</span>
                         <span>•</span>
-                        <span className="flex items-center gap-1">水平: {match.skillLevel}★</span>
+                        <span className="flex items-center gap-1">{t('skillLevel')}: {match.skillLevel}★</span>
                       </div>
 
                       <div className="pt-2">
                         <Link href={`/discover/${match.id}`} onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className="font-bold uppercase tracking-wider">
-                            查看詳情
+                            {t('viewDetail')}
                           </Button>
                         </Link>
                       </div>

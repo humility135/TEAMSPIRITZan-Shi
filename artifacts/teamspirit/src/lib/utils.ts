@@ -27,9 +27,9 @@ export function formatTime(dateStr: string | Date): string {
   });
 }
 
-export function formatDate(dateStr: string | Date): string {
+export function formatDate(dateStr: string | Date, locale: string = 'zh-HK'): string {
   const d = safeDate(dateStr);
-  return d.toLocaleDateString('zh-HK', {
+  return d.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     weekday: 'short',

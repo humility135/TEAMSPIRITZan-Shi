@@ -1,26 +1,39 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, Compass, Shield, Calendar, User as UserIcon, Bell } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
+import { Home, Compass, Shield, Calendar, User as UserIcon, Bell, Languages, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [location] = useLocation();
+  const [location, setLoc] = useLocation();
   const { isProMode, toggleProMode, notifications, markNotificationRead } = useAppStore();
+  const { lang, setLang, t } = useI18n();
   const unreadCount = notifications.filter(n => !n.read).length;
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    // Redirect to discover page with search query
+    setLoc(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
+    setSearchQuery('');
+  };
 
   // Don't show layout on landing page
   if (location === '/') return <>{children}</>;
 
   const navItems = [
-    { href: '/dashboard', label: '主頁', icon: Home },
-    { href: '/discover', label: '公開場', icon: Compass },
-    { href: '/teams', label: '球隊', icon: Shield },
-    { href: '/events', label: '活動', icon: Calendar },
-    { href: '/profile', label: '個人', icon: UserIcon },
+    { href: '/dashboard', label: t('dashboard'), icon: Home },
+    { href: '/discover', label: t('discover'), icon: Compass },
+    { href: '/teams', label: t('teams'), icon: Shield },
+    { href: '/events', label: t('events'), icon: Calendar },
+    { href: '/profile', label: t('profile'), icon: UserIcon },
   ];
 
   return (
@@ -30,7 +43,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <Link href="/dashboard" className="text-xl font-display font-bold tracking-wider text-primary">TEAMSPIRIT</Link>
         <div className="flex items-center gap-4">
           <DropdownMenu>
-            <DropdownMenuTrigger className="relative" aria-label="通知">
+            <DropdownMenuTrigger className="relative" aria-label={t('notifications')}>
               <Bell className="w-6 h-6" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-[10px] flex items-center justify-center rounded-full font-bold">
@@ -40,29 +53,54 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               {notifications.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground text-sm">無新通知</div>
+                <div className="p-4 text-center text-muted-foreground text-sm">{t('noNotifications')}</div>
               ) : (
                 notifications.map(n => (
                   <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => markNotificationRead(n.id)}>
-                    <div className={`text-sm ${!n.read ? 'font-bold text-primary' : 'text-muted-foreground'}`}>{n.message}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleDateString()}</div>
+                    <div className={`text-sm ${!n.read ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
+                      {lang === 'en' ? (n.messageEn || n.message) : n.message}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK')}</div>
                   </DropdownMenuItem>
                 ))
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button variant="ghost" size="icon" aria-label={t('switchLang')} onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
+            <Languages className="w-6 h-6" />
+          </Button>
         </div>
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-border bg-card/50 backdrop-blur-xl z-50">
+      <div className="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-border bg-card/50 backdrop-blur-xl z-50 sidebar-glow">
         <div className="p-6">
           <Link href="/dashboard" className="text-3xl font-display font-bold tracking-wider text-primary block hover:opacity-80 transition-opacity">TEAMSPIRIT</Link>
         </div>
         
-        <div className="px-6 pb-6 flex items-center gap-2">
+        <div className="px-6 pb-2 flex items-center gap-2">
           <Switch id="pro-mode" checked={isProMode} onCheckedChange={toggleProMode} />
-          <Label htmlFor="pro-mode" className="text-sm font-bold tracking-wider uppercase">Pro Mode</Label>
+          <Label htmlFor="pro-mode" className="text-sm font-bold tracking-wider uppercase">{t('dashboardProMode')}</Label>
+        </div>
+
+        <div className="px-6 pb-4">
+          <form onSubmit={handleSearch} className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('search') || 'Search...'}
+              className="pl-9 bg-black/20 border-border/50 focus:border-primary/50"
+            />
+          </form>
+        </div>
+
+        <div className="px-6 pb-6">
+          <Button variant="ghost" size="sm" className="w-full justify-start font-bold tracking-wider uppercase text-xs" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
+            <Languages className="w-4 h-4 mr-2" />
+            {lang === 'zh' ? t('langEn') : t('langZh')}
+          </Button>
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
@@ -81,13 +119,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className="p-6 border-t border-border space-y-3">
           <Link href="/pricing" className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 hover:border-primary/50 transition-colors">
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-bold tracking-wider uppercase">永久免費</span>
-              <span className="text-base font-display text-primary">升級 Pro <span className="text-sm text-muted-foreground">$48/月</span></span>
+              <span className="text-xs text-muted-foreground font-bold tracking-wider uppercase">{t('freeForever')}</span>
+              <span className="text-base font-display text-primary">{t('upgradePro')} <span className="text-sm text-muted-foreground">$48/{t('perMonth')}</span></span>
             </div>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">睇詳情</Badge>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{t('viewDetails')}</Badge>
           </Link>
           <Link href="/terms" className="block text-xs text-muted-foreground hover:text-primary transition-colors text-center tracking-wider uppercase">
-            免責聲明 / Terms
+            {t('termsOfService')}
           </Link>
         </div>
       </div>

@@ -132,3 +132,38 @@
     font-family: var(--app-font-display);
   }
 }
+
+@layer components {
+  .pro-mode .sidebar-glow {
+    @apply relative overflow-hidden;
+  }
+  
+  .pro-mode .sidebar-glow::after {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    background: linear-gradient(
+      45deg,
+      transparent 0%,
+      hsl(var(--primary) / 0.05) 45%,
+      hsl(var(--primary) / 0.1) 50%,
+      hsl(var(--primary) / 0.05) 55%,
+      transparent 100%
+    );
+    background-size: 200% 200%;
+    animation: shimmer 5s infinite linear;
+  }
+
+  .pro-mode .premium-card {
+    @apply shadow-[0_0_20px_-5px_hsl(var(--primary)/0.2)] border-primary/20;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% -200%; }
+  100% { background-position: 200% 200%; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}

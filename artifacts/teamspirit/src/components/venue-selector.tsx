@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { Venue } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n";
 
 interface VenueSelectorProps {
   venues: Venue[];
@@ -26,8 +27,13 @@ interface VenueSelectorProps {
 }
 
 export function VenueSelector({ venues, onSelect, selectedVenueId, className }: VenueSelectorProps) {
+  const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
   const selectedVenue = venues.find((v) => v.id === selectedVenueId);
+
+  const vName = (v: Venue) => lang === 'en' ? (v.nameEn || v.name) : v.name;
+  const vDistrict = (v: Venue) => lang === 'en' ? (v.districtEn || v.district) : v.district;
+  const vAddr = (v: Venue) => lang === 'en' ? (v.addressEn || v.address) : v.address;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -42,11 +48,11 @@ export function VenueSelector({ venues, onSelect, selectedVenueId, className }: 
             <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div className="flex flex-col gap-0.5 truncate">
               <span className={cn("font-bold truncate", !selectedVenue && "text-muted-foreground font-normal")}>
-                {selectedVenue ? selectedVenue.name : "搜尋球場 (例如：摩士公園...)"}
+                {selectedVenue ? vName(selectedVenue) : t('venueSearchPlaceholder')}
               </span>
               {selectedVenue && (
                 <span className="text-[10px] text-muted-foreground truncate uppercase tracking-wider">
-                  {selectedVenue.district} · {selectedVenue.address}
+                  {vDistrict(selectedVenue)} · {vAddr(selectedVenue)}
                 </span>
               )}
             </div>
@@ -56,14 +62,14 @@ export function VenueSelector({ venues, onSelect, selectedVenueId, className }: 
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border-zinc-800" align="start">
         <Command className="bg-transparent">
-          <CommandInput placeholder="輸入球場名稱或區域搜尋..." className="h-12 border-none focus:ring-0" />
+          <CommandInput placeholder={t('venueSearchInputPlaceholder')} className="h-12 border-none focus:ring-0" />
           <CommandList className="max-h-[300px]">
-            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">搵唔到相關球場。</CommandEmpty>
+            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">{t('venueNotFound')}</CommandEmpty>
             <CommandGroup>
               {venues.map((venue) => (
                 <CommandItem
                   key={venue.id}
-                  value={`${venue.name} ${venue.district} ${venue.address}`}
+                  value={`${venue.name} ${venue.nameEn || ''} ${venue.district} ${venue.districtEn || ''} ${venue.address} ${venue.addressEn || ''}`}
                   onSelect={() => {
                     onSelect(venue);
                     setOpen(false);
@@ -71,14 +77,14 @@ export function VenueSelector({ venues, onSelect, selectedVenueId, className }: 
                   className="flex flex-col items-start gap-1 p-3 cursor-pointer hover:bg-primary/10 aria-selected:bg-primary/20"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-bold text-sm">{venue.name}</span>
+                    <span className="font-bold text-sm">{vName(venue)}</span>
                     {selectedVenueId === venue.id && <Check className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary uppercase tracking-tighter">
-                      {venue.district}
+                      {vDistrict(venue)}
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground truncate">{venue.address}</span>
+                    <span className="text-[11px] text-muted-foreground truncate">{vAddr(venue)}</span>
                   </div>
                 </CommandItem>
               ))}

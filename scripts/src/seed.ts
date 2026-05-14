@@ -25,7 +25,7 @@ async function main() {
   await db.delete(eventsTable);
   await db.delete(teamMembersTable);
   await db.delete(teamsTable);
-  await db.delete(venuesTable);
+  // await db.delete(venuesTable);
   await db.delete(hostProfilesTable);
   await db.delete(usersTable);
 
@@ -77,20 +77,20 @@ async function main() {
   // Events
   await db.insert(eventsTable).values([
     { id: "e1", teamId: "t1", title: "聯賽 vs 觀塘流浪",
-      datetime: new Date(Date.now() + 86400000 * 2),
-      endDatetime: new Date(Date.now() + 86400000 * 2 + 3600000 * 2),
+      datetime: new Date(Date.now() + 86400000 * 2).toISOString(),
+      endDatetime: new Date(Date.now() + 86400000 * 2 + 3600000 * 2).toISOString(),
       venueAddress: "黃大仙鳳舞街40號 摩士公園足球場 3號場",
       fee: 50, capacity: 14, status: "scheduled",
       attendingIds: ["u1", "u2"], declinedIds: [], waitlistIds: [], slotOffers: [], playerStats: [] },
     { id: "e2", teamId: "t1", title: "九龍灣友誼賽",
-      datetime: new Date(Date.now() + 3600000 * 5),
-      endDatetime: new Date(Date.now() + 3600000 * 7),
+      datetime: new Date(Date.now() + 3600000 * 5).toISOString(),
+      endDatetime: new Date(Date.now() + 3600000 * 5 + 3600000 * 2).toISOString(),
       venueAddress: "油麻地京士柏道23號 京士柏遊樂場",
       fee: 40, capacity: null, status: "scheduled",
       attendingIds: ["u1"], declinedIds: ["u2"], waitlistIds: [], slotOffers: [], playerStats: [] },
     { id: "e3", teamId: "t2", title: "港島東區快閃",
-      datetime: new Date(Date.now() - 86400000 * 3),
-      endDatetime: new Date(Date.now() - 86400000 * 3 + 3600000 * 2),
+      datetime: new Date(Date.now() - 86400000 * 3).toISOString(),
+      endDatetime: new Date(Date.now() - 86400000 * 3 + 3600000 * 2).toISOString(),
       venueAddress: "灣仔軒尼詩道130號 修頓球場",
       fee: 0, capacity: 14, status: "finished",
       attendingIds: ["u1"], declinedIds: [], waitlistIds: [], slotOffers: [],
@@ -102,8 +102,8 @@ async function main() {
   await db.insert(publicMatchesTable).values([
     { id: "pm1", hostId: "u1",
       venueAddress: "黃大仙鳳舞街40號 摩士公園足球場 3號場",
-      datetime: new Date(Date.now() + 86400000 * 1.5),
-      endDatetime: new Date(Date.now() + 86400000 * 1.5 + 3600000 * 2),
+      datetime: new Date(Date.now() + 86400000 * 1.5).toISOString(),
+      endDatetime: new Date(Date.now() + 86400000 * 1.5 + 3600000 * 2).toISOString(),
       fee: 60, surface: "hard", skillLevel: 3, maxPlayers: 14,
       attendees: ["u1","u2","u3","guest1","guest2","guest3","guest4","guest5","guest6","guest7","guest8"],
       description: "休閒踢，不計較輸贏，志在流汗。",
@@ -112,8 +112,8 @@ async function main() {
       waitlistIds: [], slotOffers: [] },
     { id: "pm2", hostId: "u2",
       venueAddress: "油麻地京士柏道23號 京士柏遊樂場",
-      datetime: new Date(Date.now() + 3600000 * 3),
-      endDatetime: new Date(Date.now() + 3600000 * 5),
+      datetime: new Date(Date.now() + 3600000 * 3).toISOString(),
+      endDatetime: new Date(Date.now() + 3600000 * 3 + 3600000 * 2).toISOString(),
       fee: 80, surface: "turf", skillLevel: 4, maxPlayers: 10,
       attendees: ["u2","guest1","guest2","guest3","guest4","guest5","guest6","guest7","guest8","guest9"],
       description: "認真踢，有球證。",
@@ -122,8 +122,8 @@ async function main() {
       waitlistIds: ["u3","guest10"], slotOffers: [] },
     { id: "pm3", hostId: "u3",
       venueAddress: "灣仔軒尼詩道130號 修頓球場",
-      datetime: new Date(Date.now() + 86400000 * 5),
-      endDatetime: new Date(Date.now() + 86400000 * 5 + 3600000 * 2),
+      datetime: new Date(Date.now() + 86400000 * 5).toISOString(),
+      endDatetime: new Date(Date.now() + 86400000 * 5 + 3600000 * 2).toISOString(),
       fee: 50, surface: "hard", skillLevel: 2, maxPlayers: null,
       attendees: ["u3"],
       description: "新手場，歡迎任何人。",
