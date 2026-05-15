@@ -35,7 +35,7 @@ function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
     surface: z.enum(['hard', 'turf', 'grass']),
     skillLevel: z.coerce.number().min(1).max(5),
     maxPlayers: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) > 0), t('hostMatchMaxPlayersInvalid')),
-    fee: z.string().refine(v => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), t('hostMatchFeeInvalid')),
+    fee: z.string().refine(v => v === '' || (Number.isInteger(Number(v)) && Number(v) >= 0), t('hostMatchFeeInvalid')),
     description: z.string(),
     rules: z.string(),
   }); // Removed strict endTime > startTime check to allow overnight matches
@@ -66,7 +66,7 @@ export default function HostMatch() {
     }
   });
 
-  const onSubmit = (values: HostFormValues) => {
+  const onSubmit = async (values: HostFormValues) => {
     // Make sure we have valid date and time strings before combining them
     if (!values.date || !values.startTime || !values.endTime) {
       toast.error(t('hostMatchDateTimeError'));
@@ -87,8 +87,8 @@ export default function HostMatch() {
         endDateTime.setDate(endDateTime.getDate() + 1);
       }
 
-      createPublicMatch({
-        venueId: values.venueId,
+      await createPublicMatch({
+        venueId: values.venueId || undefined,
         venueAddress: values.venueAddress.trim(),
         district: values.district || detectDistrict(values.venueAddress),
         datetime: startDateTime.toISOString(),
@@ -106,8 +106,7 @@ export default function HostMatch() {
       toast.success(t('hostMatchSuccess'));
       setLocation('/discover');
     } catch (e) {
-      console.error("Date parsing error:", e);
-      toast.error(t('hostMatchFormatError'));
+      toast.error((e as any)?.message || t('hostMatchFormatError'));
     }
   };
 
@@ -139,11 +138,9 @@ export default function HostMatch() {
                         selectedVenueId={field.value}
                         onSelect={(v) => {
                           field.onChange(v.id);
-                          form.setValue('venueAddress', v.name);
+                          form.setValue('venueAddress', v.address);
                           form.setValue('district', v.district);
-                          // Auto-map surface
-                          if (v.surface.includes('草')) form.setValue('surface', 'turf');
-                          else if (v.surface.includes('硬')) form.setValue('surface', 'hard');
+                          form.setValue('surface', v.surface);
                         }}
                       />
                     </FormControl>
@@ -245,7 +242,7 @@ export default function HostMatch() {
                     <FormItem>
                       <FormLabel>{t('hostMatchFeeLabel')}</FormLabel>
                       <FormControl>
-                        <Input type="number" min={0} placeholder={t('hostMatchFeePlaceholder')} {...field} />
+                        <Input type="number" min={0} step={1} placeholder={t('hostMatchFeePlaceholder')} {...field} />
                       </FormControl>
                       <FormDescription className="text-[11px]">{t('hostMatchFeeHelper')}</FormDescription>
                       <FormMessage />
@@ -317,7 +314,9 @@ export default function HostMatch() {
 
             <div className="flex justify-end gap-4 pt-4">
               <Button type="button" variant="outline" onClick={() => setLocation('/discover')}>{t('hostMatchCancelBtn')}</Button>
-              <Button type="submit" size="lg" className="font-bold tracking-widest uppercase">{t('hostMatchPublishBtn')}</Button>
+              <Button type="submit" size="lg" disabled={form.formState.isSubmitting} className="font-bold tracking-widest uppercase">
+                {form.formState.isSubmitting ? t('processing') : t('hostMatchPublishBtn')}
+              </Button>
             </div>
           </form>
         </Form>
