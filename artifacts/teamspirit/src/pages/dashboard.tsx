@@ -16,11 +16,36 @@ import { useI18n } from '@/lib/i18n';
 import { detectDistrict, districtTranslations } from '@/lib/districts';
 
 type NearbyWeatherResponse = {
-  temperature: number;
-  humidity: number;
-  rainfall: number;
-  warning?: string | string[] | null;
+  fetchedAt: string;
+  lang: 'tc' | 'en';
+  location: { lat: number; lng: number };
+  temperature: { station: string; value: number; unit: string; recordTime: string; distanceKm?: number };
+  humidity?: { value: number; unit: string; recordTime: string };
+  rainfall?: { district: string; max: number; min?: number; unit: string; startTime: string; endTime: string };
+  warnings: string[];
+  icon?: number[];
+  iconUpdateTime?: string;
+  updateTime?: string;
 };
+
+function getWeatherErrorText(err: unknown, lang: 'en' | 'tc') {
+  const anyErr = err as any;
+  const status = typeof anyErr?.status === 'number' ? anyErr.status : undefined;
+  if (status === 404) {
+    return lang === 'en'
+      ? 'Weather API not found. Please restart/update the server.'
+      : '伺服器未更新（找不到天氣 API）。請重啟/更新後端。';
+  }
+  if (status === 502) {
+    return lang === 'en'
+      ? 'Hong Kong Observatory data is temporarily unavailable.'
+      : '天文台暫時未能提供資料。';
+  }
+  if (anyErr?.name === 'TypeError') {
+    return lang === 'en' ? 'Failed to connect to server.' : '未能連接到伺服器。';
+  }
+  return lang === 'en' ? 'Failed to load nearby weather.' : '未能取得附近天氣。';
+}
 
 export default function Dashboard() {
   const { currentUser, teams, events, venues, publicMatches, deletePublicMatch } = useAppStore();
@@ -62,10 +87,13 @@ export default function Dashboard() {
   });
 
   const warnings = useMemo(() => {
-    const w = nearbyWeatherQ.data?.warning;
-    if (!w) return [];
-    return Array.isArray(w) ? w : [w];
-  }, [nearbyWeatherQ.data?.warning]);
+    return nearbyWeatherQ.data?.warnings ?? [];
+  }, [nearbyWeatherQ.data?.warnings]);
+
+  const weatherErrorText = useMemo(() => {
+    if (!nearbyWeatherQ.isError) return null;
+    return getWeatherErrorText(nearbyWeatherQ.error, lang === 'en' ? 'en' : 'tc');
+  }, [nearbyWeatherQ.error, nearbyWeatherQ.isError, lang]);
 
   const attendingTeamEvents = events
     .filter(e => e.status === 'scheduled' && e.attendingIds.includes(currentUser.id));
@@ -215,9 +243,19 @@ export default function Dashboard() {
             {lang === 'en' ? 'Loading...' : '載入中...'}
           </div>
         ) : nearbyWeatherQ.isError ? (
-          <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            {lang === 'en' ? 'Failed to load nearby weather.' : '未能取得附近天氣。'}
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              {weatherErrorText}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={nearbyWeatherQ.isFetching}
+              onClick={() => nearbyWeatherQ.refetch()}
+            >
+              {lang === 'en' ? 'Retry' : '重試'}
+            </Button>
           </div>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-4 items-stretch">
@@ -227,8 +265,15 @@ export default function Dashboard() {
                   {lang === 'en' ? 'Temperature' : '溫度'}
                 </div>
                 <div className="text-2xl font-display font-bold text-primary mt-1">
-                  {nearbyWeatherQ.data?.temperature != null ? `${nearbyWeatherQ.data.temperature}°C` : '—'}
+                  {nearbyWeatherQ.data?.temperature != null
+                    ? `${nearbyWeatherQ.data.temperature.value}°${nearbyWeatherQ.data.temperature.unit}`
+                    : '—'}
                 </div>
+                {nearbyWeatherQ.data?.temperature?.station && (
+                  <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[140px]">
+                    {nearbyWeatherQ.data.temperature.station}
+                  </div>
+                )}
               </div>
               <Thermometer className="w-6 h-6 text-primary/80" />
             </div>
@@ -239,7 +284,7 @@ export default function Dashboard() {
                   {lang === 'en' ? 'Humidity' : '濕度'}
                 </div>
                 <div className="text-2xl font-display font-bold text-white mt-1">
-                  {nearbyWeatherQ.data?.humidity != null ? `${nearbyWeatherQ.data.humidity}%` : '—'}
+                  {nearbyWeatherQ.data?.humidity != null ? `${nearbyWeatherQ.data.humidity.value}%` : '—'}
                 </div>
               </div>
               <Droplets className="w-6 h-6 text-white/70" />
@@ -251,8 +296,13 @@ export default function Dashboard() {
                   {lang === 'en' ? 'Rainfall' : '雨量'}
                 </div>
                 <div className="text-2xl font-display font-bold text-white mt-1">
-                  {nearbyWeatherQ.data?.rainfall != null ? `${nearbyWeatherQ.data.rainfall}mm` : '—'}
+                  {nearbyWeatherQ.data?.rainfall != null ? `${nearbyWeatherQ.data.rainfall.max}mm` : '—'}
                 </div>
+                {nearbyWeatherQ.data?.rainfall?.district && (
+                  <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[140px]">
+                    {nearbyWeatherQ.data.rainfall.district}
+                  </div>
+                )}
               </div>
               <CloudRain className="w-6 h-6 text-white/70" />
             </div>

@@ -66,10 +66,13 @@ describe("Dashboard page", () => {
     } as any);
 
     vi.mocked(api).mockResolvedValue({
-      temperature: 28,
-      humidity: 70,
-      rainfall: 5,
-      warning: "T8",
+      fetchedAt: new Date().toISOString(),
+      lang: "tc",
+      location: { lat: 22.3, lng: 114.1 },
+      temperature: { station: "香港天文台", value: 28, unit: "C", recordTime: new Date().toISOString() },
+      humidity: { value: 70, unit: "percent", recordTime: new Date().toISOString() },
+      rainfall: { district: "油尖旺", max: 5, unit: "mm", startTime: "", endTime: "" },
+      warnings: ["T8"],
     } as any);
 
     const qc = new QueryClient({
@@ -96,10 +99,13 @@ describe("Dashboard page", () => {
   it("renders weather even without location by falling back to HKO", async () => {
     vi.mocked(getUserLocation).mockRejectedValue(new Error("denied"));
     vi.mocked(api).mockResolvedValue({
-      temperature: 28,
-      humidity: 70,
-      rainfall: 5,
-      warning: null,
+      fetchedAt: new Date().toISOString(),
+      lang: "tc",
+      location: { lat: 22.3020278, lng: 114.1743333 },
+      temperature: { station: "香港天文台", value: 28, unit: "C", recordTime: new Date().toISOString() },
+      humidity: { value: 70, unit: "percent", recordTime: new Date().toISOString() },
+      rainfall: { district: "油尖旺", max: 5, unit: "mm", startTime: "", endTime: "" },
+      warnings: [],
     } as any);
 
     const qc = new QueryClient({
@@ -120,10 +126,13 @@ describe("Dashboard page", () => {
   it("allows retrying location to load nearby weather", async () => {
     vi.mocked(getUserLocation).mockRejectedValue(new Error("denied"));
     vi.mocked(api).mockResolvedValue({
-      temperature: 28,
-      humidity: 70,
-      rainfall: 5,
-      warning: null,
+      fetchedAt: new Date().toISOString(),
+      lang: "tc",
+      location: { lat: 22.3020278, lng: 114.1743333 },
+      temperature: { station: "香港天文台", value: 28, unit: "C", recordTime: new Date().toISOString() },
+      humidity: { value: 70, unit: "percent", recordTime: new Date().toISOString() },
+      rainfall: { district: "油尖旺", max: 5, unit: "mm", startTime: "", endTime: "" },
+      warnings: [],
     } as any);
 
     const qc = new QueryClient({

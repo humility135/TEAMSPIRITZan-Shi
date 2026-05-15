@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -135,7 +136,10 @@ async function fetchRhrread(lang: "tc" | "en"): Promise<HkoRhrread> {
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.payload;
 
   const url = `https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=${lang}`;
-  const res = await fetch(url);
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 8000);
+  const res = await fetch(url, { signal: ctrl.signal });
+  clearTimeout(timeout);
   if (!res.ok) throw new Error(`HKO ${res.status}`);
   const json = (await res.json()) as HkoRhrread;
   cacheByLang.set(lang, { at: Date.now(), payload: json });
@@ -289,7 +293,8 @@ router.get("/weather/nearby", async (req, res): Promise<void> => {
       updateTime: raw.updateTime,
     };
     res.json(payload);
-  } catch {
+  } catch (err) {
+    logger.warn({ err }, "HKO fetch failed");
     res.status(502).json({ error: "HKO fetch failed" });
   }
 });
