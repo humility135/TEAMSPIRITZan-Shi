@@ -9,7 +9,7 @@ import { safeDate, formatTime, formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -610,7 +610,7 @@ export default function EventDetail() {
       {/* Admin Cancel Button at the bottom */}
       {canManage && event.status === 'scheduled' && (
         <div className="pt-8 flex justify-center">
-          <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30" onClick={handleCancelEvent}>
+          <Button variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30" onClick={() => setCancelOpen(true)}>
             <AlertTriangle className="w-4 h-4 mr-2" /> {t('cancelMatch')}
           </Button>
         </div>
@@ -621,7 +621,7 @@ export default function EventDetail() {
             <DialogTitle className="font-display uppercase tracking-wider text-2xl">{t('cancelMatch')}</DialogTitle>
           </DialogHeader>
           <div className="py-6 space-y-4">
-            <p className="text-sm text-muted-foreground">{t('cancelEventConfirmHint')}</p>
+            <DialogDescription>{t('cancelEventConfirmHint')}</DialogDescription>
             <div className="flex gap-3">
               <Button size="lg" variant="destructive" className="flex-1 h-12 font-bold tracking-wider uppercase" onClick={handleCancelEvent} disabled={isCancelling}>
                 {isCancelling ? t('processing') : t('confirmCancel')}
