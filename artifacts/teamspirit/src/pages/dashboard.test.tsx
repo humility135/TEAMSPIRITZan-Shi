@@ -121,6 +121,8 @@ describe("Dashboard page", () => {
     );
 
     expect(await screen.findByText("28°C")).toBeInTheDocument();
+    expect(await screen.findByText("天文台附近")).toBeInTheDocument();
+    expect(screen.queryByText("油尖旺")).not.toBeInTheDocument();
   });
 
   it("allows retrying location to load nearby weather", async () => {
@@ -152,11 +154,19 @@ describe("Dashboard page", () => {
     });
     expect(await screen.findByText("未開定位：顯示香港天文台附近天氣。")).toBeInTheDocument();
 
+    expect(await screen.findByTestId("weather-metrics-grid")).toHaveClass("grid-cols-4");
+
     const user = userEvent.setup();
     const before = vi.mocked(getUserLocation).mock.calls.length;
-    await user.click(await screen.findByRole("button", { name: "允許定位" }));
+    const beforeApiCalls = vi.mocked(api).mock.calls.length;
+    const refreshBtn = await screen.findByRole("button", { name: "允許定位" });
+    expect(refreshBtn).not.toHaveTextContent("允許定位");
+    await user.click(refreshBtn);
     await waitFor(() => {
       expect(vi.mocked(getUserLocation).mock.calls.length).toBeGreaterThan(before);
+    });
+    await waitFor(() => {
+      expect(vi.mocked(api).mock.calls.length).toBeGreaterThan(beforeApiCalls);
     });
   });
 });

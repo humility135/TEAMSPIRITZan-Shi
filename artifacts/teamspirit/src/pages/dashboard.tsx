@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus, X, Droplets, CloudRain, Thermometer, AlertTriangle } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus, X, Droplets, CloudRain, Thermometer, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { useAppStore, getAggregatedStats } from '@/lib/store';
@@ -67,16 +67,6 @@ export default function Dashboard() {
       .finally(() => setLocationLoading(false));
   }, []);
 
-  const requestLocation = () => {
-    setLocationLoading(true);
-    getUserLocation()
-      .then(pos => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      })
-      .catch(() => {})
-      .finally(() => setLocationLoading(false));
-  };
-
   const nearbyWeatherQ = useQuery({
     queryKey: ['nearbyWeather', weatherLocation.lat, weatherLocation.lng, lang],
     queryFn: () =>
@@ -85,6 +75,17 @@ export default function Dashboard() {
       ),
     refetchInterval: 10 * 60 * 1000,
   });
+
+  const requestLocation = () => {
+    setLocationLoading(true);
+    getUserLocation()
+      .then(pos => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      })
+      .catch(() => {})
+      .finally(() => setLocationLoading(false));
+    nearbyWeatherQ.refetch();
+  };
 
   const warnings = useMemo(() => {
     return nearbyWeatherQ.data?.warnings ?? [];
@@ -219,11 +220,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               disabled={locationLoading}
               onClick={requestLocation}
+              aria-label={lang === 'en' ? (userLocation ? 'Refresh location' : 'Enable location') : (userLocation ? '更新定位' : '允許定位')}
             >
-              {lang === 'en' ? (userLocation ? 'Refresh location' : 'Enable location') : (userLocation ? '更新定位' : '允許定位')}
+              <RefreshCw className="w-4 h-4" />
             </Button>
             {nearbyWeatherQ.isFetching && <Spinner className="text-muted-foreground" />}
           </div>
@@ -258,7 +260,7 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          <div className="mt-5 grid gap-4 md:grid-cols-4 items-stretch">
+          <div data-testid="weather-metrics-grid" className="mt-5 grid grid-cols-4 gap-4 items-stretch">
             <div className="rounded-xl border border-border bg-black/20 p-4 flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
@@ -300,7 +302,7 @@ export default function Dashboard() {
                 </div>
                 {nearbyWeatherQ.data?.rainfall?.district && (
                   <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[140px]">
-                    {nearbyWeatherQ.data.rainfall.district}
+                    {userLocation ? nearbyWeatherQ.data.rainfall.district : (lang === 'en' ? 'Near HKO' : '天文台附近')}
                   </div>
                 )}
               </div>
