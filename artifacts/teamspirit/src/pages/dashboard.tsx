@@ -29,6 +29,8 @@ export default function Dashboard() {
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const fallbackLocation = useMemo(() => ({ lat: 22.3020278, lng: 114.1743333 }), []);
+  const weatherLocation = userLocation ?? fallbackLocation;
 
   useEffect(() => {
     setLocationLoading(true);
@@ -51,12 +53,11 @@ export default function Dashboard() {
   };
 
   const nearbyWeatherQ = useQuery({
-    queryKey: ['nearbyWeather', userLocation?.lat, userLocation?.lng],
+    queryKey: ['nearbyWeather', weatherLocation.lat, weatherLocation.lng, lang],
     queryFn: () =>
       api<NearbyWeatherResponse>(
-        `/weather/nearby?lat=${userLocation!.lat}&lng=${userLocation!.lng}`,
+        `/weather/nearby?lat=${weatherLocation.lat}&lng=${weatherLocation.lng}&lang=${lang === 'en' ? 'en' : 'tc'}`,
       ),
-    enabled: !!userLocation,
     refetchInterval: 10 * 60 * 1000,
   });
 
@@ -200,11 +201,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {!userLocation ? (
-          <div className="mt-4 text-sm text-muted-foreground">
-            {lang === 'en' ? 'Enable location to see nearby weather.' : '請允許定位以查看附近天氣。'}
+        {!userLocation && (
+          <div className="mt-3 text-xs text-muted-foreground">
+            {lang === 'en'
+              ? 'Location not enabled. Showing weather near Hong Kong Observatory.'
+              : '未開定位：顯示香港天文台附近天氣。'}
           </div>
-        ) : nearbyWeatherQ.isLoading ? (
+        )}
+
+        {nearbyWeatherQ.isLoading ? (
           <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
             <Spinner className="text-muted-foreground" />
             {lang === 'en' ? 'Loading...' : '載入中...'}

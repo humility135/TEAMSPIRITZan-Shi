@@ -1,7 +1,7 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Dashboard from "./dashboard";
 import { I18nProvider } from "@/lib/i18n";
@@ -55,6 +55,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("Dashboard page", () => {
   it("shows only teams that current user belongs to and renders nearby weather", async () => {
     vi.mocked(getUserLocation).mockResolvedValue({
@@ -89,8 +93,38 @@ describe("Dashboard page", () => {
     expect(await screen.findByText("T8")).toBeInTheDocument();
   });
 
+  it("renders weather even without location by falling back to HKO", async () => {
+    vi.mocked(getUserLocation).mockRejectedValue(new Error("denied"));
+    vi.mocked(api).mockResolvedValue({
+      temperature: 28,
+      humidity: 70,
+      rainfall: 5,
+      warning: null,
+    } as any);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={qc}>
+        <I18nProvider>
+          <Dashboard />
+        </I18nProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("28°C")).toBeInTheDocument();
+  });
+
   it("allows retrying location to load nearby weather", async () => {
     vi.mocked(getUserLocation).mockRejectedValue(new Error("denied"));
+    vi.mocked(api).mockResolvedValue({
+      temperature: 28,
+      humidity: 70,
+      rainfall: 5,
+      warning: null,
+    } as any);
 
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -107,7 +141,7 @@ describe("Dashboard page", () => {
     await waitFor(() => {
       expect(getUserLocation).toHaveBeenCalled();
     });
-    expect(await screen.findByText("請允許定位以查看附近天氣。")).toBeInTheDocument();
+    expect(await screen.findByText("未開定位：顯示香港天文台附近天氣。")).toBeInTheDocument();
 
     const user = userEvent.setup();
     const before = vi.mocked(getUserLocation).mock.calls.length;
