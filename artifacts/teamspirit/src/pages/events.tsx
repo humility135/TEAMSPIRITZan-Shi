@@ -75,7 +75,7 @@ export default function Events() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">
-            {t('eventsTitlePrefix')} <span className="text-primary">{t('eventsTitleHighlight')}</span>
+            {t('eventsTitlePrefix')}{lang === 'en' ? ' ' : ''}<span className="text-primary">{t('eventsTitleHighlight')}</span>
           </h1>
           <p className="text-muted-foreground text-lg">{t('eventsDesc')}</p>
         </div>

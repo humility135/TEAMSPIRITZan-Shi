@@ -24,9 +24,7 @@ export default function Dashboard() {
       .then(pos => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       })
-      .catch(err => {
-        console.error("Location error:", err);
-      });
+      .catch(() => {});
   }, []);
 
   const attendingTeamEvents = events

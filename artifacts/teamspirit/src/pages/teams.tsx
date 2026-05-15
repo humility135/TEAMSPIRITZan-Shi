@@ -81,7 +81,7 @@ export default function Teams() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tight">
-              {t('teamsHeading')} <span className="text-primary">{t('teamsHeadingHighlight')}</span>
+              {t('teamsHeading')}{lang === 'en' ? ' ' : ''}<span className="text-primary">{t('teamsHeadingHighlight')}</span>
             </h1>
             <p className="text-muted-foreground text-lg mt-2">{t('teamsDesc')}</p>
           </div>
