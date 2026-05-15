@@ -10,6 +10,7 @@ import eventsRouter from "./events";
 import publicMatchesRouter from "./publicMatches";
 import ordersRouter from "./orders";
 import teamChatRouter from "./teamChat";
+import weatherRouter from "./weather";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(eventsRouter);
 router.use(publicMatchesRouter);
 router.use(ordersRouter);
 router.use(teamChatRouter);
+router.use(weatherRouter);
 
 export default router;

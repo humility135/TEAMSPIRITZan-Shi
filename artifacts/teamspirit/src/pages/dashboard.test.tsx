@@ -1,8 +1,11 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Dashboard from "./dashboard";
 import { I18nProvider } from "@/lib/i18n";
+import { api } from "@/lib/api";
+import { getUserLocation } from "@/lib/geo";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -17,6 +20,15 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: ({ children, ...rest }: any) => <div {...rest}>{children}</div>,
   },
+}));
+
+vi.mock("@/lib/api", () => ({
+  api: vi.fn(),
+}));
+
+vi.mock("@/lib/geo", () => ({
+  getUserLocation: vi.fn(),
+  getDistance: vi.fn(() => 0),
 }));
 
 vi.mock("@/lib/store", () => ({
@@ -35,14 +47,37 @@ vi.mock("@/lib/store", () => ({
 }));
 
 describe("Dashboard page", () => {
-  it("shows only teams that current user belongs to", () => {
+  it("shows only teams that current user belongs to and renders nearby weather", async () => {
+    vi.mocked(getUserLocation).mockResolvedValue({
+      coords: { latitude: 22.3, longitude: 114.1 },
+    } as any);
+
+    vi.mocked(api).mockResolvedValue({
+      temperature: 28,
+      humidity: 70,
+      rainfall: 5,
+      warning: "T8",
+    } as any);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     const { queryByText } = render(
-      <I18nProvider>
-        <Dashboard />
-      </I18nProvider>,
+      <QueryClientProvider client={qc}>
+        <I18nProvider>
+          <Dashboard />
+        </I18nProvider>
+      </QueryClientProvider>,
     );
-    expect(queryByText("Team 1")).toBeInTheDocument();
+
+    expect(await screen.findByText("Team 1")).toBeInTheDocument();
     expect(queryByText("Team 2")).not.toBeInTheDocument();
+
+    expect(await screen.findByText("28°C")).toBeInTheDocument();
+    expect(await screen.findByText("70%")).toBeInTheDocument();
+    expect(await screen.findByText("5mm")).toBeInTheDocument();
+    expect(await screen.findByText("T8")).toBeInTheDocument();
   });
 });
 

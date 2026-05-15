@@ -1,16 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus, X } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Compass, Shield, Plus, X, Droplets, CloudRain, Thermometer, AlertTriangle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { useAppStore, getAggregatedStats } from '@/lib/store';
 import { safeDate, formatTime } from '@/lib/utils';
 import { getDistance, getUserLocation } from '@/lib/geo';
+import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
 import { useI18n } from '@/lib/i18n';
 import { detectDistrict, districtTranslations } from '@/lib/districts';
+
+type NearbyWeatherResponse = {
+  temperature: number;
+  humidity: number;
+  rainfall: number;
+  warning?: string | string[] | null;
+};
 
 export default function Dashboard() {
   const { currentUser, teams, events, venues, publicMatches, deletePublicMatch } = useAppStore();
@@ -26,6 +36,22 @@ export default function Dashboard() {
       })
       .catch(() => {});
   }, []);
+
+  const nearbyWeatherQ = useQuery({
+    queryKey: ['nearbyWeather', userLocation?.lat, userLocation?.lng],
+    queryFn: () =>
+      api<NearbyWeatherResponse>(
+        `/weather/nearby?lat=${userLocation!.lat}&lng=${userLocation!.lng}`,
+      ),
+    enabled: !!userLocation,
+    refetchInterval: 10 * 60 * 1000,
+  });
+
+  const warnings = useMemo(() => {
+    const w = nearbyWeatherQ.data?.warning;
+    if (!w) return [];
+    return Array.isArray(w) ? w : [w];
+  }, [nearbyWeatherQ.data?.warning]);
 
   const attendingTeamEvents = events
     .filter(e => e.status === 'scheduled' && e.attendingIds.includes(currentUser.id));
@@ -125,6 +151,93 @@ export default function Dashboard() {
           </Card>
         </div>
       </header>
+
+      <Card className="p-6 border-border bg-card/50 backdrop-blur">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm text-muted-foreground font-bold tracking-wider uppercase mb-1">
+              {lang === 'en' ? 'Nearby Weather' : '附近天氣'}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {lang === 'en' ? 'Refreshes every 10 minutes' : '每 10 分鐘更新'}
+            </div>
+          </div>
+          {nearbyWeatherQ.isFetching && <Spinner className="text-muted-foreground" />}
+        </div>
+
+        {!userLocation ? (
+          <div className="mt-4 text-sm text-muted-foreground">
+            {lang === 'en' ? 'Enable location to see nearby weather.' : '請允許定位以查看附近天氣。'}
+          </div>
+        ) : nearbyWeatherQ.isLoading ? (
+          <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
+            <Spinner className="text-muted-foreground" />
+            {lang === 'en' ? 'Loading...' : '載入中...'}
+          </div>
+        ) : nearbyWeatherQ.isError ? (
+          <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            {lang === 'en' ? 'Failed to load nearby weather.' : '未能取得附近天氣。'}
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-4 md:grid-cols-4 items-stretch">
+            <div className="rounded-xl border border-border bg-black/20 p-4 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
+                  {lang === 'en' ? 'Temperature' : '溫度'}
+                </div>
+                <div className="text-2xl font-display font-bold text-primary mt-1">
+                  {nearbyWeatherQ.data?.temperature != null ? `${nearbyWeatherQ.data.temperature}°C` : '—'}
+                </div>
+              </div>
+              <Thermometer className="w-6 h-6 text-primary/80" />
+            </div>
+
+            <div className="rounded-xl border border-border bg-black/20 p-4 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
+                  {lang === 'en' ? 'Humidity' : '濕度'}
+                </div>
+                <div className="text-2xl font-display font-bold text-white mt-1">
+                  {nearbyWeatherQ.data?.humidity != null ? `${nearbyWeatherQ.data.humidity}%` : '—'}
+                </div>
+              </div>
+              <Droplets className="w-6 h-6 text-white/70" />
+            </div>
+
+            <div className="rounded-xl border border-border bg-black/20 p-4 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
+                  {lang === 'en' ? 'Rainfall' : '雨量'}
+                </div>
+                <div className="text-2xl font-display font-bold text-white mt-1">
+                  {nearbyWeatherQ.data?.rainfall != null ? `${nearbyWeatherQ.data.rainfall}mm` : '—'}
+                </div>
+              </div>
+              <CloudRain className="w-6 h-6 text-white/70" />
+            </div>
+
+            <div className="rounded-xl border border-border bg-black/20 p-4 flex flex-col justify-between gap-2">
+              <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
+                {lang === 'en' ? 'Alerts' : '警告'}
+              </div>
+              {warnings.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {warnings.slice(0, 3).map((w) => (
+                    <Badge key={w} variant="destructive" className="text-[10px] tracking-widest uppercase">
+                      {w}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <Badge variant="outline" className="text-[10px] tracking-widest uppercase text-muted-foreground">
+                  {lang === 'en' ? 'No alerts' : '無警告'}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
       
       {/* AI Recommendation Section */}
       {aiRecommendation && (
