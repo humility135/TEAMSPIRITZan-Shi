@@ -45,7 +45,8 @@ Dashboard 已經會在前端使用 `navigator.geolocation`（透過 `getUserLoca
   - `refetchInterval = 10 * 60 * 1000`
   - `retry = 1`（沿用全域設定）
 - 若用家拒絕定位：
-  - Dashboard 不顯示定位天氣卡；顯示一個簡短提示（可選：顯示「允許定位以查看附近天氣」）。
+  - Dashboard 仍然顯示天氣卡，但會 fallback 到「香港天文台附近」的預設座標，並提示「未開定位：顯示香港天文台附近天氣」。
+  - 仍可提供一個 icon-only 的 refresh（更新定位）按鈕，讓用家用 user gesture 重新觸發定位授權/更新定位（部分平台/設定可能需要）。
 
 ### 後端（api-server）
 
@@ -122,8 +123,10 @@ type NearbyWeather = {
   - `xx°C`（station）
   - `濕度 xx%`
   - `近一小時雨量 x mm（{district}）`
+    - 若未開定位而使用 fallback：不顯示 HKO fallback 計算出來的 district（例如「油尖旺」），改顯示 `天文台附近`（避免誤會）
   - 若有 warning：以 Badge/Alert block 顯示第一條（可展開顯示全部）
 - 右上角顯示 `更新時間`（HKO updateTime）
+  - 右上角：icon-only `更新定位` 按鈕（refresh icon）
 
 ## 錯誤處理
 
@@ -133,7 +136,8 @@ type NearbyWeather = {
 - lat/lng 無效：
   - 後端回 400
 - 用家拒絕定位：
-  - 前端不呼叫 weather endpoint
+  - 前端改用 fallback 座標照樣呼叫 weather endpoint（確保天氣功能可用）
+  - UI 提示目前顯示天文台附近天氣
 
 ## 測試策略
 
@@ -149,4 +153,3 @@ type NearbyWeather = {
 - 每 10 分鐘自動更新一次（或重新進頁更新）。
 - 顯示溫度、濕度、雨量、警告訊息（如有）。
 - 定位拒絕或 HKO 失敗不會令 Dashboard crash。
-
