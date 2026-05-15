@@ -24,6 +24,7 @@ export default function Discover() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const searchParams = new URLSearchParams(window.location.search);
   const q = searchParams.get('q') || '';
+  const now = Date.now();
 
   useEffect(() => {
     getUserLocation()
@@ -33,42 +34,49 @@ export default function Discover() {
 
   const activeMatches = publicMatches.filter(m => m.status === 'open' || m.status === 'full');
 
-  const filteredMatches = activeMatches.filter(m => {
-    const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
-    const rawDistrict = venue?.district ?? (m.venueAddress ? detectDistrict(m.venueAddress) : t('discoverOther'));
-    
-    // Check if the match matches the selected district
-    if (districtFilter !== 'all' && rawDistrict !== districtFilter) return false;
-    if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
-    
-    // Filter out matches that are in the past
-    const matchDateStr = safeDate(m.datetime).toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-    if (matchDateStr < todayStr) return false;
+  const filteredMatches = activeMatches
+    .map(m => {
+      const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
+      const matchDate = safeDate(m.datetime);
+      const endTimeMs = m.endDatetime ? safeDate(m.endDatetime).getTime() : matchDate.getTime();
 
-    // Search filter
-    if (q) {
-      const searchLower = q.toLowerCase();
-      const matchVenue = venue?.name?.toLowerCase().includes(searchLower) || 
-                         venue?.nameEn?.toLowerCase().includes(searchLower) ||
-                         m.venueAddress?.toLowerCase().includes(searchLower) ||
-                         m.venueAddressEn?.toLowerCase().includes(searchLower);
-      if (!matchVenue) return false;
-    }
-
-    return true;
-  }).sort((a, b) => {
-    if (userLocation) {
-      const vA = a.venueId ? venues.find(v => v.id === a.venueId) : null;
-      const vB = b.venueId ? venues.find(v => v.id === b.venueId) : null;
-      if (vA && vB) {
-        const dA = getDistance(userLocation.lat, userLocation.lng, vA.lat, vA.lng);
-        const dB = getDistance(userLocation.lat, userLocation.lng, vB.lat, vB.lng);
-        return dA - dB;
+      let distanceKm: number | null = null;
+      if (
+        userLocation &&
+        venue &&
+        Number.isFinite(venue.lat) &&
+        Number.isFinite(venue.lng)
+      ) {
+        const d = getDistance(userLocation.lat, userLocation.lng, venue.lat, venue.lng);
+        if (Number.isFinite(d)) distanceKm = d;
       }
-    }
-    return safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime();
-  });
+
+      return { match: m, venue, matchDate, endTimeMs, distanceKm };
+    })
+    .filter(({ match: m, venue, endTimeMs }) => {
+      const rawDistrict = venue?.district ?? (m.venueAddress ? detectDistrict(m.venueAddress) : t('discoverOther'));
+
+      if (districtFilter !== 'all' && rawDistrict !== districtFilter) return false;
+      if (levelFilter !== 'all' && m.skillLevel.toString() !== levelFilter) return false;
+      if (endTimeMs < now) return false;
+
+      if (q) {
+        const searchLower = q.toLowerCase();
+        const matchVenue = venue?.name?.toLowerCase().includes(searchLower) || 
+                           venue?.nameEn?.toLowerCase().includes(searchLower) ||
+                           m.venueAddress?.toLowerCase().includes(searchLower) ||
+                           m.venueAddressEn?.toLowerCase().includes(searchLower);
+        if (!matchVenue) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const dA = a.distanceKm ?? Infinity;
+      const dB = b.distanceKm ?? Infinity;
+      if (dA !== dB) return dA - dB;
+      return a.matchDate.getTime() - b.matchDate.getTime();
+    });
 
   // Use hkDistricts from lib
 
@@ -137,8 +145,7 @@ export default function Discover() {
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
-          {filteredMatches.map((match, i) => {
-            const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+          {filteredMatches.map(({ match, venue, distanceKm, matchDate }, i) => {
             const venueLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
             const districtLabel = lang === 'en' ? (venue?.districtEn ?? (match.venueAddress ? districtTranslations[detectDistrict(match.venueAddress)] : t('discoverOther'))) : (venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : t('discoverOther')));
             const host = users.find(u => u.id === match.hostId);
@@ -147,9 +154,6 @@ export default function Discover() {
             const cap = match.maxPlayers;
             const isFull = cap != null && match.attendees.length >= cap;
             const fillPercentage = cap != null && cap > 0 ? (match.attendees.length / cap) * 100 : 0;
-            
-            // Safe date parser to handle invalid dates
-            const matchDate = safeDate(match.datetime);
 
             return (
               <motion.div
@@ -218,9 +222,9 @@ export default function Discover() {
                         </h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <MapPin className="w-3 h-3" /> {districtLabel}
-                          {userLocation && venue && (
+                          {distanceKm != null && (
                             <span className="ml-2 opacity-70">
-                              · {getDistance(userLocation.lat, userLocation.lng, venue.lat, venue.lng).toFixed(1)}km
+                              · {distanceKm.toFixed(1)}km
                             </span>
                           )}
                         </p>
@@ -233,7 +237,7 @@ export default function Discover() {
                           {host?.avatarUrl ? <img src={host.avatarUrl} alt={host?.name} className="w-6 h-6 rounded-full" /> : <div className="w-6 h-6 rounded-full bg-white/10" />}
                           <span className="font-medium">{host?.name}</span>
                           <span className="text-muted-foreground flex items-center gap-1">
-                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {hostProfile?.averageRating.toFixed(1) || 'N/A'}
+                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {hostProfile?.averageRating != null ? hostProfile.averageRating.toFixed(1) : 'N/A'}
                           </span>
                         </div>
                         <div className="font-bold text-primary">

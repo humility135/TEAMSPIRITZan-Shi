@@ -111,7 +111,7 @@ export default function PublicMatchDetail() {
 
   const isHost = currentUser.id === match.hostId;
   const isAttending = match.attendees.includes(currentUser.id);
-  const isPast = new Date(match.datetime).getTime() < Date.now();
+  const isPast = safeDate(match.endDatetime ?? match.datetime).getTime() < now;
   const isWaitlist = match.waitlistIds.includes(currentUser.id);
   const waitlistPos = match.waitlistIds.indexOf(currentUser.id) + 1;
   const cap = match.maxPlayers;
@@ -276,7 +276,7 @@ export default function PublicMatchDetail() {
                 <div>
                   <div className="font-bold text-lg">{host?.name}</div>
                   <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-yellow-500"><Star className="w-3 h-3 fill-yellow-500" /> {hostProfile?.averageRating.toFixed(1) || 'N/A'}</span>
+                    <span className="flex items-center gap-1 text-yellow-500"><Star className="w-3 h-3 fill-yellow-500" /> {hostProfile?.averageRating != null ? hostProfile.averageRating.toFixed(1) : 'N/A'}</span>
                     <span>•</span>
                     <span>{t('hostedCount')} {hostProfile?.hostedCount || 0} {t('hostedCountLabel')}</span>
                     <span>•</span>
