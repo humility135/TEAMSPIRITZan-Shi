@@ -114,11 +114,6 @@ export default function Terms() {
             {t('termsContactPrefix')}<br />
             <span className="text-primary">support@teamspirit.hk</span>
           </p>
-          <Link href="/login">
-            <Button className="font-bold tracking-widest uppercase">
-              {t('termsAgreeBtn')}
-            </Button>
-          </Link>
         </section>
       </main>
     </div>
