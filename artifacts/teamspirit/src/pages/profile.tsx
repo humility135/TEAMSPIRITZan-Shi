@@ -68,6 +68,12 @@ export default function Profile() {
     { subject: t('radarSubjectExperience'), A: Math.min(100, stats.matches * 3), fullMark: 100 },
   ];
 
+  const radarDataBasic = radarData.filter((d) =>
+    d.subject === t("radarSubjectAttendance") ||
+    d.subject === t("radarSubjectDiscipline") ||
+    d.subject === t("radarSubjectExperience"),
+  );
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
@@ -209,23 +215,19 @@ export default function Profile() {
             <Card className="p-8 border-border bg-card/50 backdrop-blur flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
               <h2 className="absolute top-8 left-8 text-2xl font-display font-bold uppercase tracking-wide z-10">{t('playerRadar')}</h2>
               
-              {!isProMode ? (
-                <div className="text-center z-10">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 blur-sm">
-                    <RadarIcon className="w-8 h-8 text-primary" />
-                  </div>
-                  <h3 className="font-bold text-lg mb-2">{t('proFeature')}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{t('proRadarDesc')}</p>
-                </div>
-              ) : (
-                <div className="w-full h-[250px] mt-8">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                      <PolarGrid stroke="hsl(var(--border))" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 'bold' }} />
-                      <Radar name={currentUser.name} dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
-                    </RadarChart>
-                  </ResponsiveContainer>
+              <div className="w-full h-[250px] mt-8" data-testid="player-radar-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={isProMode ? radarData : radarDataBasic}>
+                    <PolarGrid stroke="hsl(var(--border))" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 'bold' }} />
+                    <Radar name={currentUser.name} dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              {!isProMode && (
+                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                  <RadarIcon className="w-4 h-4 text-primary" />
+                  <span>{t('proRadarDesc')}</span>
                 </div>
               )}
             </Card>
