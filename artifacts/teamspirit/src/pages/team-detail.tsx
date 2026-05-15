@@ -29,6 +29,7 @@ export default function TeamDetail() {
   const [manageOpen, setManageOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [disbandConfirmName, setDisbandConfirmName] = useState('');
   const [name, setName] = useState(team?.name || '');
   const [accentColor, setAccentColor] = useState(team?.accentColor || ACCENT_COLORS[0]);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export default function TeamDetail() {
   const isOwner = role === 'Owner';
   const isAdmin = role === 'Admin';
   const canManage = isOwner || isAdmin;
+  const canConfirmDisband = !isOwner || disbandConfirmName.trim() === team.name.trim();
 
   const teamEvents = events.filter(e => e.teamId === team.id);
   const upcomingEvents = teamEvents.filter(e => e.status === 'scheduled').sort((a, b) => safeDate(a.datetime).getTime() - safeDate(b.datetime).getTime());
@@ -108,6 +110,10 @@ export default function TeamDetail() {
   };
 
   const handleDeleteTeam = async () => {
+    if (!canConfirmDisband) {
+      toast({ title: t('teamDetailDisbandNameMismatch'), variant: 'destructive' });
+      return;
+    }
     try {
       await deleteTeam(team.id);
       setLeaveOpen(false);
@@ -237,7 +243,13 @@ export default function TeamDetail() {
                   </Button>
                 )}
 
-                <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                <Dialog
+                  open={leaveOpen}
+                  onOpenChange={(open) => {
+                    setLeaveOpen(open);
+                    setDisbandConfirmName('');
+                  }}
+                >
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>{isOwner ? t('teamDetailDisbandConfirm') : t('teamDetailLeaveConfirm')}</DialogTitle>
@@ -245,9 +257,23 @@ export default function TeamDetail() {
                         {isOwner ? t('teamDetailDisbandWarning') : t('teamDetailLeaveWarning')}
                       </DialogDescription>
                     </DialogHeader>
+                    {isOwner && (
+                      <div className="space-y-2 py-2">
+                        <Label htmlFor="disband-team-name">{t('teamDetailDisbandTypeNameLabel')}</Label>
+                        <Input
+                          id="disband-team-name"
+                          value={disbandConfirmName}
+                          onChange={(e) => setDisbandConfirmName(e.target.value)}
+                          placeholder={team.name}
+                        />
+                        <div className="text-xs text-muted-foreground">
+                          {t('teamDetailDisbandTypeNameHint', { teamName: team.name })}
+                        </div>
+                      </div>
+                    )}
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setLeaveOpen(false)}>{t('cancel')}</Button>
-                      <Button variant="destructive" onClick={isOwner ? handleDeleteTeam : handleLeave}>
+                      <Button variant="destructive" disabled={!canConfirmDisband} onClick={isOwner ? handleDeleteTeam : handleLeave}>
                         {t('confirm')}{isOwner ? t('teamDetailDisband') : t('teamDetailLeave')}
                       </Button>
                     </DialogFooter>
@@ -373,12 +399,11 @@ export default function TeamDetail() {
                             )}
 
                             {isOwner && (
-                              <div className="flex items-center justify-between">
+                              <div>
                                 <div>
                                   <div className="font-bold text-destructive">{t('teamDetailDisbandTeam')}</div>
                                   <div className="text-xs text-muted-foreground mt-1">{t('teamDetailDisbandWarning')}</div>
                                 </div>
-                                <Button variant="destructive" onClick={() => { setManageOpen(false); setLeaveOpen(true); }}>{t('teamDetailDisband')}</Button>
                               </div>
                             )}
                           </div>
@@ -389,6 +414,13 @@ export default function TeamDetail() {
                         <Button variant="outline" onClick={() => { setManageOpen(false); setLogoPreview(null); setName(team.name); }}>{t('cancel')}</Button>
                         <Button onClick={handleSave} className="font-bold tracking-wide uppercase">{t('save')}</Button>
                       </DialogFooter>
+                      {isOwner && (
+                        <div className="pt-6">
+                          <Button variant="destructive" className="w-full" onClick={() => { setManageOpen(false); setLeaveOpen(true); }}>
+                            {t('teamDetailDisband')}
+                          </Button>
+                        </div>
+                      )}
                     </DialogContent>
                   </Dialog>
                 )}
