@@ -28,14 +28,27 @@ export default function Dashboard() {
   const aggStats = getAggregatedStats(currentUser);
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useEffect(() => {
+    setLocationLoading(true);
     getUserLocation()
       .then(pos => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLocationLoading(false));
   }, []);
+
+  const requestLocation = () => {
+    setLocationLoading(true);
+    getUserLocation()
+      .then(pos => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      })
+      .catch(() => {})
+      .finally(() => setLocationLoading(false));
+  };
 
   const nearbyWeatherQ = useQuery({
     queryKey: ['nearbyWeather', userLocation?.lat, userLocation?.lng],
@@ -174,7 +187,17 @@ export default function Dashboard() {
               {lang === 'en' ? 'Refreshes every 10 minutes' : '每 10 分鐘更新'}
             </div>
           </div>
-          {nearbyWeatherQ.isFetching && <Spinner className="text-muted-foreground" />}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={locationLoading}
+              onClick={requestLocation}
+            >
+              {lang === 'en' ? (userLocation ? 'Refresh location' : 'Enable location') : (userLocation ? '更新定位' : '允許定位')}
+            </Button>
+            {nearbyWeatherQ.isFetching && <Spinner className="text-muted-foreground" />}
+          </div>
         </div>
 
         {!userLocation ? (
