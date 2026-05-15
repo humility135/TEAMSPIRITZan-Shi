@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAppStore } from '@/lib/store';
 import { useI18n } from '@/lib/i18n';
-import { Home, Compass, Shield, Calendar, User as UserIcon, Bell, Languages, Search } from 'lucide-react';
+import { Home, Compass, Shield, Calendar, User as UserIcon, Bell, Languages, Search, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,33 @@ import { Label } from '@/components/ui/label';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [location, setLoc] = useLocation();
-  const { isProMode, toggleProMode, notifications, markNotificationRead } = useAppStore();
+  const { isProMode, toggleProMode, notifications, markNotificationRead, teams, currentUser } = useAppStore();
   const { lang, setLang, t } = useI18n();
   const unreadCount = notifications.filter(n => !n.read).length;
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  const teamsForChat = React.useMemo(() => {
+    const joinedTeams = teams.filter(team => !!currentUser.role[team.id]);
+    const chatNotifs = notifications.filter(n => n.type === 'team' && typeof n.href === 'string' && /^\/teams\/[^/]+\/chat(?:\/.*)?$/.test(n.href));
+
+    const byTeamId: Record<string, { lastActivity: number; unread: number }> = {};
+    for (const n of chatNotifs) {
+      const match = (n.href ?? '').match(/^\/teams\/([^/]+)\/chat(?:\/.*)?$/);
+      if (!match) continue;
+      const teamId = match[1];
+      const lastActivity = Date.parse((n as any).lastActivity ?? n.createdAt) || 0;
+      const entry = byTeamId[teamId] ?? { lastActivity: 0, unread: 0 };
+      entry.lastActivity = Math.max(entry.lastActivity, lastActivity);
+      if (!n.read) entry.unread += 1;
+      byTeamId[teamId] = entry;
+    }
+
+    return joinedTeams
+      .map(team => ({ team, ...byTeamId[team.id], lastActivity: byTeamId[team.id]?.lastActivity ?? 0, unread: byTeamId[team.id]?.unread ?? 0 }))
+      .sort((a, b) => b.lastActivity - a.lastActivity || a.team.name.localeCompare(b.team.name));
+  }, [teams, currentUser.role, notifications]);
+
+  const teamChatUnreadCount = React.useMemo(() => teamsForChat.reduce((sum, t) => sum + t.unread, 0), [teamsForChat]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +47,77 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     setLoc(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
     setSearchQuery('');
   };
+
+  const NotificationsDropdown = ({ align }: { align: 'start' | 'center' | 'end' }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label={t('notifications')}>
+          <Bell className="w-6 h-6" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-[10px] flex items-center justify-center rounded-full font-bold">
+              {unreadCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className="w-80">
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground text-sm">{t('noNotifications')}</div>
+        ) : (
+          notifications.map(n => (
+            <DropdownMenuItem
+              key={n.id}
+              className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+              onClick={async () => {
+                await markNotificationRead(n.id);
+                if (n.href) setLoc(n.href);
+              }}
+            >
+              <div className={`text-sm ${!n.read ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
+                {lang === 'en' ? (n.messageEn || n.message) : n.message}
+              </div>
+              <div className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK')}</div>
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const TeamChatDropdown = ({ align }: { align: 'start' | 'center' | 'end' }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label={t('teamDetailChat')}>
+          <MessageSquare className="w-6 h-6" />
+          {teamChatUnreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-[10px] flex items-center justify-center rounded-full font-bold">
+              {teamChatUnreadCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className="w-64">
+        {teamsForChat.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground text-sm">{t('noData')}</div>
+        ) : (
+          teamsForChat.map(({ team, unread }) => (
+            <DropdownMenuItem
+              key={team.id}
+              className="flex items-center justify-between gap-3 p-3 cursor-pointer"
+              onClick={() => setLoc(`/teams/${team.id}/chat`)}
+            >
+              <span className="text-sm font-medium">{team.name}</span>
+              {unread > 0 && (
+                <Badge variant="secondary" className="font-bold">
+                  {unread}
+                </Badge>
+              )}
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   // Don't show layout on landing page
   if (location === '/') return <>{children}</>;
@@ -42,30 +136,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <div className="md:hidden sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center justify-between">
         <Link href="/dashboard" className="text-xl font-display font-bold tracking-wider text-primary">TEAMSPIRIT</Link>
         <div className="flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="relative" aria-label={t('notifications')}>
-              <Bell className="w-6 h-6" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-[10px] flex items-center justify-center rounded-full font-bold">
-                  {unreadCount}
-                </span>
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground text-sm">{t('noNotifications')}</div>
-              ) : (
-                notifications.map(n => (
-                  <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => markNotificationRead(n.id)}>
-                    <div className={`text-sm ${!n.read ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
-                      {lang === 'en' ? (n.messageEn || n.message) : n.message}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK')}</div>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TeamChatDropdown align="end" />
+          <NotificationsDropdown align="end" />
 
           <Button variant="ghost" size="icon" aria-label={t('switchLang')} onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
             <Languages className="w-6 h-6" />
@@ -97,6 +169,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         <div className="px-6 pb-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <TeamChatDropdown align="start" />
+            <NotificationsDropdown align="start" />
+          </div>
           <Button variant="ghost" size="sm" className="w-full justify-start font-bold tracking-wider uppercase text-xs" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
             <Languages className="w-4 h-4 mr-2" />
             {lang === 'zh' ? t('langEn') : t('langZh')}

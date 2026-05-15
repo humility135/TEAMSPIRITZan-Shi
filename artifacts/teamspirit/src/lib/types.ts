@@ -214,6 +214,7 @@ export interface Notification {
   type: 'event' | 'system' | 'team';
   message: string;
   messageEn?: string;
+  href?: string;
   createdAt: string;
   read: boolean;
 }

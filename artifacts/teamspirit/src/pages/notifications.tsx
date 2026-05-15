@@ -5,11 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, CheckCheck, Trash2, Calendar } from 'lucide-react';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 
 export default function Notifications() {
   const { notifications, markNotificationRead, clearNotifications } = useAppStore();
   const { t, lang } = useI18n();
+  const [, setLoc] = useLocation();
 
   const sortedNotifications = [...notifications].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -66,7 +67,10 @@ export default function Notifications() {
             <Card 
               key={n.id} 
               className={`p-5 border-border transition-all hover:border-primary/30 group ${!n.read ? 'bg-primary/5 border-primary/20' : 'bg-card/50 opacity-80'}`}
-              onClick={() => markNotificationRead(n.id)}
+              onClick={async () => {
+                await markNotificationRead(n.id);
+                if (n.href) setLoc(n.href);
+              }}
             >
               <div className="flex gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!n.read ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>

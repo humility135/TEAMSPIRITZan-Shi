@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, lt, or } from "drizzle-orm";
-import { db, teamMessagesTable } from "@workspace/db";
+import { db, teamMembersTable, teamMessagesTable, teamsTable } from "@workspace/db";
 import fs from "node:fs";
 import path from "node:path";
 import multer from "multer";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { newId } from "../lib/ids";
+import { notifyMany } from "../lib/notify";
 import { requireTeamMember } from "../lib/teamAuth";
 import { broadcast } from "../lib/teamChatHub";
 
@@ -96,6 +97,28 @@ router.post("/teams/:teamId/chat/messages", requireAuth, async (req, res): Promi
     text: kind === "text" ? text : "",
     imageUrl: kind === "image" ? imageUrl : null,
   }).returning();
+
+  const [teamRows, members] = await Promise.all([
+    db.select({ name: teamsTable.name }).from(teamsTable).where(eq(teamsTable.id, teamId)).limit(1),
+    db.select({ userId: teamMembersTable.userId }).from(teamMembersTable).where(eq(teamMembersTable.teamId, teamId)),
+  ]);
+
+  const teamName = teamRows[0]?.name ?? teamId;
+  const senderName = me.name;
+  const preview = kind === "image"
+    ? "發送咗一張圖片"
+    : text.length > 40 ? `${text.slice(0, 40)}…` : text;
+  const previewEn = kind === "image"
+    ? "sent an image"
+    : text.length > 40 ? `${text.slice(0, 40)}…` : text;
+
+  const recipientIds = [...new Set(members.map((m) => m.userId).filter((uid) => uid !== me.id))];
+  await notifyMany(
+    recipientIds,
+    `${teamName}: ${senderName}: ${preview}`,
+    `${teamName}: ${senderName}: ${previewEn}`,
+    { type: "team", href: `/teams/${teamId}/chat` },
+  );
 
   broadcast(teamId, JSON.stringify({ type: "message", payload: row }));
   res.status(201).json(row);

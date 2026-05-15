@@ -53,7 +53,7 @@ interface AppContextType extends AppState {
   payMatchSlot: (matchId: string, offerId: string) => Promise<{ ok: boolean; reason?: string }>;
   declineMatchSlot: (matchId: string, offerId: string) => void;
   updateMatchStats: (eventId: string, userId: string, field: 'goals' | 'assists' | 'yellow' | 'red', delta: number) => void;
-  markNotificationRead: (id: string) => void;
+  markNotificationRead: (id: string) => Promise<void>;
   clearNotifications: () => void;
   joinPublicMatch: (matchId: string) => void;
   leavePublicMatch: (matchId: string) => void;

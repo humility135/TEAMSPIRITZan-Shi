@@ -15,6 +15,16 @@ vi.mock("wouter", () => ({
 
 vi.mock("@/lib/store", () => ({
   useAppStore: () => ({
+    currentUser: {
+      id: "u1",
+      name: "Test User",
+      avatarUrl: "",
+      role: {},
+      tokensBalance: 0,
+      subscription: "free",
+      seasonStatsByTeam: {},
+    },
+    teams: [],
     isProMode: true,
     toggleProMode: vi.fn(),
     notifications: [],
@@ -45,5 +55,16 @@ describe("Layout nav", () => {
       </I18nProvider>,
     );
     expect(getAllByLabelText("通知").length).toBeGreaterThan(0);
+  });
+
+  it("has aria-label for team chat trigger", () => {
+    const { getAllByLabelText } = render(
+      <I18nProvider>
+        <Layout>
+          <div>child</div>
+        </Layout>
+      </I18nProvider>,
+    );
+    expect(getAllByLabelText("聊天室").length).toBeGreaterThan(0);
   });
 });
