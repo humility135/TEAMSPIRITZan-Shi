@@ -156,6 +156,10 @@ export default function HostMatch() {
                           form.setValue('district', v.district);
                           form.setValue('surface', v.surface);
                         }}
+                        onClear={() => {
+                          field.onChange('');
+                          form.setValue('district', '');
+                        }}
                       />
                     </FormControl>
                     <FormDescription className="text-[11px]">{t('hostMatchVenueHelper')}</FormDescription>

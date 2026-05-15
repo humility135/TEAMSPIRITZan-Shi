@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, ChevronsUpDown, Search, MapPin } from "lucide-react";
+import { Check, ChevronsUpDown, Search, MapPin, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +24,11 @@ interface VenueSelectorProps {
   venues: Venue[];
   onSelect: (venue: Venue) => void;
   selectedVenueId?: string;
+  onClear?: () => void;
   className?: string;
 }
 
-export function VenueSelector({ venues, onSelect, selectedVenueId, className }: VenueSelectorProps) {
+export function VenueSelector({ venues, onSelect, selectedVenueId, onClear, className }: VenueSelectorProps) {
   const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
   const selectedVenue = venues.find((v) => v.id === selectedVenueId);
@@ -61,7 +62,37 @@ export function VenueSelector({ venues, onSelect, selectedVenueId, className }: 
               )}
             </div>
           </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <div className="flex items-center gap-2 shrink-0">
+            {selectedVenue && onClear && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={t('venueClearSelection')}
+                className="inline-flex items-center justify-center rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClear();
+                  setOpen(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClear();
+                    setOpen(false);
+                  }
+                }}
+              >
+                <X className="h-4 w-4" />
+              </span>
+            )}
+            <ChevronsUpDown className="h-4 w-4 opacity-50" />
+          </div>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border-zinc-800" align="start">

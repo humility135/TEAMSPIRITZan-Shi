@@ -174,6 +174,10 @@ export default function TeamHostEvent() {
                           if (v.surface.includes('草')) form.setValue('surface', 'turf');
                           else if (v.surface.includes('硬')) form.setValue('surface', 'hard');
                         }}
+                        onClear={() => {
+                          field.onChange('');
+                          form.setValue('district', '');
+                        }}
                       />
                     </FormControl>
                     <FormDescription className="text-[11px]">{t('teamHostEventVenueHelper')}</FormDescription>

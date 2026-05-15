@@ -717,6 +717,7 @@ export const translations = {
     venueSearchPlaceholder: '搜尋球場（例如：摩士公園…）',
     venueSearchInputPlaceholder: '輸入球場名稱或地區以搜尋…',
     venueNotFound: '未能找到相關球場。',
+    venueClearSelection: '清除已選球場',
 
     // HK Map Picker
     hkMapSelected: '已選擇主場：',
@@ -1552,6 +1553,7 @@ export const translations = {
     venueSearchPlaceholder: 'Search venues (e.g. Morse Park...)',
     venueSearchInputPlaceholder: 'Type venue name or district...',
     venueNotFound: 'No matching venues found.',
+    venueClearSelection: 'Clear selected venue',
 
     // HK Map Picker
     hkMapSelected: 'Selected home district: ',
