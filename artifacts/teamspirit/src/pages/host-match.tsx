@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { REFUND_POLICY_OPTIONS, RefundPolicyKind, SurfaceType } from '@/lib/types';
+import { Time24hSelect } from '@/components/time-24h-select';
 
 type HostFormValues = z.infer<ReturnType<typeof useHostSchema>>;
 
@@ -251,7 +252,9 @@ export default function HostMatch() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('hostMatchStartTimeLabel')}</FormLabel>
-                      <FormControl><Input type="time" {...field} /></FormControl>
+                      <FormControl>
+                        <Time24hSelect value={field.value} onChange={field.onChange} testId="host-startTime" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -262,7 +265,9 @@ export default function HostMatch() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('hostMatchEndTimeLabel')}</FormLabel>
-                      <FormControl><Input type="time" {...field} /></FormControl>
+                      <FormControl>
+                        <Time24hSelect value={field.value} onChange={field.onChange} testId="host-endTime" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { SurfaceType } from '@/lib/types';
+import { Time24hSelect } from '@/components/time-24h-select';
 
 type HostFormValues = z.infer<ReturnType<typeof useHostSchema>>;
 
@@ -269,7 +270,9 @@ export default function TeamHostEvent() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('teamHostEventStartTimeLabel')}</FormLabel>
-                      <FormControl><Input type="time" {...field} /></FormControl>
+                      <FormControl>
+                        <Time24hSelect value={field.value} onChange={field.onChange} testId="team-startTime" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -280,7 +283,9 @@ export default function TeamHostEvent() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('teamHostEventEndTimeLabel')}</FormLabel>
-                      <FormControl><Input type="time" {...field} /></FormControl>
+                      <FormControl>
+                        <Time24hSelect value={field.value} onChange={field.onChange} testId="team-endTime" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

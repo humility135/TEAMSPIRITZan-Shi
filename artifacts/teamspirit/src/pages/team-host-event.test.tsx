@@ -1,7 +1,7 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import TeamHostEvent from "./team-host-event";
 import { I18nProvider } from "@/lib/i18n";
 
@@ -48,6 +48,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("TeamHostEvent", () => {
   it("submits private venue name + court", async () => {
     createEvent.mockResolvedValueOnce({ id: "e1" });
@@ -62,8 +66,14 @@ describe("TeamHostEvent", () => {
     await user.type(container.querySelector('input[name="venueName"]')!, "Private Venue");
     await user.type(container.querySelector('input[name="venueCourt"]')!, "A場");
     await user.type(container.querySelector('input[name="date"]')!, "2099-05-10");
-    await user.type(container.querySelector('input[name="startTime"]')!, "10:00");
-    await user.type(container.querySelector('input[name="endTime"]')!, "11:00");
+    await user.click(screen.getByTestId("team-startTime-hour"));
+    await user.click(await screen.findByRole("option", { name: "10" }));
+    await user.click(screen.getByTestId("team-startTime-minute"));
+    await user.click(await screen.findByRole("option", { name: "00" }));
+    await user.click(screen.getByTestId("team-endTime-hour"));
+    await user.click(await screen.findByRole("option", { name: "11" }));
+    await user.click(screen.getByTestId("team-endTime-minute"));
+    await user.click(await screen.findByRole("option", { name: "00" }));
     await user.click(container.querySelector('button[type="submit"]')!);
 
     await waitFor(() => {
@@ -92,8 +102,14 @@ describe("TeamHostEvent", () => {
     await user.click(container.querySelector('[data-testid="venue-selector"]')!);
     await user.type(container.querySelector('input[name="venueCourt"]')!, "1號場");
     await user.type(container.querySelector('input[name="date"]')!, "2099-05-10");
-    await user.type(container.querySelector('input[name="startTime"]')!, "10:00");
-    await user.type(container.querySelector('input[name="endTime"]')!, "11:00");
+    await user.click(screen.getByTestId("team-startTime-hour"));
+    await user.click(await screen.findByRole("option", { name: "10" }));
+    await user.click(screen.getByTestId("team-startTime-minute"));
+    await user.click(await screen.findByRole("option", { name: "00" }));
+    await user.click(screen.getByTestId("team-endTime-hour"));
+    await user.click(await screen.findByRole("option", { name: "11" }));
+    await user.click(screen.getByTestId("team-endTime-minute"));
+    await user.click(await screen.findByRole("option", { name: "00" }));
     await user.click(container.querySelector('button[type="submit"]')!);
 
     await waitFor(() => {
@@ -109,4 +125,3 @@ describe("TeamHostEvent", () => {
     );
   });
 });
-
