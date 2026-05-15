@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Dashboard from "./dashboard";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -12,6 +13,7 @@ vi.mock("wouter", () => ({
 }));
 
 vi.mock("framer-motion", () => ({
+  AnimatePresence: ({ children }: any) => <>{children}</>,
   motion: {
     div: ({ children, ...rest }: any) => <div {...rest}>{children}</div>,
   },
@@ -34,7 +36,11 @@ vi.mock("@/lib/store", () => ({
 
 describe("Dashboard page", () => {
   it("shows only teams that current user belongs to", () => {
-    const { queryByText } = render(<Dashboard />);
+    const { queryByText } = render(
+      <I18nProvider>
+        <Dashboard />
+      </I18nProvider>,
+    );
     expect(queryByText("Team 1")).toBeInTheDocument();
     expect(queryByText("Team 2")).not.toBeInTheDocument();
   });

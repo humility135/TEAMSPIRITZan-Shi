@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Profile from "./profile";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -9,6 +10,7 @@ vi.mock("wouter", () => ({
       {children}
     </a>
   ),
+  useLocation: () => ["/profile", vi.fn()],
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -29,13 +31,21 @@ vi.mock("@/lib/store", () => ({
     teams: [{ id: "t1", name: "T1", memberIds: ["u1"], accentColor: "#fff" }],
     isProMode: true,
     hostProfiles: [],
+    publicMatches: [],
+    venues: [],
     updateCurrentUser: vi.fn(),
+    cancelPublicMatch: vi.fn(),
+    finishPublicMatch: vi.fn(),
   }),
 }));
 
 describe("Profile accessibility", () => {
   it("has aria-label for icon-only edit buttons", () => {
-    const { getAllByLabelText } = render(<Profile />);
+    const { getAllByLabelText } = render(
+      <I18nProvider>
+        <Profile />
+      </I18nProvider>,
+    );
     expect(getAllByLabelText("編輯個人資料").length).toBeGreaterThan(0);
   });
 });

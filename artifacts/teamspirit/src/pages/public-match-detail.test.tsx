@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import PublicMatchDetail from "./public-match-detail";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -83,7 +84,11 @@ describe("PublicMatchDetail share", () => {
     (navigator as any).share = vi.fn().mockResolvedValue(undefined);
     const writeSpy = vi.spyOn((navigator as any).clipboard, "writeText").mockResolvedValue(undefined);
     const user = userEvent.setup();
-    const { getAllByRole } = render(<PublicMatchDetail />);
+    const { getAllByRole } = render(
+      <I18nProvider>
+        <PublicMatchDetail />
+      </I18nProvider>,
+    );
     await user.click(getAllByRole("button", { name: "分享" })[0]);
     expect((navigator as any).share).toHaveBeenCalled();
     expect(writeSpy).not.toHaveBeenCalled();
@@ -93,7 +98,11 @@ describe("PublicMatchDetail share", () => {
     delete (navigator as any).share;
     const writeSpy = vi.spyOn((navigator as any).clipboard, "writeText").mockResolvedValue(undefined);
     const user = userEvent.setup();
-    const { getAllByRole } = render(<PublicMatchDetail />);
+    const { getAllByRole } = render(
+      <I18nProvider>
+        <PublicMatchDetail />
+      </I18nProvider>,
+    );
     await user.click(getAllByRole("button", { name: "分享" })[0]);
     expect(writeSpy).toHaveBeenCalledWith(window.location.href);
   });

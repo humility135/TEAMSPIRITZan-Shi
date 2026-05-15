@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Discover from "./discover";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -27,8 +28,8 @@ vi.mock("@/lib/store", () => ({
         status: "open",
         venueId: null,
         venueAddress: "Somewhere",
-        datetime: "2026-05-10T10:00:00.000Z",
-        endDatetime: "2026-05-10T11:00:00.000Z",
+        datetime: "2099-05-10T10:00:00.000Z",
+        endDatetime: "2099-05-10T11:00:00.000Z",
         hostId: "u1",
         attendees: [],
         maxPlayers: 10,
@@ -46,7 +47,11 @@ vi.mock("@/lib/store", () => ({
 
 describe("Discover page", () => {
   it("has a direct navigation link to match detail", () => {
-    const { container } = render(<Discover />);
+    const { container } = render(
+      <I18nProvider>
+        <Discover />
+      </I18nProvider>,
+    );
     expect(container.querySelector('a[href="/discover/pm1"]')).toBeInTheDocument();
   });
 });

@@ -115,6 +115,12 @@ router.post("/auth/test-login", async (req, res): Promise<void> => {
         subscription: "pro",
         seasonStatsByTeam: {},
       }).returning();
+    } else if (user.subscription !== "pro" || user.tokensBalance !== 100) {
+      [user] = await db
+        .update(usersTable)
+        .set({ subscription: "pro", tokensBalance: 100 })
+        .where(eq(usersTable.id, user.id))
+        .returning();
     }
 
     setSessionCookie(res, user.id);

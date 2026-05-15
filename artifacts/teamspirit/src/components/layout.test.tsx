@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Layout } from "./layout";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...rest }: any) => (
@@ -23,14 +24,26 @@ vi.mock("@/lib/store", () => ({
 
 describe("Layout nav", () => {
   it("labels /profile as 個人", () => {
-    const { container } = render(<Layout><div>child</div></Layout>);
+    const { container } = render(
+      <I18nProvider>
+        <Layout>
+          <div>child</div>
+        </Layout>
+      </I18nProvider>,
+    );
     const a = container.querySelector('a[href="/profile"]');
     expect(a).toBeInTheDocument();
     expect(a?.textContent).toContain("個人");
   });
 
   it("has aria-label for notification bell trigger", () => {
-    const { getAllByLabelText } = render(<Layout><div>child</div></Layout>);
+    const { getAllByLabelText } = render(
+      <I18nProvider>
+        <Layout>
+          <div>child</div>
+        </Layout>
+      </I18nProvider>,
+    );
     expect(getAllByLabelText("通知").length).toBeGreaterThan(0);
   });
 });
