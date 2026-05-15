@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { hkDistricts, districtTranslations } from '@/lib/districts';
+import { hkDistricts, districtTranslations, normalizeDistrict } from '@/lib/districts';
 
 export default function Teams() {
   const [, navigate] = useLocation();
@@ -37,7 +37,8 @@ export default function Teams() {
     try {
       const newTeam = await addTeam({ name: teamName.trim(), district, level: parseInt(level, 10), logoUrl: logoPreview || undefined });
       setCreateOpen(false);
-      toast({ title: t('teamsCreateSuccess'), description: `${teamName}（${t('teamsDistrictLabel')}：${district}）` });
+      const districtLabel = lang === 'en' ? (districtTranslations[normalizeDistrict(district)] ?? district) : district;
+      toast({ title: t('teamsCreateSuccess'), description: `${teamName}（${t('teamsDistrictLabel')}：${districtLabel}）` });
       setTeamName(''); setDistrict(''); setLevel('3'); setLogoPreview('');
 
       // Auto redirect to the new team detail page
@@ -212,6 +213,9 @@ export default function Teams() {
           {filtered.map((team, i) => {
             const role = currentUser.role[team.id] || 'Member';
             const roleColor = role === 'Owner' ? 'border-primary text-primary' : role === 'Admin' ? 'border-blue-400 text-blue-400' : '';
+            const districtLabel = team.district
+              ? (lang === 'en' ? (districtTranslations[normalizeDistrict(team.district)] ?? team.district) : team.district)
+              : '';
             return (
               <motion.div
                 key={team.id}
@@ -231,8 +235,8 @@ export default function Teams() {
                           <Badge variant="outline" className={`text-[10px] tracking-widest uppercase ${roleColor}`}>
                             {role === 'Owner' ? t('roleOwner') : role === 'Admin' ? t('roleAdmin') : t('roleMember')}
                           </Badge>
-                          {team.district && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{team.district}</span>
+                          {districtLabel && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{districtLabel}</span>
                           )}
                         </div>
                         <h3 className="font-bold text-lg leading-tight truncate">{team.name}</h3>

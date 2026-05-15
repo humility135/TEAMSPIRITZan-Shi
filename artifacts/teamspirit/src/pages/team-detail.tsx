@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import type { Role, SurfaceType, Event, Venue, User } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
+import { districtTranslations, normalizeDistrict } from '@/lib/districts';
 
 const ACCENT_COLORS = ['#84cc16', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#10b981'];
 
@@ -22,7 +23,7 @@ export default function TeamDetail() {
   const [, navigate] = useLocation();
   const { teams, users, events, venues, currentUser, updateTeam, leaveTeam, deleteTeam, removeMember, setMemberRole, createEvent } = useAppStore();
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const team = teams.find(t => t.id === params?.teamId);
   const [manageOpen, setManageOpen] = useState(false);
@@ -207,7 +208,12 @@ export default function TeamDetail() {
                 )}
                 <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-tight">{team.name}</h1>
                 <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground justify-center md:justify-start">
-                  {team.district && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{team.district}</span>}
+                  {team.district && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {lang === 'en' ? (districtTranslations[normalizeDistrict(team.district)] ?? team.district) : team.district}
+                    </span>
+                  )}
                   {team.level && <span>{t('teamDetailLevel')} {'★'.repeat(team.level)}</span>}
                   {role && (
                     <Badge variant="outline" className={`text-[10px] tracking-widest uppercase ${isOwner ? 'border-primary text-primary' : isAdmin ? 'border-blue-400 text-blue-400' : ''}`}>

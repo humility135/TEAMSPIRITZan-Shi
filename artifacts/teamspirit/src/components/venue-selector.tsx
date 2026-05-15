@@ -18,6 +18,7 @@ import {
 import { Venue } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
+import { districtTranslations, normalizeDistrict } from "@/lib/districts";
 
 interface VenueSelectorProps {
   venues: Venue[];
@@ -32,7 +33,10 @@ export function VenueSelector({ venues, onSelect, selectedVenueId, className }: 
   const selectedVenue = venues.find((v) => v.id === selectedVenueId);
 
   const vName = (v: Venue) => lang === 'en' ? (v.nameEn || v.name) : v.name;
-  const vDistrict = (v: Venue) => lang === 'en' ? (v.districtEn || v.district) : v.district;
+  const vDistrict = (v: Venue) =>
+    lang === "en"
+      ? (v.districtEn || districtTranslations[normalizeDistrict(v.district)] || v.district)
+      : v.district;
   const vAddr = (v: Venue) => lang === 'en' ? (v.addressEn || v.address) : v.address;
 
   return (
