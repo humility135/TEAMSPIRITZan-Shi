@@ -37,7 +37,17 @@ export default function Events() {
       .filter(m => m.attendees.includes(currentUser.id))
       .map(m => {
         const v = venues.find(x => x.id === m.venueId);
-        const venueName = (lang === 'en' ? (v?.nameEn || m.venueAddressEn || m.venueAddress) : (v?.name || m.venueAddress)) || t('publicMatch');
+        const baseVenueName = (lang === 'en' ? (v?.nameEn || m.venueAddressEn || m.venueAddress) : (v?.name || m.venueAddress)) || t('publicMatch');
+        const shouldAppendCourt =
+          !!v &&
+          !!m.venueAddress &&
+          m.venueAddress !== v.address &&
+          m.venueAddress !== v.addressEn &&
+          m.venueAddress !== v.name &&
+          m.venueAddress !== v.nameEn;
+        const venueName = shouldAppendCourt
+          ? `${lang === 'en' ? (v!.nameEn || v!.name) : v!.name} · ${m.venueAddress}`
+          : baseVenueName;
         return { 
           kind: 'public', 
           item: { ...m, title: venueName }, 
@@ -380,10 +390,23 @@ function EmptyState({ filter }: { filter: 'upcoming' | 'past' }) {
 
 function EventRow({ entry }: { entry: Entry }) {
   const { kind, item: event } = entry;
-  const { teams, currentUser } = useAppStore();
+  const { teams, currentUser, venues } = useAppStore();
   const { t, lang } = useI18n();
   const isTeam = kind === 'team';
-  const venueLabel = event.venueAddress ?? '—';
+  const venue = event.venueId ? venues.find(v => v.id === event.venueId) : undefined;
+  const baseVenueLabel = lang === 'en'
+    ? (venue?.nameEn ?? (event as any).venueAddressEn ?? event.venueAddress ?? '—')
+    : (venue?.name ?? event.venueAddress ?? '—');
+  const shouldAppendCourt =
+    !!venue &&
+    !!event.venueAddress &&
+    event.venueAddress !== venue.address &&
+    event.venueAddress !== venue.addressEn &&
+    event.venueAddress !== venue.name &&
+    event.venueAddress !== venue.nameEn;
+  const venueLabel = shouldAppendCourt
+    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${event.venueAddress}`
+    : baseVenueLabel;
   
   if (isTeam) {
     const cap = event.capacity;

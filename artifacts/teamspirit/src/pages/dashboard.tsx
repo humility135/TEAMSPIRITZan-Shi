@@ -63,10 +63,22 @@ export default function Dashboard() {
     ...attendingTeamEvents.map(e => ({ ...e, eventType: 'team' as const })),
     ...joinedPublicMatches.map(m => {
       const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
+      const baseTitle = lang === 'en'
+        ? (venue?.nameEn ?? m.venueAddressEn ?? m.venueAddress ?? t('publicMatch'))
+        : (venue?.name ?? m.venueAddress ?? t('publicMatch'));
+      const shouldAppendCourt =
+        !!venue &&
+        !!m.venueAddress &&
+        m.venueAddress !== venue.address &&
+        m.venueAddress !== venue.addressEn &&
+        m.venueAddress !== venue.name &&
+        m.venueAddress !== venue.nameEn;
       return { 
         ...m, 
         eventType: 'public' as const, 
-        title: lang === 'en' ? (venue?.nameEn ?? m.venueAddressEn ?? m.venueAddress ?? t('publicMatch')) : (venue?.name ?? m.venueAddress ?? t('publicMatch'))
+        title: shouldAppendCourt
+          ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${m.venueAddress}`
+          : baseTitle
       };
     })
   ]
@@ -263,7 +275,24 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-col items-center md:items-end gap-2">
                 <div className="text-xs font-bold text-primary uppercase tracking-widest">
-                  {venues.find(v => v.id === aiRecommendation.match.venueId)?.[lang === 'en' ? 'nameEn' : 'name'] || aiRecommendation.match.venueAddressEn || aiRecommendation.match.venueAddress}
+                  {(() => {
+                    const v = venues.find(x => x.id === aiRecommendation.match.venueId);
+                    const base = (lang === 'en'
+                      ? (v?.nameEn ?? aiRecommendation.match.venueAddressEn ?? aiRecommendation.match.venueAddress)
+                      : (v?.name ?? aiRecommendation.match.venueAddress)
+                    ) || '—';
+                    const shouldAppendCourt =
+                      !!v &&
+                      !!aiRecommendation.match.venueAddress &&
+                      aiRecommendation.match.venueAddress !== v.address &&
+                      aiRecommendation.match.venueAddress !== v.addressEn &&
+                      aiRecommendation.match.venueAddress !== v.name &&
+                      aiRecommendation.match.venueAddress !== v.nameEn;
+                    if (shouldAppendCourt) {
+                      return `${lang === 'en' ? (v!.nameEn ?? v!.name) : v!.name} · ${aiRecommendation.match.venueAddress}`;
+                    }
+                    return base;
+                  })()}
                 </div>
                 <Link href={`/discover/${aiRecommendation.match.id}`}>
                   <Button size="lg" className="font-bold tracking-wider uppercase group-hover:scale-105 transition-transform shadow-lg shadow-primary/20">
@@ -326,7 +355,17 @@ export default function Dashboard() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {myHostedMatches.map(m => {
                   const venue = venues.find(v => v.id === m.venueId);
-                  const label = lang === 'en' ? (venue?.nameEn ?? m.venueAddressEn ?? m.venueAddress ?? '—') : (venue?.name ?? m.venueAddress ?? '—');
+                  const baseLabel = lang === 'en' ? (venue?.nameEn ?? m.venueAddressEn ?? m.venueAddress ?? '—') : (venue?.name ?? m.venueAddress ?? '—');
+                  const shouldAppendCourt =
+                    !!venue &&
+                    !!m.venueAddress &&
+                    m.venueAddress !== venue.address &&
+                    m.venueAddress !== venue.addressEn &&
+                    m.venueAddress !== venue.name &&
+                    m.venueAddress !== venue.nameEn;
+                  const label = shouldAppendCourt
+                    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${m.venueAddress}`
+                    : baseLabel;
                   return (
                     <div key={m.id} className="relative h-full group/card">
                       <Link href={`/discover/${m.id}`}>
@@ -387,7 +426,17 @@ export default function Dashboard() {
             <div className="grid sm:grid-cols-2 gap-4">
               {nearbyMatches.map((match, i) => {
                 const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
-                const label = lang === 'en' ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+                const baseLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+                const shouldAppendCourt =
+                  !!venue &&
+                  !!match.venueAddress &&
+                  match.venueAddress !== venue.address &&
+                  match.venueAddress !== venue.addressEn &&
+                  match.venueAddress !== venue.name &&
+                  match.venueAddress !== venue.nameEn;
+                const label = shouldAppendCourt
+                  ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${match.venueAddress}`
+                  : baseLabel;
                 const district = lang === 'en' ? (venue?.districtEn ?? (match.venueAddress ? districtTranslations[detectDistrict(match.venueAddress)] : t('discoverOther'))) : (venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : t('discoverOther')));
                 return (
                   <motion.div key={match.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
@@ -445,7 +494,17 @@ export default function Dashboard() {
               {upcomingEvents.map((event, i) => {
                 const isTeam = event.eventType === 'team';
                 const venue = event.venueId ? venues.find(v => v.id === event.venueId) : null;
-                const venueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+                const baseVenueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+                const shouldAppendCourt =
+                  !!venue &&
+                  !!event.venueAddress &&
+                  event.venueAddress !== venue.address &&
+                  event.venueAddress !== venue.addressEn &&
+                  event.venueAddress !== venue.name &&
+                  event.venueAddress !== venue.nameEn;
+                const venueLabel = shouldAppendCourt
+                  ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${event.venueAddress}`
+                  : baseVenueLabel;
                 const team = isTeam ? teams.find(t => t.id === event.teamId) : null;
                 const isAttending = isTeam 
                   ? event.attendingIds.includes(currentUser.id)

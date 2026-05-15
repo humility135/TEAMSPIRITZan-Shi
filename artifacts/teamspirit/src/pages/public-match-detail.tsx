@@ -79,7 +79,17 @@ export default function PublicMatchDetail() {
   const matchEndDate = match.endDatetime;
 
   const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
-  const venueLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+  const baseVenueLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+  const shouldAppendCourt =
+    !!venue &&
+    !!match.venueAddress &&
+    match.venueAddress !== venue.address &&
+    match.venueAddress !== venue.addressEn &&
+    match.venueAddress !== venue.name &&
+    match.venueAddress !== venue.nameEn;
+  const venueLabel = shouldAppendCourt
+    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${match.venueAddress}`
+    : baseVenueLabel;
   const districtLabel = lang === 'en' ? (venue?.districtEn ?? (match.venueAddress ? districtTranslations[detectDistrict(match.venueAddress)] : t('other'))) : (venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : t('other')));
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueLabel} ${lang === 'en' ? 'Hong Kong' : '香港'} ${districtLabel}`)}`;
   const host = users.find(u => u.id === match.hostId);

@@ -23,7 +23,8 @@ function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
   return z.object({
     title: z.string().min(1, t('teamHostEventNameRequired')),
     venueId: z.string().optional(),
-    venueAddress: z.string().min(3, t('teamHostEventVenueRequired')),
+    venueName: z.string().min(2, t('teamHostEventVenueRequired')),
+    venueCourt: z.string().optional(),
     district: z.string().optional(),
     date: z.string().min(1, t('teamHostEventDateRequired')).refine(d => {
       const today = new Date();
@@ -41,11 +42,17 @@ function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
   });
 }
 
+function buildVenueAddress(venueName: string, venueCourt?: string) {
+  const name = venueName.trim();
+  const court = (venueCourt || '').trim();
+  return court ? `${name} ${court}` : name;
+}
+
 export default function TeamHostEvent() {
   const [, params] = useRoute('/teams/:teamId/host');
   const [, setLocation] = useLocation();
   const { teams, venues, createEvent } = useAppStore();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const team = teams.find(t => t.id === params?.teamId);
 
@@ -56,7 +63,8 @@ export default function TeamHostEvent() {
     defaultValues: {
       title: '',
       venueId: '',
-      venueAddress: '',
+      venueName: '',
+      venueCourt: '',
       district: '',
       date: '',
       startTime: '',
@@ -89,12 +97,16 @@ export default function TeamHostEvent() {
         endDateTime.setDate(endDateTime.getDate() + 1);
       }
 
+      const venueId = values.venueId ? values.venueId : undefined;
+      const venueCourt = values.venueCourt?.trim() || '';
+      const venueAddress = venueId ? venueCourt : buildVenueAddress(values.venueName, venueCourt);
+
       await createEvent({
         teamId: team.id,
         title: values.title.trim(),
-        venueId: values.venueId,
-        venueAddress: values.venueAddress.trim(),
-        district: values.district || detectDistrict(values.venueAddress),
+        venueId,
+        venueAddress,
+        district: values.district || detectDistrict(venueAddress || values.venueName),
         datetime: startDateTime.toISOString(),
         endDatetime: endDateTime.toISOString(),
         fee: values.fee === '' ? 0 : Number(values.fee),
@@ -154,7 +166,9 @@ export default function TeamHostEvent() {
                         selectedVenueId={field.value}
                         onSelect={(v) => {
                           field.onChange(v.id);
-                          form.setValue('venueAddress', v.name);
+                          const vName = lang === 'en' ? (v.nameEn || v.name) : v.name;
+                          form.setValue('venueName', vName);
+                          form.setValue('venueCourt', '');
                           form.setValue('district', v.district);
                           // Auto-map surface
                           if (v.surface.includes('草')) form.setValue('surface', 'turf');
@@ -170,14 +184,45 @@ export default function TeamHostEvent() {
 
               <FormField
                 control={form.control}
-                name="venueAddress"
+                name="venueName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('teamHostEventAddressLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('teamHostEventAddressPlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('teamHostEventAddressPlaceholder')}
+                        {...field}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          field.onChange(next);
+
+                          const venueId = form.getValues('venueId');
+                          if (!venueId) return;
+
+                          const v = venues.find((x) => x.id === venueId);
+                          const selectedName = v ? (lang === 'en' ? (v.nameEn || v.name) : v.name) : '';
+                          if (selectedName && next.trim() !== selectedName.trim()) {
+                            form.setValue('venueId', '');
+                            form.setValue('district', '');
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormDescription className="text-[11px]">{t('teamHostEventAddressHelper')}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="venueCourt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('teamHostEventVenueCourtLabel')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('teamHostEventVenueCourtPlaceholder')} {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

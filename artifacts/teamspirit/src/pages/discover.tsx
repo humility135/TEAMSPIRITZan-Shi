@@ -146,7 +146,19 @@ export default function Discover() {
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
           {filteredMatches.map(({ match, venue, distanceKm, matchDate }, i) => {
-            const venueLabel = lang === 'en' ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—') : (venue?.name ?? match.venueAddress ?? '—');
+            const baseVenueLabel = lang === 'en'
+              ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—')
+              : (venue?.name ?? match.venueAddress ?? '—');
+            const shouldAppendCourt =
+              !!venue &&
+              !!match.venueAddress &&
+              match.venueAddress !== venue.address &&
+              match.venueAddress !== venue.addressEn &&
+              match.venueAddress !== venue.name &&
+              match.venueAddress !== venue.nameEn;
+            const venueLabel = shouldAppendCourt
+              ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${match.venueAddress}`
+              : baseVenueLabel;
             const districtLabel = lang === 'en' ? (venue?.districtEn ?? (match.venueAddress ? districtTranslations[detectDistrict(match.venueAddress)] : t('discoverOther'))) : (venue?.district ?? (match.venueAddress ? detectDistrict(match.venueAddress) : t('discoverOther')));
             const host = users.find(u => u.id === match.hostId);
             const hostProfile = hostProfiles.find(p => p.userId === match.hostId);

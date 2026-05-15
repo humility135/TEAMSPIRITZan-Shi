@@ -49,7 +49,8 @@ describe("HostMatch", () => {
       </I18nProvider>,
     );
 
-    await user.type(container.querySelector('input[name="venueAddress"]')!, "Test Address");
+    await user.type(container.querySelector('input[name="venueName"]')!, "Test Venue");
+    await user.type(container.querySelector('input[name="venueCourt"]')!, "1號場");
     await user.type(container.querySelector('input[name="date"]')!, "2099-05-10");
     await user.type(container.querySelector('input[name="startTime"]')!, "10:00");
     await user.type(container.querySelector('input[name="endTime"]')!, "11:00");
@@ -61,7 +62,7 @@ describe("HostMatch", () => {
 
     expect(createPublicMatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        venueAddress: "Test Address",
+        venueAddress: "Test Venue 1號場",
         datetime: "2099-05-10T02:00:00.000Z",
         endDatetime: "2099-05-10T03:00:00.000Z",
         fee: 0,
@@ -79,7 +80,8 @@ describe("HostMatch", () => {
       </I18nProvider>,
     );
 
-    await user.type(container.querySelector('input[name="venueAddress"]')!, "Test Address");
+    await user.type(container.querySelector('input[name="venueName"]')!, "Test Venue");
+    await user.type(container.querySelector('input[name="venueCourt"]')!, "1號場");
     await user.type(container.querySelector('input[name="date"]')!, "2099-05-10");
     await user.type(container.querySelector('input[name="startTime"]')!, "10:00");
     await user.type(container.querySelector('input[name="endTime"]')!, "11:00");
@@ -92,4 +94,3 @@ describe("HostMatch", () => {
     expect(setLocation).not.toHaveBeenCalled();
   });
 });
-

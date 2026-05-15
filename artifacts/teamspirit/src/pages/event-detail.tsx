@@ -77,7 +77,17 @@ export default function EventDetail() {
   const hasCap = event.capacity != null;
   const isFull = hasCap && event.attendingIds.length >= (event.capacity as number);
   const venue = event.venueId ? venues.find(v => v.id === event.venueId) : undefined;
-  const venueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddressEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+  const baseVenueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddressEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+  const shouldAppendCourt =
+    !!venue &&
+    !!event.venueAddress &&
+    event.venueAddress !== venue.address &&
+    event.venueAddress !== venue.addressEn &&
+    event.venueAddress !== venue.name &&
+    event.venueAddress !== venue.nameEn;
+  const venueLabel = shouldAppendCourt
+    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${event.venueAddress}`
+    : baseVenueLabel;
   const mapsUrl = venueLabel !== '—' ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueLabel)}` : '';
 
   const myOffer = event.slotOffers.find(o => o.eligibleUserIds.includes(currentUser.id) || o.acceptedBy === currentUser.id);

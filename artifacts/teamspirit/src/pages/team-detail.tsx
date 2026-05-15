@@ -543,7 +543,17 @@ function Stat({ label, value, accent }: { label: string; value: React.ReactNode;
 function EventRow({ event, venues, past, t }: { event: Event; venues: Venue[]; past?: boolean; t: (key: string) => string }) {
   const { lang } = useI18n();
   const venue = venues.find(v => v.id === event.venueId);
-  const venueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddressEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+  const baseVenueLabel = lang === 'en' ? (venue?.nameEn ?? event.venueAddressEn ?? event.venueAddress ?? '—') : (venue?.name ?? event.venueAddress ?? '—');
+  const shouldAppendCourt =
+    !!venue &&
+    !!event.venueAddress &&
+    event.venueAddress !== venue.address &&
+    event.venueAddress !== venue.addressEn &&
+    event.venueAddress !== venue.name &&
+    event.venueAddress !== venue.nameEn;
+  const venueLabel = shouldAppendCourt
+    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${event.venueAddress}`
+    : baseVenueLabel;
   const cap = event.capacity;
   const hasCap = cap != null;
   const isFull = hasCap && event.attendingIds.length >= cap;

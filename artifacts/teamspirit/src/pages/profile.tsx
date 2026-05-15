@@ -281,6 +281,20 @@ export default function Profile() {
                         const isPast = new Date(m.datetime).getTime() < Date.now();
                         const isCancelled = m.status === 'cancelled';
                         const isFinished = m.status === 'finished';
+                        const venue = m.venueId ? venues.find(v => v.id === m.venueId) : undefined;
+                        const baseVenueLabel = lang === 'en'
+                          ? (venue?.nameEn ?? m.venueAddressEn ?? m.venueAddress)
+                          : (venue?.name ?? m.venueAddress);
+                        const shouldAppendCourt =
+                          !!venue &&
+                          !!m.venueAddress &&
+                          m.venueAddress !== venue.address &&
+                          m.venueAddress !== venue.addressEn &&
+                          m.venueAddress !== venue.name &&
+                          m.venueAddress !== venue.nameEn;
+                        const venueLabel = shouldAppendCourt
+                          ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${m.venueAddress}`
+                          : baseVenueLabel;
                         
                         return (
                           <div key={m.id} className="bg-black/20 p-4 rounded-xl border border-border/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -291,7 +305,7 @@ export default function Profile() {
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">{new Date(m.datetime).toLocaleString(lang === 'en' ? 'en-US' : 'zh-HK', { dateStyle: 'short', timeStyle: 'short' })}</span>
                               </div>
-                              <h4 className="font-bold text-lg">{lang === 'en' ? (venues.find(v => v.id === m.venueId)?.nameEn ?? m.venueAddressEn ?? m.venueAddress) : (venues.find(v => v.id === m.venueId)?.name ?? m.venueAddress)}</h4>
+                              <h4 className="font-bold text-lg">{venueLabel}</h4>
                               <p className="text-xs text-muted-foreground">{t('fee')}: ${m.fee} · {t('profilePeople')}: {m.attendees.length}/{m.maxPlayers || t('unlimited')}</p>
                             </div>
                             <div className="flex gap-2">

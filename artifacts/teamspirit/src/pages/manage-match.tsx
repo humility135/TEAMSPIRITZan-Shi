@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 export default function ManageMatch() {
   const [, params] = useRoute('/manage-match/:matchId');
-  const { publicMatches, users, currentUser, isProMode, kickAttendee } = useAppStore();
+  const { publicMatches, users, venues, currentUser, isProMode, kickAttendee } = useAppStore();
   const { t, lang } = useI18n();
 
   const matchId = params?.matchId;
@@ -27,6 +27,20 @@ export default function ManageMatch() {
   }
 
   const isCancelled = match.status === 'cancelled';
+  const venue = match.venueId ? venues.find(v => v.id === match.venueId) : undefined;
+  const baseVenueLabel = lang === 'en'
+    ? (venue?.nameEn ?? match.venueAddressEn ?? match.venueAddress ?? '—')
+    : (venue?.name ?? match.venueAddress ?? '—');
+  const shouldAppendCourt =
+    !!venue &&
+    !!match.venueAddress &&
+    match.venueAddress !== venue.address &&
+    match.venueAddress !== venue.addressEn &&
+    match.venueAddress !== venue.name &&
+    match.venueAddress !== venue.nameEn;
+  const venueLabel = shouldAppendCourt
+    ? `${lang === 'en' ? (venue!.nameEn ?? venue!.name) : venue!.name} · ${match.venueAddress}`
+    : baseVenueLabel;
   const cap = match.maxPlayers;
   const attendees = match.attendees.map(id => users.find(u => u.id === id)).filter(Boolean);
   const waitlist = match.waitlistIds.map(id => users.find(u => u.id === id)).filter(Boolean);
@@ -61,7 +75,7 @@ export default function ManageMatch() {
             <div className="flex items-center gap-2 mt-1">
               {isCancelled && <Badge variant="destructive" className="uppercase tracking-widest font-bold">{t('manageMatchCancelled')}</Badge>}
               <p className="text-muted-foreground text-sm flex items-center gap-1">
-                {match.venueAddress} •
+                {venueLabel} •
                 {safeDate(match.datetime).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} {formatTime(match.datetime)}
                 {match.endDatetime && (
                   <span> – {formatTime(match.endDatetime)}</span>

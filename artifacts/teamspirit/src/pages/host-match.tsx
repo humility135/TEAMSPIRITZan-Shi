@@ -22,7 +22,8 @@ type HostFormValues = z.infer<ReturnType<typeof useHostSchema>>;
 function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
   return z.object({
     venueId: z.string().optional(),
-    venueAddress: z.string().min(3, t('hostMatchVenueRequired')),
+    venueName: z.string().min(2, t('hostMatchVenueRequired')),
+    venueCourt: z.string().optional(),
     district: z.string().optional(),
     date: z.string().min(1, t('hostMatchDateRequired')).refine(d => {
       const today = new Date();
@@ -41,10 +42,16 @@ function useHostSchema(t: (key: string, r?: Record<string, string>) => string) {
   }); // Removed strict endTime > startTime check to allow overnight matches
 }
 
+function buildVenueAddress(venueName: string, venueCourt?: string) {
+  const name = venueName.trim();
+  const court = (venueCourt || '').trim();
+  return court ? `${name} ${court}` : name;
+}
+
 export default function HostMatch() {
   const [, setLocation] = useLocation();
   const { venues, createPublicMatch } = useAppStore();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const hostSchema = useHostSchema(t);
 
@@ -52,7 +59,8 @@ export default function HostMatch() {
     resolver: zodResolver(hostSchema),
     defaultValues: {
       venueId: '',
-      venueAddress: '',
+      venueName: '',
+      venueCourt: '',
       district: '',
       date: '',
       startTime: '',
@@ -87,10 +95,14 @@ export default function HostMatch() {
         endDateTime.setDate(endDateTime.getDate() + 1);
       }
 
+      const venueId = values.venueId ? values.venueId : undefined;
+      const venueCourt = values.venueCourt?.trim() || '';
+      const venueAddress = venueId ? (venueCourt || undefined) : buildVenueAddress(values.venueName, venueCourt);
+
       await createPublicMatch({
-        venueId: values.venueId || undefined,
-        venueAddress: values.venueAddress.trim(),
-        district: values.district || detectDistrict(values.venueAddress),
+        venueId,
+        venueAddress,
+        district: values.district || detectDistrict(venueAddress || values.venueName),
         datetime: startDateTime.toISOString(),
         endDatetime: endDateTime.toISOString(),
         fee: values.fee === '' ? 0 : Number(values.fee),
@@ -138,7 +150,9 @@ export default function HostMatch() {
                         selectedVenueId={field.value}
                         onSelect={(v) => {
                           field.onChange(v.id);
-                          form.setValue('venueAddress', v.address);
+                          const vName = lang === 'en' ? (v.nameEn || v.name) : v.name;
+                          form.setValue('venueName', vName);
+                          form.setValue('venueCourt', '');
                           form.setValue('district', v.district);
                           form.setValue('surface', v.surface);
                         }}
@@ -152,14 +166,45 @@ export default function HostMatch() {
 
               <FormField
                 control={form.control}
-                name="venueAddress"
+                name="venueName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('hostMatchAddressLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('hostMatchAddressPlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('hostMatchAddressPlaceholder')}
+                        {...field}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          field.onChange(next);
+
+                          const venueId = form.getValues('venueId');
+                          if (!venueId) return;
+
+                          const v = venues.find((x) => x.id === venueId);
+                          const selectedName = v ? (lang === 'en' ? (v.nameEn || v.name) : v.name) : '';
+                          if (selectedName && next.trim() !== selectedName.trim()) {
+                            form.setValue('venueId', '');
+                            form.setValue('district', '');
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormDescription className="text-[11px]">{t('hostMatchAddressHelper')}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="venueCourt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('hostMatchVenueCourtLabel')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('hostMatchVenueCourtPlaceholder')} {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
