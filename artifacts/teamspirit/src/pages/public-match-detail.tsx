@@ -304,11 +304,11 @@ export default function PublicMatchDetail() {
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">{t('time')}</div>
-                <div className="font-bold flex items-center gap-1">
+                <div className="font-bold flex flex-wrap items-center gap-x-1 tabular-nums">
                   <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                  {formatTime(matchDate)}
+                  <span className="whitespace-nowrap">{formatTime(matchDate)}</span>
                   {matchEndDate && (
-                    <span className="text-muted-foreground"> – {formatTime(matchEndDate)}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">– {formatTime(matchEndDate)}</span>
                   )}
                 </div>
               </div>
