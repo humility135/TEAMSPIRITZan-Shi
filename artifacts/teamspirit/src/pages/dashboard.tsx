@@ -495,7 +495,7 @@ export default function Dashboard() {
                             <Clock className="w-3.5 h-3.5" />
                             {safeDate(m.datetime).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} {formatTime(m.datetime)}
                             {m.endDatetime && (
-                              <span> – {formatTime(m.endDatetime)}</span>
+                              <span className="whitespace-nowrap"> – {formatTime(m.endDatetime)}</span>
                             )}
                           </div>
                         </Card>
@@ -565,7 +565,7 @@ export default function Dashboard() {
                             <Clock className="w-4 h-4" />
                             {safeDate(match.datetime).toLocaleDateString(lang === 'en' ? 'en-US' : 'zh-HK', { month: 'short', day: 'numeric', weekday: 'short', timeZone: 'Asia/Hong_Kong' })} {formatTime(match.datetime)}
                             {match.endDatetime && (
-                              <span> – {formatTime(match.endDatetime)}</span>
+                              <span className="whitespace-nowrap"> – {formatTime(match.endDatetime)}</span>
                             )}
                           </div>
                         </div>

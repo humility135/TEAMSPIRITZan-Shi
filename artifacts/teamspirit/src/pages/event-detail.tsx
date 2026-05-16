@@ -249,7 +249,7 @@ export default function EventDetail() {
               <Clock className="w-5 h-5 text-primary shrink-0" />
               <span className="text-lg">
                 {formatDate(safeDate(event.datetime), lang === 'en' ? 'en-US' : 'zh-HK')} · {formatTime(event.datetime)}
-                {event.endDatetime && <span className="text-muted-foreground"> – {formatTime(event.endDatetime)}</span>}
+                {event.endDatetime && <span className="text-muted-foreground whitespace-nowrap"> – {formatTime(event.endDatetime)}</span>}
               </span>
             </div>
             <div className="flex items-start gap-3">

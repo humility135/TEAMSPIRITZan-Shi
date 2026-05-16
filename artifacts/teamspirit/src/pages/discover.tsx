@@ -276,7 +276,7 @@ export default function Discover() {
                           <span className="ml-1">
                             {formatTime(match.datetime)}
                             {match.endDatetime && (
-                              <span> – {formatTime(match.endDatetime)}</span>
+                              <span className="whitespace-nowrap"> – {formatTime(match.endDatetime)}</span>
                             )}
                           </span>
                         </span>
