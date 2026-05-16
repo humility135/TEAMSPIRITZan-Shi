@@ -72,7 +72,7 @@ describe("Dashboard page", () => {
       temperature: { station: "香港天文台", value: 28, unit: "C", recordTime: new Date().toISOString() },
       humidity: { value: 70, unit: "percent", recordTime: new Date().toISOString() },
       rainfall: { district: "油尖旺", max: 5, unit: "mm", startTime: "", endTime: "" },
-      warnings: ["T8"],
+      warnings: [{ code: "TC8NE", name: "T8" }],
     } as any);
 
     const qc = new QueryClient({
@@ -93,7 +93,7 @@ describe("Dashboard page", () => {
     expect(await screen.findByText("28°C")).toBeInTheDocument();
     expect(await screen.findByText("70%")).toBeInTheDocument();
     expect(await screen.findByText("5mm")).toBeInTheDocument();
-    expect(await screen.findByText("T8")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "T8" })).toBeInTheDocument();
   });
 
   it("renders weather even without location by falling back to HKO", async () => {

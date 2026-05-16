@@ -24,6 +24,19 @@ type HkoRhrread = {
   };
 };
 
+type HkoWarnsumEntry = {
+  name?: string;
+  code?: string;
+  actionCode?: string;
+};
+
+type HkoWarnsum = Record<string, HkoWarnsumEntry | undefined>;
+
+type NearbyWeatherWarning = {
+  code: string;
+  name: string;
+};
+
 type NearbyWeather = {
   fetchedAt: string;
   lang: "tc" | "en";
@@ -31,7 +44,7 @@ type NearbyWeather = {
   temperature: { station: string; value: number; unit: string; recordTime: string; distanceKm?: number };
   humidity?: { value: number; unit: string; recordTime: string };
   rainfall?: { district: string; max: number; min?: number; unit: string; startTime: string; endTime: string };
-  warnings: string[];
+  warnings: NearbyWeatherWarning[];
   icon?: number[];
   iconUpdateTime?: string;
   updateTime?: string;
@@ -40,6 +53,7 @@ type NearbyWeather = {
 type CacheEntry = { at: number; payload: HkoRhrread };
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cacheByLang = new Map<"tc" | "en", CacheEntry>();
+const warnsumCacheByLang = new Map<"tc" | "en", { at: number; payload: HkoWarnsum }>();
 
 function isFiniteNum(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
@@ -144,6 +158,35 @@ async function fetchRhrread(lang: "tc" | "en"): Promise<HkoRhrread> {
   const json = (await res.json()) as HkoRhrread;
   cacheByLang.set(lang, { at: Date.now(), payload: json });
   return json;
+}
+
+async function fetchWarnsum(lang: "tc" | "en"): Promise<HkoWarnsum> {
+  const cached = warnsumCacheByLang.get(lang);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.payload;
+
+  const url = `https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=${lang}`;
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 8000);
+  const res = await fetch(url, { signal: ctrl.signal });
+  clearTimeout(timeout);
+  if (!res.ok) throw new Error(`HKO ${res.status}`);
+  const json = (await res.json()) as HkoWarnsum;
+  warnsumCacheByLang.set(lang, { at: Date.now(), payload: json });
+  return json;
+}
+
+function extractActiveWarnings(raw: HkoWarnsum): NearbyWeatherWarning[] {
+  const items: NearbyWeatherWarning[] = [];
+  for (const v of Object.values(raw)) {
+    const code = typeof v?.code === "string" ? v.code.trim() : "";
+    const name = typeof v?.name === "string" ? v.name.trim() : "";
+    const action = typeof v?.actionCode === "string" ? v.actionCode.trim() : "";
+    if (!code || !name) continue;
+    if (/cancel/i.test(action)) continue;
+    items.push({ code, name });
+  }
+  items.sort((a, b) => a.code.localeCompare(b.code));
+  return items;
 }
 
 function pickNearestTemperature(
@@ -273,12 +316,13 @@ router.get("/weather/nearby", async (req, res): Promise<void> => {
 
   try {
     const raw = await fetchRhrread(lang);
+    const warnsum = await fetchWarnsum(lang);
     const temps = raw.temperature?.data ?? [];
     const recordTime = raw.temperature?.recordTime ?? raw.updateTime ?? new Date().toISOString();
     const temperature = pickNearestTemperature(lat, lng, lang, temps, recordTime);
     const humidity = pickHumidity(raw.humidity, lang);
     const rainfall = pickRainfallByNearestDistrict(lat, lng, lang, raw.rainfall);
-    const warnings = Array.isArray(raw.warningMessage) ? raw.warningMessage : [];
+    const warnings = extractActiveWarnings(warnsum);
 
     const payload: NearbyWeather = {
       fetchedAt: new Date().toISOString(),

@@ -22,7 +22,7 @@ type NearbyWeatherResponse = {
   temperature: { station: string; value: number; unit: string; recordTime: string; distanceKm?: number };
   humidity?: { value: number; unit: string; recordTime: string };
   rainfall?: { district: string; max: number; min?: number; unit: string; startTime: string; endTime: string };
-  warnings: string[];
+  warnings: Array<{ code: string; name: string }>;
   icon?: number[];
   iconUpdateTime?: string;
   updateTime?: string;
@@ -45,6 +45,40 @@ function getWeatherErrorText(err: unknown, lang: 'en' | 'tc') {
     return lang === 'en' ? 'Failed to connect to server.' : '未能連接到伺服器。';
   }
   return lang === 'en' ? 'Failed to load nearby weather.' : '未能取得附近天氣。';
+}
+
+function getHkoWarningIconUrl(code: string) {
+  if (/^TC/i.test(code)) {
+    return `https://www.hko.gov.hk/en/wxinfo/climat/warn/images/tc${code.slice(2).toLowerCase()}.gif`;
+  }
+  return `https://www.hko.gov.hk/en/wxinfo/climat/warn/images/${code}.gif`;
+}
+
+function HkoWarningBadge({ code, name }: { code: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const label = name || code;
+  if (failed) {
+    return (
+      <Badge variant="destructive" className="text-[10px] tracking-widest uppercase" title={label}>
+        {code}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="destructive"
+      className="h-6 w-6 p-0 flex items-center justify-center"
+      title={label}
+      aria-label={label}
+    >
+      <img
+        src={getHkoWarningIconUrl(code)}
+        alt={label}
+        className="h-4 w-4 object-contain"
+        onError={() => setFailed(true)}
+      />
+    </Badge>
+  );
 }
 
 export default function Dashboard() {
@@ -315,10 +349,8 @@ export default function Dashboard() {
               </div>
               {warnings.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {warnings.slice(0, 3).map((w) => (
-                    <Badge key={w} variant="destructive" className="text-[10px] tracking-widest uppercase">
-                      {w}
-                    </Badge>
+                  {warnings.slice(0, 8).map((w) => (
+                    <HkoWarningBadge key={`${w.code}-${w.name}`} code={w.code} name={w.name} />
                   ))}
                 </div>
               ) : (
