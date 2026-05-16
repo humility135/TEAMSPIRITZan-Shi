@@ -297,18 +297,18 @@ export default function PublicMatchDetail() {
               <Button variant="outline" size="sm">{t('contactHost')}</Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(0,0.6fr)] gap-4">
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">{t('date')}</div>
                 <div className="font-bold">{formatDate(matchDate, lang === 'en' ? 'en-US' : 'zh-HK')}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">{t('time')}</div>
-                <div className="font-bold flex items-center gap-1 tabular-nums min-w-0">
+                <div className="font-bold flex items-center gap-1 tabular-nums whitespace-nowrap">
                   <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">
+                  <span>
                     {formatTime(matchDate)}
-                    {matchEndDate ? ` – ${formatTime(matchEndDate)}` : ""}
+                    {matchEndDate ? `–${formatTime(matchEndDate)}` : ""}
                   </span>
                 </div>
               </div>
