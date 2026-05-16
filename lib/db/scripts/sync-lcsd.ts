@@ -56,6 +56,12 @@ function generateId(name: string, address: string) {
   return crypto.createHash("md5").update(`${name}-${address}`).digest("hex");
 }
 
+const surfacePriority: Record<VenueRow["surface"], number> = {
+  turf: 3,
+  grass: 2,
+  hard: 1,
+};
+
 function parseCoord(val: unknown): number {
   if (typeof val === "number") return val;
   if (!val || typeof val !== "string") return 0;
@@ -154,7 +160,7 @@ async function sync() {
 
   let okSources = 0;
   let failedSources = 0;
-  const rows: VenueRow[] = [];
+  const rowById = new Map<string, VenueRow>();
 
   for (const source of LCSD_SOURCES) {
     try {
@@ -164,7 +170,11 @@ async function sync() {
 
       for (const item of items) {
         const row = toVenueRow(item, source);
-        if (row) rows.push(row);
+        if (!row) continue;
+        const prev = rowById.get(row.id);
+        if (!prev || surfacePriority[row.surface] > surfacePriority[prev.surface]) {
+          rowById.set(row.id, row);
+        }
       }
 
       okSources += 1;
@@ -174,10 +184,31 @@ async function sync() {
     }
   }
 
+  const rows = Array.from(rowById.values());
+
   if (rows.length === 0) {
     console.error("No valid venues parsed from LCSD sources. Database not modified.");
     process.exitCode = 1;
     return;
+  }
+
+  const existingIds = await db.select({ id: venuesTable.id }).from(venuesTable);
+  const existingCount = existingIds.length;
+
+  if (existingCount > 0) {
+    if (failedSources > 0) {
+      console.error(
+        `LCSD sources failed (sources_failed=${failedSources}). Keeping existing venues (rows_existing=${existingCount}).`,
+      );
+      return;
+    }
+    const minExpected = Math.max(50, Math.floor(existingCount * 0.7));
+    if (rows.length < minExpected) {
+      console.error(
+        `LCSD rows unexpectedly low. Keeping existing venues (rows_new=${rows.length} rows_existing=${existingCount}).`,
+      );
+      return;
+    }
   }
 
   console.log(`Parsed ${rows.length} valid venue rows. Replacing DB contents...`);
