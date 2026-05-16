@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm -C ../../lib/db push && pnpm -C ../../lib/db sync:lcsd && npx cross-env NODE_ENV=development npm run start",
     "build": "node ./build.mjs",
-    "start": "npm run build && node --enable-source-maps ./dist/index.mjs",
+    "start": "pnpm -C ../../lib/db push && pnpm -C ../../lib/db sync:lcsd && npm run build && node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
