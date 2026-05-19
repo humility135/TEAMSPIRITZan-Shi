@@ -11,14 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { hkDistricts, districtTranslations, normalizeDistrict } from '@/lib/districts';
 
 export default function Teams() {
   const [, navigate] = useLocation();
   const { teams, currentUser, addTeam, joinTeam } = useAppStore();
   const { t, lang } = useI18n();
-  const { toast } = useToast();
   const searchParams = new URLSearchParams(window.location.search);
   const q = searchParams.get('q') || '';
   const [search, setSearch] = useState(q);
@@ -32,13 +31,13 @@ export default function Teams() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async () => {
-    if (!teamName.trim()) { toast({ title: t('teamsNameRequired'), variant: 'destructive' }); return; }
-    if (!district) { toast({ title: t('teamsDistrictRequired'), variant: 'destructive' }); return; }
+    if (!teamName.trim()) { toast.error(t('teamsNameRequired')); return; }
+    if (!district) { toast.error(t('teamsDistrictRequired')); return; }
     try {
       const newTeam = await addTeam({ name: teamName.trim(), district, level: parseInt(level, 10), logoUrl: logoPreview || undefined });
       setCreateOpen(false);
       const districtLabel = lang === 'en' ? (districtTranslations[normalizeDistrict(district)] ?? district) : district;
-      toast({ title: t('teamsCreateSuccess'), description: `${teamName}（${t('teamsDistrictLabel')}：${districtLabel}）` });
+      toast.success(t('teamsCreateSuccess'), { description: `${teamName}（${t('teamsDistrictLabel')}：${districtLabel}）` });
       setTeamName(''); setDistrict(''); setLevel('3'); setLogoPreview('');
 
       // Auto redirect to the new team detail page
@@ -46,22 +45,22 @@ export default function Teams() {
         setTimeout(() => navigate(`/teams/${newTeam.id}`), 100);
       }
     } catch (e: any) {
-      toast({ title: t('teamsCreateFailed'), description: e.message || t('processing'), variant: 'destructive' });
+      toast.error(t('teamsCreateFailed'), { description: e.message || t('processing') });
     }
   };
 
   const handleJoin = async () => {
-    if (!inviteCode.trim()) { toast({ title: t('teamsInviteRequired'), variant: 'destructive' }); return; }
+    if (!inviteCode.trim()) { toast.error(t('teamsInviteRequired')); return; }
     try {
       const result = await joinTeam(inviteCode.trim());
       setJoinOpen(false);
-      toast({ title: t('teamsJoinSuccess'), description: `${t('teamsJoinWelcome')} ${result.teamName}！` });
+      toast.success(t('teamsJoinSuccess'), { description: `${t('teamsJoinWelcome')} ${result.teamName}！` });
       setInviteCode('');
       if (result.teamId) {
         setTimeout(() => navigate(`/teams/${result.teamId}`), 100);
       }
     } catch (e: any) {
-      toast({ title: t('teamsJoinFailed'), description: e.message || t('teamsJoinInvalid'), variant: 'destructive' });
+      toast.error(t('teamsJoinFailed'), { description: e.message || t('teamsJoinInvalid') });
     }
   };
 

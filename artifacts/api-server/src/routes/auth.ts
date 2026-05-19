@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import crypto from "crypto";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
@@ -25,7 +26,24 @@ const GoogleAuthBody = z.object({
   token: z.string().min(1),
 });
 
-const MOCK_OTP = "123456";
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+const OTP_TTL_MS = 5 * 60 * 1000;
+
+function generateOtp(): string {
+  return crypto.randomInt(100000, 999999).toString();
+}
+
+function verifyStoredOtp(phone: string, code: string): boolean {
+  const entry = otpStore.get(phone);
+  if (!entry) return false;
+  if (Date.now() > entry.expiresAt) {
+    otpStore.delete(phone);
+    return false;
+  }
+  if (entry.code !== code) return false;
+  otpStore.delete(phone);
+  return true;
+}
 
 router.post("/auth/google", async (req, res): Promise<void> => {
   const parsed = GoogleAuthBody.safeParse(req.body);
@@ -127,7 +145,7 @@ router.post("/auth/test-login", async (req, res): Promise<void> => {
     res.json({ user, message: "Logged in with test account" });
   } catch (error) {
     req.log.error({ err: error }, "Test login failed");
-    res.status(500).json({ error: "測試登入失敗", details: (error as Error).message });
+    res.status(500).json({ error: "測試登入失敗" });
   }
 });
 
@@ -135,15 +153,23 @@ router.post("/auth/request-otp", async (req, res): Promise<void> => {
   const parsed = RequestOtpBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid phone" }); return; }
   const phone = normalizePhone(parsed.data.phone);
-  req.log.info({ phone }, `[Mock SMS] OTP for ${phone}: ${MOCK_OTP}`);
-  res.json({ ok: true, hint: `Demo OTP: ${MOCK_OTP}` });
+  const otp = generateOtp();
+  otpStore.set(phone, { code: otp, expiresAt: Date.now() + OTP_TTL_MS });
+
+  if (process.env.NODE_ENV !== "production") {
+    req.log.info({ phone }, `[Mock SMS] OTP for ${phone}: ${otp}`);
+    res.json({ ok: true, hint: `Demo OTP: ${otp}` });
+    return;
+  }
+  // Production: send real SMS here
+  res.json({ ok: true });
 });
 
 router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   const parsed = VerifyOtpBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
-  if (parsed.data.code !== MOCK_OTP) { res.status(401).json({ error: "驗證碼錯誤" }); return; }
   const phone = normalizePhone(parsed.data.phone);
+  if (!verifyStoredOtp(phone, parsed.data.code)) { res.status(401).json({ error: "驗證碼錯誤" }); return; }
 
   let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
   if (!user) {

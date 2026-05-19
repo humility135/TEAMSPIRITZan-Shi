@@ -12,14 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { Star, ShieldCheck, Camera, Pencil, Radar as RadarIcon } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { detectDistrict, districtTranslations } from '@/lib/districts';
 
 export default function Profile() {
   const { currentUser, teams, isProMode, hostProfiles, publicMatches, venues, updateCurrentUser, cancelPublicMatch, finishPublicMatch } = useAppStore();
   const [, setLoc] = useLocation();
-  const { toast } = useToast();
   const { t, lang } = useI18n();
   const myTeams = teams.filter(t => t.memberIds.includes(currentUser.id));
   const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
@@ -40,7 +39,7 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: t('imageTooLarge'), description: t('max2MB'), variant: 'destructive' });
+      toast.error(t('imageTooLarge'), { description: t('max2MB') });
       return;
     }
     const reader = new FileReader();
@@ -56,7 +55,7 @@ export default function Profile() {
     localStorage.setItem('teamspirit_bio', bio);
     setEditOpen(false);
     setAvatarPreview(null);
-    toast({ title: t('saveProfile') });
+    toast.success(t('saveProfile'));
   };
 
   // Radar chart data mock based on stats

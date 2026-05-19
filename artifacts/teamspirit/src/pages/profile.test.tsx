@@ -15,10 +15,6 @@ vi.mock("wouter", () => ({
   useLocation: () => ["/profile", vi.fn()],
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: vi.fn() }),
-}));
-
 vi.mock("@/lib/store", () => ({
   getTeamStats: () => ({ goals: 0, assists: 0, yellow: 0, red: 0, matches: 0, attendance: 0 }),
   getAggregatedStats: () => ({ goals: 0, assists: 0, yellow: 0, red: 0, matches: 0, attendance: 0 }),

@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ChatSkeleton } from "@/components/page-skeleton";
 import { toast } from "sonner";
 
 export default function TeamChat() {
@@ -205,7 +206,9 @@ export default function TeamChat() {
       <Card className="border-border bg-card/50 backdrop-blur overflow-hidden">
         <div className="relative">
           <div ref={listRef} className="h-[60vh] overflow-y-auto p-5 space-y-4">
-          {messages.length === 0 ? (
+          {historyQ.isLoading ? (
+            <ChatSkeleton />
+          ) : messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-10">
               {t('teamChatNoMessages')}
             </div>

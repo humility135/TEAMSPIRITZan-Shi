@@ -6,6 +6,7 @@ import {
   Role, SeasonStats, EMPTY_SEASON_STATS,
 } from './types';
 import { api, ApiError } from './api';
+import { PageSkeleton } from '@/components/page-skeleton';
 
 export function getTeamStats(user: User, teamId: string): SeasonStats {
   return user.seasonStatsByTeam?.[teamId] ?? EMPTY_SEASON_STATS;
@@ -197,8 +198,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const inv = (keys: string[]) => keys.forEach(k => qc.invalidateQueries({ queryKey: [k] }));
 
   const toggleProMode = useCallback(async () => {
-    await api('/me/pro-toggle', { method: 'POST' });
-    inv(['me', 'users']);
+    try {
+      await api('/me/pro-toggle', { method: 'POST' });
+      inv(['me', 'users']);
+    } catch (e) {
+      console.error('toggleProMode failed:', e);
+    }
   }, []);
 
   const updateEventRSVP = useCallback(async (eventId: string, status: 'attending' | 'declined' | 'none') => {
@@ -382,7 +387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state]);
 
   if (meQ.isLoading || (meQ.data && !state)) {
-    return <div className="min-h-screen flex items-center justify-center text-zinc-400">{localStorage.getItem('teamspirit_lang') === 'en' ? 'Loading...' : '載入中…'}</div>;
+    return <PageSkeleton />;
   }
   if (!state) {
     // 401 effect above will navigate to /login

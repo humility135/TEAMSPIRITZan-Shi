@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { Role, SurfaceType, Event, Venue, User } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
 import { districtTranslations, normalizeDistrict } from '@/lib/districts';
@@ -22,7 +22,6 @@ export default function TeamDetail() {
   const [, params] = useRoute('/teams/:teamId');
   const [, navigate] = useLocation();
   const { teams, users, events, venues, currentUser, updateTeam, leaveTeam, deleteTeam, removeMember, setMemberRole, createEvent } = useAppStore();
-  const { toast } = useToast();
   const { t, lang } = useI18n();
 
   const team = teams.find(t => t.id === params?.teamId);
@@ -72,7 +71,7 @@ export default function TeamDetail() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: t('teamDetailLogoTooBig'), description: t('teamDetailLogoMaxSize'), variant: 'destructive' });
+      toast.error(t('teamDetailLogoTooBig'), { description: t('teamDetailLogoMaxSize') });
       return;
     }
     const reader = new FileReader();
@@ -88,83 +87,83 @@ export default function TeamDetail() {
     });
     setManageOpen(false);
     setLogoPreview(null);
-    toast({ title: t('teamDetailProfileUpdated') });
+    toast.success(t('teamDetailProfileUpdated'));
   };
 
   const handleLeave = async () => {
     try {
       const res = await leaveTeam(team.id);
       if (res && res.error) {
-        toast({ title: t('teamDetailCannotLeave'), description: res.error, variant: 'destructive' });
+        toast.error(t('teamDetailCannotLeave'), { description: res.error });
         setLeaveOpen(false);
         return;
       }
       setLeaveOpen(false);
-      toast({ title: res && res.deleted ? t('teamDetailDisbanded') : t('teamDetailLeft'), description: team.name });
+      toast.success(res && res.deleted ? t('teamDetailDisbanded') : t('teamDetailLeft'), { description: team.name });
       navigate('/teams');
     } catch (e: any) {
       const errorMsg = e?.body?.error || e.message || t('teamDetailUnknownError');
-      toast({ title: t('teamDetailLeaveFailed'), description: errorMsg, variant: 'destructive' });
+      toast.error(t('teamDetailLeaveFailed'), { description: errorMsg });
       setLeaveOpen(false);
     }
   };
 
   const handleDeleteTeam = async () => {
     if (!canConfirmDisband) {
-      toast({ title: t('teamDetailDisbandNameMismatch'), variant: 'destructive' });
+      toast.error(t('teamDetailDisbandNameMismatch'));
       return;
     }
     try {
       await deleteTeam(team.id);
       setLeaveOpen(false);
-      toast({ title: t('teamDetailDisbanded'), description: team.name });
+      toast.success(t('teamDetailDisbanded'), { description: team.name });
       navigate('/teams');
     } catch (e: any) {
-      toast({ title: t('teamDetailDisbandFailed'), description: e.message || t('teamDetailDisbandFailed'), variant: 'destructive' });
+      toast.error(t('teamDetailDisbandFailed'), { description: e.message || t('teamDetailDisbandFailed') });
     }
   };
 
   const handleKick = async (userId: string, userName: string) => {
     try {
       await removeMember(team.id, userId);
-      toast({ title: t('teamDetailMemberRemoved'), description: userName });
+      toast.success(t('teamDetailMemberRemoved'), { description: userName });
     } catch (e: any) {
-      toast({ title: t('teamDetailRemoveFailed'), description: e.message || t('teamDetailRemoveFailed'), variant: 'destructive' });
+      toast.error(t('teamDetailRemoveFailed'), { description: e.message || t('teamDetailRemoveFailed') });
     }
   };
 
   const handleRoleChange = async (userId: string, newRole: Role) => {
     try {
       await setMemberRole(team.id, userId, newRole);
-      toast({ title: t('teamDetailRoleUpdated') });
+      toast.success(t('teamDetailRoleUpdated'));
     } catch (e: any) {
-      toast({ title: t('teamDetailUpdateFailed'), description: e.message || t('teamDetailRemoveFailed'), variant: 'destructive' });
+      toast.error(t('teamDetailUpdateFailed'), { description: e.message || t('teamDetailRemoveFailed') });
     }
   };
 
   const handleCopyInvite = () => {
     if (!team.inviteCode) return;
     navigator.clipboard.writeText(team.inviteCode);
-    toast({ title: t('teamDetailInviteCopied'), description: team.inviteCode });
+    toast.success(t('teamDetailInviteCopied'), { description: team.inviteCode });
   };
 
   const handleCreateEvent = () => {
-    if (!evTitle.trim()) { toast({ title: t('teamHostEventNameRequired'), variant: 'destructive' }); return; }
-    if (!evDate || !evStart || !evEnd) { toast({ title: t('teamHostEventDateRequired'), variant: 'destructive' }); return; }
+    if (!evTitle.trim()) { toast.error(t('teamHostEventNameRequired')); return; }
+    if (!evDate || !evStart || !evEnd) { toast.error(t('teamHostEventDateRequired')); return; }
 
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-    if (evDate < todayStr) { toast({ title: t('teamHostEventDatePast'), variant: 'destructive' }); return; }
+    if (evDate < todayStr) { toast.error(t('teamHostEventDatePast')); return; }
 
-    if (!evAddress.trim()) { toast({ title: t('teamHostEventVenueRequired'), variant: 'destructive' }); return; }
+    if (!evAddress.trim()) { toast.error(t('teamHostEventVenueRequired')); return; }
     if (evCap.trim() !== '' && (!Number.isInteger(Number(evCap)) || Number(evCap) <= 0)) {
-      toast({ title: t('teamHostEventCapacityInvalid'), variant: 'destructive' }); return;
+      toast.error(t('teamHostEventCapacityInvalid')); return;
     }
     if (evFee.trim() !== '' && (Number.isNaN(Number(evFee)) || Number(evFee) < 0)) {
-      toast({ title: t('teamHostEventFeeInvalid'), variant: 'destructive' }); return;
+      toast.error(t('teamHostEventFeeInvalid')); return;
     }
-    if (evDesc.trim().length < 10) { toast({ title: t('teamHostEventDescRequired'), variant: 'destructive' }); return; }
-    if (evRules.trim().length < 5) { toast({ title: t('teamHostEventRulesRequired'), variant: 'destructive' }); return; }
-    if (!evAck) { toast({ title: t('teamHostEventAgreeRequired'), variant: 'destructive' }); return; }
+    if (evDesc.trim().length < 10) { toast.error(t('teamHostEventDescRequired')); return; }
+    if (evRules.trim().length < 5) { toast.error(t('teamHostEventRulesRequired')); return; }
+    if (!evAck) { toast.error(t('teamHostEventAgreeRequired')); return; }
 
     const startDateTimeStr = `${evDate}T${evStart}:00+08:00`;
     const startDateTime = new Date(startDateTimeStr);
@@ -191,7 +190,7 @@ export default function TeamDetail() {
     });
     setCreateEventOpen(false);
     resetEventForm();
-    toast({ title: t('teamDetailEventCreated'), description: evTitle });
+    toast.success(t('teamDetailEventCreated'), { description: evTitle });
   };
 
   return (

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { detectDistrict } from '@/lib/districts';
-import { safeDate, formatTime, formatDate } from '@/lib/utils';
+import { safeDate, formatTime, formatDate, formatRemaining, useNow } from '@/lib/utils';
 import { REFUND_POLICY_OPTIONS } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,14 +19,6 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useI18n } from '@/lib/i18n';
 import { districtTranslations } from '@/lib/districts';
-
-function formatRemaining(ms: number) {
-  if (ms <= 0) return '00:00';
-  const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
 
 export default function PublicMatchDetail() {
   const [location, setLocation] = useLocation();
@@ -41,18 +33,13 @@ export default function PublicMatchDetail() {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentSending, setCommentSending] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const now = useNow(1000);
   const [finishOpen, setFinishOpen] = useState(false);
   const [homeScore, setHomeScore] = useState('0');
   const [awayScore, setAwayScore] = useState('0');
   const [isFinishing, setIsFinishing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const search = window.location.search;
@@ -240,6 +227,7 @@ export default function PublicMatchDetail() {
   };
 
   const handleReport = () => {
+    // TODO: Connect to backend report API
     toast.success(t('reportSuccess'));
   };
 

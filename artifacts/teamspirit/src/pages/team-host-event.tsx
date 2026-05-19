@@ -171,9 +171,9 @@ export default function TeamHostEvent() {
                           form.setValue('venueName', vName);
                           form.setValue('venueCourt', '');
                           form.setValue('district', v.district);
-                          // Auto-map surface
-                          if (v.surface.includes('草')) form.setValue('surface', 'turf');
-                          else if (v.surface.includes('硬')) form.setValue('surface', 'hard');
+                          // Auto-map surface from venue
+                          if (v.surface === 'turf' || v.surface === 'grass') form.setValue('surface', v.surface);
+                          else if (v.surface === 'hard') form.setValue('surface', 'hard');
                         }}
                         onClear={() => {
                           field.onChange('');

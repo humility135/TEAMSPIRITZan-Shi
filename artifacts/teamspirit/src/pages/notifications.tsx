@@ -18,10 +18,10 @@ export default function Notifications() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleMarkAllRead = () => {
-    notifications.forEach(n => {
-      if (!n.read) markNotificationRead(n.id);
-    });
+  const handleMarkAllRead = async () => {
+    await Promise.all(
+      notifications.filter(n => !n.read).map(n => markNotificationRead(n.id))
+    );
   };
 
   return (

@@ -5,9 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/lib/store';
 import { api, ApiError } from '@/lib/api';
 import type { EventComment } from '@/lib/types';
-import { safeDate, formatTime, formatDate } from '@/lib/utils';
+import { safeDate, formatTime, formatDate, formatRemaining, useNow } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -15,27 +16,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 
-function useNow(intervalMs: number = 1000) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
-
-function formatRemaining(ms: number) {
-  if (ms <= 0) return '00:00';
-  const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
 export default function EventDetail() {
   const [, params] = useRoute('/events/:eventId');
   const [, setLocation] = useLocation();
-  const { events, users, teams, venues, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent } = useAppStore();
+  const { events, users, teams, venues, currentUser, updateEventRSVP, updateMatchStats, acceptEventSlot, payEventSlot, declineEventSlot, cancelEvent, finishEvent } = useAppStore();
   const { t, lang } = useI18n();
   const qc = useQueryClient();
   const now = useNow(1000);
@@ -155,7 +139,6 @@ export default function EventDetail() {
     }
   };
 
-  const { finishEvent } = useAppStore();
   const handleFinishMatch = async () => {
     setIsFinishing(true);
     try {
@@ -559,6 +542,19 @@ export default function EventDetail() {
         <h3 className="font-bold text-xl mb-6 flex items-center gap-2">{t('commentZone')}</h3>
         {commentsForbidden ? (
           <p className="text-sm text-muted-foreground text-center py-4">{t('forbiddenComment')}</p>
+        ) : commentsQ.isLoading ? (
+          <div className="space-y-5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <>
             <div className="space-y-6">

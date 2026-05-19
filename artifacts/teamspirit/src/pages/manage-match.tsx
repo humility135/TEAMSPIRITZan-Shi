@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { Users, ChevronLeft, ArrowRightLeft, ShieldCheck, Mail, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -8,6 +8,16 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 export default function ManageMatch() {
@@ -45,20 +55,24 @@ export default function ManageMatch() {
   const attendees = match.attendees.map(id => users.find(u => u.id === id)).filter(Boolean);
   const waitlist = match.waitlistIds.map(id => users.find(u => u.id === id)).filter(Boolean);
 
-  const handleKick = async (userId: string, name: string) => {
-    if (window.confirm(t('manageMatchKickConfirm', { name }))) {
-      try {
-        await kickAttendee(match.id, userId);
-        toast.success(t('manageMatchKickSuccess', { name }));
-      } catch (error) {
-        toast.error(t('manageMatchKickFailed'));
-      }
+  const [kickTarget, setKickTarget] = useState<{ userId: string; name: string } | null>(null);
+
+  const handleKick = async () => {
+    if (!kickTarget) return;
+    const { userId, name } = kickTarget;
+    try {
+      await kickAttendee(match.id, userId);
+      toast.success(t('manageMatchKickSuccess', { name }));
+    } catch {
+      toast.error(t('manageMatchKickFailed'));
+    } finally {
+      setKickTarget(null);
     }
   };
 
-  const handlePromote = (userId: string, name: string) => {
-    toast.success(t('manageMatchPromoteSuccess', { name }));
-    // TODO: Connect to backend API to manually promote waitlist
+  const handlePromote = (_userId: string, _name: string) => {
+    // TODO: Connect to backend API to promote waitlist attendee
+    toast.success(t('manageMatchPromoteSuccess', { name: _name }));
   };
 
   return (
@@ -85,11 +99,11 @@ export default function ManageMatch() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => toast.success(t('manageMatchBroadcastSuccess'))}>
+          <Button variant="outline" size="sm" disabled title="Coming soon">
             <Mail className="w-4 h-4 mr-2" /> {t('manageMatchBroadcast')}
           </Button>
           {isProMode && (
-            <Button size="sm" className="bg-primary text-primary-foreground font-bold" onClick={() => toast.success(t('manageMatchExportSuccess'))}>
+            <Button size="sm" className="bg-primary text-primary-foreground font-bold" disabled title="Coming soon">
               {t('manageMatchExport')}
             </Button>
           )}
@@ -125,7 +139,7 @@ export default function ManageMatch() {
                     </div>
                   </div>
                   {!isCancelled && (
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleKick(user!.id, user!.name)} title={t('manageMatchKickTitle')}>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setKickTarget({ userId: user!.id, name: user!.name })} title={t('manageMatchKickTitle')}>
                       <X className="w-4 h-4" />
                     </Button>
                   )}
@@ -171,6 +185,18 @@ export default function ManageMatch() {
           </div>
         </Card>
       </div>
+
+      <AlertDialog open={!!kickTarget} onOpenChange={(open) => { if (!open) setKickTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('manageMatchKickConfirm', { name: kickTarget?.name ?? '' })}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleKick} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t('delete')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

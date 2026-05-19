@@ -2,12 +2,13 @@ import React from 'react';
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { AppProvider } from "@/lib/store";
 import { I18nProvider } from "@/lib/i18n";
 import { Layout } from "@/components/layout";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
@@ -47,7 +48,8 @@ function AppRoutes() {
   return (
     <AppProvider>
       <Layout>
-        <Switch>
+        <ErrorBoundary>
+          <Switch>
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/discover" component={Discover} />
           <Route path="/discover/host" component={HostMatch} />
@@ -64,6 +66,7 @@ function AppRoutes() {
           <Route path="/terms" component={Terms} />
           <Route component={NotFound} />
         </Switch>
+        </ErrorBoundary>
       </Layout>
     </AppProvider>
   );
@@ -86,7 +89,7 @@ function App() {
               <AppRoutes />
             </I18nProvider>
           </WouterRouter>
-          <Toaster />
+          <Toaster theme="dark" richColors closeButton />
         </TooltipProvider>
       </QueryClientProvider>
     </GoogleOAuthProvider>

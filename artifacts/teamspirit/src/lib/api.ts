@@ -28,8 +28,6 @@ export async function api<T = any>(
     try { body = JSON.parse(text); } catch { body = text; }
   }
   if (!res.ok) {
-    // Instead of throwing immediately for 400s with an expected error message, 
-    // we can return the error object so the UI can handle it gracefully.
     if (res.status === 400 && body?.error) {
       throw new ApiError(res.status, body, body.error);
     }

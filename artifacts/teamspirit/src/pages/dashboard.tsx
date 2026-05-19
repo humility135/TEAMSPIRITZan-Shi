@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { useI18n } from '@/lib/i18n';
+import { toast } from 'sonner';
 import { detectDistrict, districtTranslations } from '@/lib/districts';
 
 type NearbyWeatherResponse = {
@@ -47,35 +48,50 @@ function getWeatherErrorText(err: unknown, lang: 'en' | 'tc') {
   return lang === 'en' ? 'Failed to load nearby weather.' : '未能取得附近天氣。';
 }
 
+const HKO_ICON: Record<string, string> = {
+  TC1: 'tc1', TC3: 'tc3', TC8NE: 'tc8ne', TC8NW: 'tc8nw', TC8SE: 'tc8se', TC8SW: 'tc8sw', TC9: 'tc9', TC10: 'tc10',
+  WRAINA: 'raina', WRAINR: 'rainr', WRAINB: 'rainb',
+  WTS: 'ts', WHOT: 'vhot', WCOLD: 'cold', WFROST: 'frost',
+  WFIRES: 'firey', WFIRER: 'firer', SMS: 'sms', WLANDSLIP: 'landslip', WNTFL: 'ntfl', WTSUN: 'tsunami-warn',
+};
+
 function getHkoWarningIconUrl(code: string) {
-  if (/^TC/i.test(code)) {
-    return `https://www.hko.gov.hk/en/wxinfo/climat/warn/images/tc${code.slice(2).toLowerCase()}.gif`;
-  }
-  return `https://www.hko.gov.hk/en/wxinfo/climat/warn/images/${code}.gif`;
+  const icon = HKO_ICON[code];
+  if (icon) return `https://www.hko.gov.hk/textonly/img/warn/${icon}.gif`;
+  // fallback for unrecognised codes: lowercase it
+  return `https://www.hko.gov.hk/textonly/img/warn/${code.toLowerCase()}.gif`;
 }
 
 function HkoWarningBadge({ code, name }: { code: string; name: string }) {
-  const [failed, setFailed] = useState(false);
+  const [imgState, setImgState] = useState<'loading' | 'ok' | 'failed'>('loading');
   const label = name || code;
-  if (failed) {
+  const url = getHkoWarningIconUrl(code);
+
+  if (imgState === 'failed') {
     return (
-      <Badge variant="destructive" className="text-[10px] tracking-widest uppercase" title={label}>
+      <Badge variant="outline" className="h-10 px-2 text-[10px] tracking-widest uppercase" title={label}>
         {code}
       </Badge>
     );
   }
+
   return (
     <Badge
-      variant="destructive"
-      className="h-6 w-6 p-0 flex items-center justify-center"
+      variant="outline"
+      className="h-10 w-10 p-0 flex items-center justify-center"
       title={label}
       aria-label={label}
     >
+      {imgState === 'loading' && (
+        <div className="h-7 w-7 rounded bg-muted animate-pulse" />
+      )}
       <img
-        src={getHkoWarningIconUrl(code)}
+        src={url}
         alt={label}
-        className="h-4 w-4 object-contain"
-        onError={() => setFailed(true)}
+        className="h-7 w-7 object-contain"
+        style={{ display: imgState === 'ok' ? 'block' : 'none' }}
+        onLoad={() => setImgState('ok')}
+        onError={() => setImgState('failed')}
       />
     </Badge>
   );
@@ -294,7 +310,7 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          <div data-testid="weather-metrics-grid" className="mt-5 grid grid-cols-4 gap-4 items-stretch">
+          <div data-testid="weather-metrics-grid" className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
             <div className="rounded-xl border border-border bg-black/20 p-4 flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
@@ -510,9 +526,9 @@ export default function Dashboard() {
                             e.stopPropagation();
                             try {
                               await deletePublicMatch(m.id);
-                              // toast({ title: '已刪除' });
-                            } catch(err: any) {
-                              // error handling
+                              toast.success(t('publicMatchDeleted'));
+                            } catch {
+                              toast.error(t('publicMatchDeleteFailed'));
                             }
                           }}
                         >

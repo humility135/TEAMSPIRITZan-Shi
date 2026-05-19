@@ -93,7 +93,7 @@ describe("Dashboard page", () => {
     expect(await screen.findByText("28°C")).toBeInTheDocument();
     expect(await screen.findByText("70%")).toBeInTheDocument();
     expect(await screen.findByText("5mm")).toBeInTheDocument();
-    expect(await screen.findByRole("img", { name: "T8" })).toBeInTheDocument();
+    expect(await screen.findByAltText("T8")).toBeInTheDocument();
   });
 
   it("renders weather even without location by falling back to HKO", async () => {
@@ -154,7 +154,7 @@ describe("Dashboard page", () => {
     });
     expect(await screen.findByText("未開定位：顯示香港天文台附近天氣。")).toBeInTheDocument();
 
-    expect(await screen.findByTestId("weather-metrics-grid")).toHaveClass("grid-cols-4");
+    expect(await screen.findByTestId("weather-metrics-grid")).toHaveClass("lg:grid-cols-4");
 
     const user = userEvent.setup();
     const before = vi.mocked(getUserLocation).mock.calls.length;

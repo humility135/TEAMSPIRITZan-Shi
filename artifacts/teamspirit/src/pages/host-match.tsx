@@ -309,7 +309,7 @@ export default function HostMatch() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('hostMatchLevelLabel')}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                      <Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="1">{t('hostMatchLevel1')}</SelectItem>
