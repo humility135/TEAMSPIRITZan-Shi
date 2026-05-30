@@ -184,7 +184,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             const Icon = item.icon;
             const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href));
             return (
-              <Link key={item.href} href={item.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}>
+              <Link key={item.href} href={item.href} data-tour={item.href === '/dashboard' ? 'tour-nav-dashboard' : undefined} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}>
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
               </Link>
@@ -218,7 +218,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             const Icon = item.icon;
             const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href));
             return (
-              <Link key={item.href} href={item.href} className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+              <Link key={item.href} href={item.href} data-tour={item.href === '/dashboard' ? 'tour-nav-dashboard' : undefined} className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                 <Icon className={`w-6 h-6 mb-1 ${isActive ? 'scale-110' : ''}`} />
                 <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
               </Link>

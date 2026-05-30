@@ -439,7 +439,7 @@ export default function Dashboard() {
       <div className="space-y-8">
 
           {/* My Teams quick access */}
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour="tour-my-teams">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-display font-bold uppercase tracking-wide flex items-center gap-2">
                 <Shield className="w-6 h-6 text-primary" /> {t('myTeams')}
@@ -543,7 +543,7 @@ export default function Dashboard() {
           )}
 
           {/* Public Matches Section */}
-          <div className="space-y-6">
+          <div className="space-y-6" data-tour="tour-nearby-matches">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-display font-bold uppercase tracking-wide flex items-center gap-2">
                 <Compass className="w-6 h-6 text-primary" /> {t('nearbyMatches')}
